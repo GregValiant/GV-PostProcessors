@@ -186,14 +186,28 @@ class PauseAtLayer(Script):
                 "head_move_z":
                 {
                     "label": "     Lift Head Z",
-                    "description": "The relative move of the Z-axis above the print before parking.  If the Z is less than 15mm there will be a second move to get it up to 15mm so there is room for purging below the nozzle (if you happen to be changing filament).",
+                    "description": "The relative move of the Z-axis above the print before parking.  If the Z ends up at less than 'Minimum Dist Nozzle to Plate' there will be a second move to provide room for purging below the nozzle (if you happen to be changing filament).",
                     "unit": "mm   ",
                     "type": "float",
-                    "default_value": 2.0,
-                    "minimum_value": 0.5,
-                    "maximum_value_warning": 10,
+                    "default_value": 1.0,
+                    "minimum_value": 0.0,
+                    "minimum_value_warning": 0.2,
+                    "maximum_value_warning": 8,
+                    "maximum_value": 10,
                     "enabled": "enable_pause_at_layer and head_park_enabled and pause_method != 'repetier'"
                 },
+                "min_purge_clearance":
+                {
+                    "label": "     Minimum dist nozzle to plate",                    
+                    "description": "Pausing at a low layer might not leave enough room below the nozzle to purge.  The number you enter here will be used as the minimum Z height at the park position.  If your pause is at Z=8.4 and you enter 25 here then there will be a second Z move at the park position to move up to 25.",
+                    "unit": "mm   ",
+                    "type": "int",
+                    "default_value": 15,
+                    "minimum_value": 0,
+                    "maximum_value": 50,
+                    "enabled": "enable_pause_at_layer and head_park_enabled and pause_method != 'repetier'"
+                },
+                    
                 "standby_temperature":
                 {
                     "label": "Standby Temperature",
@@ -227,7 +241,7 @@ class PauseAtLayer(Script):
                     "options": {
                         "m109_cmd": "M109",
                         "m104_cmd": "M104"},
-                    "default_value": "m109_cmd",
+                    "default_value": "m104_cmd",
                     "enabled": "enable_pause_at_layer and pause_method not in ['griffin', 'repetier'] and not tool_temp_overide"
                 },
                 "resume_print_temperature":
@@ -283,7 +297,7 @@ class PauseAtLayer(Script):
                 "redo_layer_flow":
                 {
                     "label": "     Flow Rate for Redo Layer",
-                    "description": "You can adjust the Flow Rate of the 'Redo Layer' to avoid the extruder skipping steps.  The flow will be reset to 100% at the end of the redo layer.",
+                    "description": "You can adjust the Flow Rate of the 'Redo Layer' to help keep a layer from sticking out due to over-extrusion.  The flow will be reset to 100% at the end of the redo layer.",
                     "type": "int",
                     "default_value": 100,
                     "maximum_value": 150,
@@ -401,6 +415,7 @@ class PauseAtLayer(Script):
         park_x = self.getSettingValueByKey("head_park_x") if self.getSettingValueByKey("head_park_x") < self._machine_depth else self._machine_depth
         park_y = self.getSettingValueByKey("head_park_y") if self.getSettingValueByKey("head_park_y") < self._machine_width else self._machine_width
         move_z = self.getSettingValueByKey("head_move_z")
+        min_purge_clearance = self.getSettingValueByKey("min_purge_clearance")
         layers_started = False
         redo_layer = self.getSettingValueByKey("redo_layer")
         if redo_layer and reason_for_pause == "reason_filament":
@@ -591,8 +606,8 @@ class PauseAtLayer(Script):
                             move_z = 0
                         prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = round(current_z + move_z, 2)) + "; Move up to clear the print\n"
                         prepend_gcode += self.putValue(G = 0, F = travel_speed, X = park_x, Y = park_y) + "; Move to park location\n"
-                        if current_z < 15 - move_z:
-                            prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = 15) + "; Too close" + str(" to purge" if purge_amount != 0 and reason_for_pause == 'reason_filament' else "") + " - move up some more\n"
+                        if current_z < min_purge_clearance - move_z:
+                            prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = min_purge_clearance) + "; Minimum clearance" + str(" to purge" if purge_amount != 0 and reason_for_pause == 'reason_filament' else "") + " - move up some more\n"
 
                     if reason_for_pause == "reason_filament" and int(unload_amount) > 0:
                         ## If it's a filament change then insert any 'unload' commands

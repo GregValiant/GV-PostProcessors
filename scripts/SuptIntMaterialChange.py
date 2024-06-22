@@ -199,7 +199,7 @@ class SuptIntMaterialChange(Script):
                 },
                 "purge_amt_model":
                 {
-                    "label": "    Model Matl Purge Amt",
+                    "label": "    Model > Interf Purge Amt",
                     "description": "How much MODEL filament to purge before printing the INTERFACE.  If the amount is too little then the adhesion to the interface will be greater.  Purge occurs at the park position.",
                     "type": "int",
                     "default_value": 60,
@@ -210,8 +210,8 @@ class SuptIntMaterialChange(Script):
                 },
                 "purge_amt_interface":
                 {
-                    "label": "    Interface Matl Purge Amt",
-                    "description": "How much INTERFACE filament to purge before resuming the MODEL.  If the amount is too little then layer adhesion will suffer for the first couple of layers until the interface material clears out.  Purge occurs at the park positiona and is broken into thirds with retractions and 1 second pauses between them.  There is beep and a final pause when the purge is complete so you can grab the string.",
+                    "label": "    Interf > Model Purge Amt",
+                    "description": "How much INTERFACE filament to purge before resuming the MODEL.  If the amount is too little then layer adhesion will suffer for the first couple of layers until the interface material clears out.  Purge occurs at the park position and is broken into thirds with retractions and 1 second pauses between them.  There is beep and a final pause when the purge is complete so you can grab the string.",
                     "type": "int",
                     "default_value": 75,
                     "maximum_value": 150,

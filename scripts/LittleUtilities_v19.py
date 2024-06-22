@@ -1,7 +1,7 @@
 # Copyright (c) 2023 GregValiant (Greg Foresi)
-#   This Wrapper is a collection of several small Post Processors that I have found useful or that have been requested here and there:
+#   This is a collection of several small Post Processors that I have found useful or that have been requested here and there:
 #     1) Remove Comments - Remove semi-colons and everything to the right of a semi-colon.  There are options.  (Thanks to @Torgeir)
-#     2) Renumber Layers - For One-At-A-Time prints.  PauseAtHeight and Filament Change act differently.
+#     2) Renumber Layers - For One-At-A-Time prints renumbering to "all at once" style can provide additional options for PauseAtHeight and Filament Change.
 #     3) Add Extruder End code - A bug fix - this adds any 'Extruder End Gcode' of the last extruder used to the end of the file.
 #     4) Add Data Headers - A debugging utility, it adds comments between the data sections
 #     5) Lift Head Parking - adds a park move to the "Lift Head" cooling option for small layers.  The move is to just off the print.  It returns to the print after the G4 dwell is complete.
@@ -20,6 +20,7 @@
 #     18) Unload Filament - Adds a script to the Ending Gcode to unload the filament from the active extruder.
 #     19) Adjust starting E location - If the skirt/brim/raft doesn't start where the nozzle starts because of a retraction in the StartUp then an adjustment to the E location may be needed.
 #     20) Fix the 5.7.2 Prepend Temperature bug
+#     21) 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
 
 from ..Script import Script
 from UM.Application import Application
@@ -1810,11 +1811,16 @@ class LittleUtilities_v19(Script):
                 self.purge_end_loc = "RR"
         # Common ending for purge_str
         purge_str += "G0 F600 Z1 ; Move Z\n;---------------------End of Purge"
-        # Find the insertion location in data[1] the line below the last G92 E0
+        # Find the insertion location in data[1]
         purge_str = self.format_string(purge_str)
         startup_section = data[1].split("\n")
         for num in range(len(startup_section) - 1, 0, -1):
+            # In Absolute Extrusion mode - use the last G92 E0 line
             if "G92 E0" in startup_section[num]:
+                insert_index = num
+                break
+            # In Relative Extrusion mode - use the M83 line
+            elif "M83" in startup_section[num]:
                 insert_index = num
                 break
         startup_section.insert(insert_index, purge_str)
@@ -1867,72 +1873,126 @@ class LittleUtilities_v19(Script):
         if bed_shape == "rectangular" and not origin_at_center:
             if purge_end_loc == "LF":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X3 ; Ortho move\nG0 Y3 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X5 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} Y5 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X3 Y3 Z2 ; Move\nG0 X{machine_width} ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X5 Z1; Ortho Move\n"                    
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Ortho Move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width - 2} ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
                 elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X3 Y3 Z2 ; Move\nG0 Y{machine_depth} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X5 ; Ortho Move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
+                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                         
+                    move_str += f"G0 F{travel_speed} Y{machine_depth - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X3 Y3 Z2 ; Move\nG0 X{machine_width} Z2 ; Ortho move\nG0 Y{machine_depth} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X5 ; Move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
+                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width - 2} Z1 ; Ortho move\n"                    
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} Y{machine_depth - 2} Z1 ; Ortho move\n"                   
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
             elif purge_end_loc == "RR":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X3 Z2 ; Ortho move\nG0 Y3 Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X5 Z1 ; Ortho move\n"                                      
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Ortho move\n"                              
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{machine_width} Z2 ; Ortho move\nG0 Y3 Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width - 2} Z1 ; Ortho move\n"                           
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
+                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
                 elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X3 Z2 ; Move\n"
+                    move_str += f"G0 F{travel_speed} X5 Z1 ; Move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{machine_width} Z2 ; Ortho move\nG0 Y{machine_depth} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} Y{machine_depth - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
         elif bed_shape == "rectangular" and origin_at_center:
             if purge_end_loc == "LF":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2} Z2 ; Ortho move\nG0 Y-{machine_depth / 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X-{machine_width / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
+                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"         
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2} Z2 ; Ortho move\nG0 Y-{machine_depth / 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
+                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
                 elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2} Z2 ; Ortho move\nG0 Y{machine_depth / 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X-{machine_width / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
+                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2} Z2 ; Ortho move\nG0 Y{machine_depth / 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
+                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
             elif purge_end_loc == "RR":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 -2} Z2 ; Ortho move\nG0 Y-{machine_depth / 2 - 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 -2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
+                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2 - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 -2} Y-{machine_depth / 2 - 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width / 2 -2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
+                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2 - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
                 elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 -2} Z2 ; Ortho move\nG0 Y{machine_depth / 2 - 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 -2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
+                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2 - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 -2} Z2 ; Ortho move\nG0 Y{machine_depth / 2 - 2} Z2 ; Ortho move\n"
+                    move_str += f"G0 F{travel_speed} X{machine_width / 2 -2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
+                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2 - 2} Z1 ; Ortho move\n"
+                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
 
         elif bed_shape == "elliptic" and origin_at_center:
             radius = machine_width / 2
             offset_sin = round(2**.5 / 2 * radius, 2)
             if purge_end_loc == "LR":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z2 ; Move\nG0 Y-{offset_sin} Z2 ; Move to start\n"
+                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Move\nG0 Y-{offset_sin} Z1 ; Move to start\n"
                 elif goto_str == "LtBk":
-                    move_str += f"G2 X0 Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"#f"G0 F{travel_speed} X-{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"
+                    move_str += f"G2 X0 Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"#f"G0 F{travel_speed} X-{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y-{offset_sin} Z2 ; Ortho move\n"#G3 X{offset_sin} Y-{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"#G3 X{offset_sin} Y-{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"#G3 X{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"#G3 X{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
             elif purge_end_loc == "RR":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z2 ; Move\nG0 Y-{offset_sin} Z2 ; Move to start\n"
+                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Move\nG0 Y-{offset_sin} Z1 ; Move to start\n"
                 elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"#G2 X-{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"#G2 X-{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y-{offset_sin} Z2 ; Ortho move\n"#G3 X{offset_sin} Y-{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"#G3 X{offset_sin} Y-{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"#G3 X{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"#G3 X{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
             elif purge_end_loc == "LF":
                 if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z2 ; Move\nG0 Y-{offset_sin} Z2 ; Move to start\n"
+                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Move\nG0 Y-{offset_sin} Z1 ; Move to start\n"
                 elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"#G2 X-{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"#G2 X-{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
                 elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y-{offset_sin} Z2 ; Ortho move\n"#G3 X{offset_sin} Y-{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"#G3 X{offset_sin} Y-{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
                 elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"#G3 X{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
+                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"#G3 X{offset_sin} Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
         move_str += ";---------------------End of layer start travels"
         startup = data[2].split("\n")
         move_str = self.format_string(move_str)
@@ -2209,7 +2269,7 @@ class LittleUtilities_v19(Script):
             if not prepend_hot_end and not prepend_bed:
                 if first_part == "M105":
                     continue
-            # Once the M82 line is reached then we are past the prepend lines so just continue.
+            # Once the M82 line is reached then we are past the prepend lines so just continue to add to modified_data.
             if line.startswith("M82"):
                 prepend_hot_end = True
                 prepend_bed = True

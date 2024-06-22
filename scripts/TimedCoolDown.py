@@ -165,7 +165,7 @@ class TimedCoolDown(Script):
         wait_time = int(float(self.getSettingValueByKey("wait_time")) * 3600)
 
         # Put the first lines of the anneal string together
-        anneal_string = ";TYPE:CUSTOM:Timed Cool Down\nM117 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n" + park_string
+        anneal_string = ";TYPE:CUSTOM:Timed Cool Down\nM117 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
         anneal_string += "M118 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n" + park_string
         if wait_time > 0:
             if anneal_type == "bed_only":
