@@ -682,6 +682,14 @@ class LittleUtilities_v19(Script):
                     "type": "bool",
                     "default_value": false,
                     "enabled": false
+                },
+                "enable_add_tool_nums":
+                {
+                    "label": "Flash Forge IDEX Temp Lines",
+                    "description": "Check the box to change the tool number positions in M104 and M109 lines.  Add the tool number to lines that don't have it.  EX: M104 T# S205 will become M104 S205 T# and M104 S205 will become M104 S205 T#",
+                    "type": "bool",
+                    "default_value": true,
+                    "enabled": true
                 }
             }
         }"""
@@ -721,6 +729,8 @@ class LittleUtilities_v19(Script):
             self._move_to_start(data)
         if self.getSettingValueByKey("kill_wipe"):
             self._kill_wipes(data)
+        if self.getSettingValueByKey("enable_add_tool_nums"):
+            self._enable_add_tool_nums(data)
         if self.getSettingValueByKey("data_num_and_line_nums") and self.getSettingValueByKey("debugging_tools"):
             self._data_num_and_line_nums(data)
         if self.getSettingValueByKey("adjust_starting_e"):
@@ -1521,6 +1531,7 @@ class LittleUtilities_v19(Script):
         extruder_speed_list = []
         extruder_speed = []
         cur_extruder = 0
+        new_speed = print_speed
         if extruder_count > 1:
             for num in range(0, 10, 1):
                 lines = data[num].split("\n")
@@ -2276,3 +2287,25 @@ class LittleUtilities_v19(Script):
             modified_data.append(line)
         alt_data_1 = "\n".join(modified_data)
         return alt_data_1
+        
+    def _enable_add_tool_nums(self, alt_data: str) ->str:
+        active_tool = "0"
+        lines = alt_data[1].split("\n")
+        for line in lines:
+            if line.startswith("T"):
+                active_tool = self.getValue(line, "T")
+        for num in range(2, len(alt_data)-1):
+            lines = alt_data[num].split("\n")
+            for index, line in enumerate(lines):
+                if line.startswith("T"):
+                    active_tool = str(self.getValue(line, "T"))
+                if line[0:4] in ["M104","M109"]:
+                    if "T" in line:
+                        g_cmd = self.getValue(line, "M")
+                        tool_num = self.getValue(line, "T")
+                        temp = self.getValue(line, "S")
+                        lines[index] = f"M{g_cmd} S{temp} T{tool_num}"
+                    if not "T" in line:
+                        lines[index] = line + " T" + str(active_tool)
+            alt_data[num] = "\n".join(lines)
+        return alt_data
