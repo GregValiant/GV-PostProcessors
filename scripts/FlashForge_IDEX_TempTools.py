@@ -9,9 +9,6 @@ import os
 
 class FlashForge_IDEX_TempTools(Script):
 
-    def initialize(self) -> None:
-        super().initialize()
-
     def getSettingDataString(self):
         return """{
             "name": "Flash Forge IDEX Tool Temp Conversion",
