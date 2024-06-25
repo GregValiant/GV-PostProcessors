@@ -28,7 +28,7 @@ from UM.Message import Message
 import re
 import os
 
-class LittleUtilities_v19(Script):
+class LittleUtilities_v20(Script):
 
     def initialize(self) -> None:
         super().initialize()
@@ -57,8 +57,8 @@ class LittleUtilities_v19(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Little Utilities v19",
-            "key": "LittleUtilities_v19",
+            "name": "Little Utilities v20",
+            "key": "LittleUtilities_v20",
             "metadata": {},
             "version": 2,
             "settings":
