@@ -21,6 +21,7 @@
 #     19) Adjust starting E location - If the skirt/brim/raft doesn't start where the nozzle starts because of a retraction in the StartUp then an adjustment to the E location may be needed.
 #     20) Fix the 5.7.2 Prepend Temperature bug
 #     21) 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
+#     22) The Flash Forge IDEX printers want temperature lines as M104/9 Sxxx Tx but Cura forms them as M104/9 Tx Sxxx.  This script switches the location of the parameters in each temperature line.  In addition, the script also adds T#'s to all temperature lines that don't have them (M104/9 lines that would normally refer to the 'Active Extruder'.
 
 from ..Script import Script
 from UM.Application import Application
