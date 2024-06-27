@@ -60,13 +60,13 @@ LittleUtilities_v20
 	A collection of about 20 post processors ranging from "Remove Comments" (usefull for UM2 printers) to unloading filament at the end of a print.  There are some script debugging tools as well.
 
 MultiExtruderColorMix:
-	A work in process.  This is intended to allow graduated mixing for printers with mixing not ends.  The Marlin side is well along.  The RepRap side is just started.
+	A work in process.  This is intended to allow graduated mixing for printers with mixing hot ends.  The Marlin side is well along.  The RepRap side is just started.
 
 PauseAtLayer:
 	My re-work of PauseAtHeight.  Allows for unloading, purging, and re-loading and other new options.
 
 Raise3DIDEX:
-	Does for the Raise3D IDEX machines what the other post does for the FLash Forge IDEX machines.
+	Does for the Raise3D IDEX machines what the other post does for the Flash Forge IDEX machines.
 
 RetractContinue:
 	A re-work to allow the script to work with z-hops and relative extrusion.
@@ -75,7 +75,7 @@ SearchAndReplace:
 	Another re-write with new options including "First Instance Only" and ranges of layers.
 
 SuptIntMaterialChange:
-	This one is so cool it's disgusting.  With the air-gap over the support-interface (or raft) at "0" the user can select the layers to insert filament changes just for the Support-Interface.  After the interface is printed there is another pause to change back to the original material.  This allows for excellent release of the support from the model and excellent finishes on the support side of the "first layer over support".  The downside is that as good as it is with large flats, it's value decreases as the number of pauses reqauired grows.
+	This one is really cool.  With the air-gap over the support-interface (or raft) at "0" the user can select the layers to insert filament changes just for the Support-Interface.  After the interface is printed there is another pause to change back to the original material.  (Using PETG for the interface of a PLA print, or vice-versa, works well.)  This allows for excellent release of the support from the model and excellent finishes on the support side of the "first layer over support".  The downside is that as good as it is with large flats, it's value decreases as the number of pauses required grows which makes it annoying for things like the support in large horizontal holes.  But if you have a box top and it needs to be printed riht-side-up, this is really good.
 
 TimedCoolDown:
 	Allows the cooling of the build plate (and build volume) to be stretched out to "anneal" a print.
