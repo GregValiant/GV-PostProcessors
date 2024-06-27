@@ -3,6 +3,7 @@
 
 from ..Script import Script
 from UM.Application import Application
+from UM.Message import Message
 
 class Raise3D_IDEX(Script):
     """Adds 'Print Mode' to the startup and resets at the end.
@@ -37,15 +38,12 @@ class Raise3D_IDEX(Script):
             "version": 2,
             "settings":
             {
-                "idex_mode_cmd":
+                "enable_raise3d_idex":
                 {
-                    "label": "Mode Command",
-                    "description": "Enter the mode command that applies to your printer.  Raise3D uses 'M605', others might use 'D'.",
-                    "type": "enum",
-                    "options": {
-                        "cmd_m605": "M605",
-                        "cmd_D": "D"},
-                    "default_value": "cmd_m605"
+                    "label": "Enable Raise3D IDEX script",
+                    "description": "Enable the post processor.",
+                    "type": "bool",
+                    "default_value": true
                 },
                 "idex_setting":
                 {
@@ -54,9 +52,10 @@ class Raise3D_IDEX(Script):
                     "type": "enum",
                     "options": {
                         "mode_N": "Normal",
-                        "mode_D": "Duplication",
+                        "mode_D": "Duplicate",
                         "mode_M": "Mirror"},
-                    "default_value": "mode_N"
+                    "default_value": "mode_N",
+                    "enabled": "enable_raise3d_idex"
                 },
                 "power_enable":
                 {
@@ -72,7 +71,7 @@ class Raise3D_IDEX(Script):
                     "description": "Enable 'Power Resume' with M1001.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "power_enable"
+                    "enabled": "power_enable and enable_raise3d_idex"
                 },
                 "pres_adv_enable":
                 {
@@ -88,7 +87,7 @@ class Raise3D_IDEX(Script):
                     "description": "Enable 'Presure Advance' for Extruder 1.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "pres_adv_enable"
+                    "enabled": "pres_adv_enable and enable_raise3d_idex"
                 },
                 "pa_e1_amt":
                 {
@@ -96,7 +95,7 @@ class Raise3D_IDEX(Script):
                     "description": "'Presure Advance' time for Extruder 1",
                     "type": "str",
                     "default_value": "0.05",
-                    "enabled": "pa_e1",
+                    "enabled": "pa_e1 and enable_raise3d_idex",
                     "unit": "seconds"
                 },
                 "pa_e2":
@@ -105,7 +104,7 @@ class Raise3D_IDEX(Script):
                     "description": "Enable 'Presure Advance' for Extruder 2.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "pres_adv_enable"
+                    "enabled": "pres_adv_enable and enable_raise3d_idex"
                 },
                 "pa_e2_amt":
                 {
@@ -113,16 +112,19 @@ class Raise3D_IDEX(Script):
                     "description": "'Presure Advance' time for Extruder 2.",
                     "type": "str",
                     "default_value": "0.05",
-                    "enabled": "pa_e2",
+                    "enabled": "pa_e2 and enable_raise3d_idex",
                     "unit": "seconds"
                 }
             }
         }"""
 
     def execute(self, data):
+        # Exit if the scirpt is not enabled
+        if not bool(self.getSettingValueByKey("enable_raise3d_idex")):
+            return data
         MyCura = Application.getInstance().getGlobalContainerStack()
         extruder = Application.getInstance().getGlobalContainerStack().extruderList
-        idex_mode_cmd = str(self.getSettingValueByKey("idex_mode_cmd"))
+        idex_mode_cmd = "M605"
         # Configure IDEX, Pressure Advance, and Power Resume commands--------------------------------
         pa_e1 = bool(self.getSettingValueByKey("pa_e1"))
         if pa_e1:
