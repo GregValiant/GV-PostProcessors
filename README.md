@@ -8,10 +8,10 @@ Known Issues:
 MultiExtruderColorMix:
     I don't own a multi-extruder machine so this script might not work as expected.  I could use feedback on this one.
 	
-Filament Change:
+Filament Change:.
     I added all the possible parameters as listed on MarlinFW.org.  The parameters must be supported in the firmware.  If they are not then the parameter is likely to be ignored, but it is possible that an invalid parameter will keep the command from being executed.
 	
-Flash Forge IDEX Tool Temps:
+Flash Forge IDEX Tool Temps:.
     This started out as a simple attempt to change the syntax of the Cura Gcode to be acceptable to the Flash Forge IDEX printers.  It ended up being a pretty full-fledged translator and allows the user to select the mode "Normal, Duplicate, or Mirror" in the post processor settings and when the file is saved the gcode is translated and some lines added so the Flash Forge printer will print it as it should.  Just because the Cura gcode opened in FlashPrint seems to be correct doesn't mean that it will print correctly.  This is another one that I need feedback on.
 
 -----------------------------------------------------------------------------
