@@ -5,6 +5,13 @@
 #    - The fan lines are changed from 'M106 P' to M106 T'
 #    - Cura ':TYPE:" lines will be changed to ";structure:" lines.  The gcode should preview correctly in Flash Print
 #    - Selecting the Print Mode (Normal, Duplicate, Mirror) will add relevant commands to the beginning of the file so the printer can adjust it's mode.
+#    - [Model Size XY] Normal: X_width up to build plate width.  Y depth up to build plate depth.
+#                      Duplicate and Mirror: the X_width limit about 45% of the width of the build plate.  Y depth up to build plate depth.
+#                      The gcode should be previewed in FLash Print to insure that the print will fit the bed.
+#    - [Model Placement]  The model must be at the 'X' midpoint of the Cura build plate.  If you have multiple models they must all be at the 'X' midpoint.
+#    - Duplicate and Mirror -
+#          All models on the build plate should be set to the same extruder
+
 
 from ..Script import Script
 from UM.Application import Application
@@ -117,11 +124,18 @@ class FlashForge_IDEX_Converter(Script):
         data[1] = "\n".join(opening_paragraph)
 
         active_tool = "0"
-        # Go through the StartUp Gcode section and track the active tool.  No changes are made to the StartUp Section.  It is assumed that the StartUp Gcode is correct and works.
+        # Go through the StartUp Gcode section and track the active tool.  It is assumed that the StartUp Gcode is correct and works.  If there is an M106 or M107 it will be changed.
         lines = data[1].split("\n")
-        for line in lines:
+        for index, line in enumerate(lines):
             if line.startswith("T"):
                 active_tool = self.getValue(line, "T")
+            if line.startswith("M106 S"):
+                if " P" in line:
+                    lines[index] = lines[index].replace(" P", " T")
+            if line.startswith("M107"):
+                lines[index] = "M107 T0\nM107 T1"
+        data[1] = "\n".join(lines)                    
+        
         # Go through all the layers and make the changes.
         for num in range(2, len(data)-1):
             lines = data[num].split("\n")
@@ -160,10 +174,14 @@ class FlashForge_IDEX_Converter(Script):
                         c_comment = self._get_comment(line)
                         frt_part = frt_part.replace(" F" + str(f_val), "") + " F" + str(f_val)
                         lines[index] = frt_part + (" " * spaces) + ";" + c_comment
-                if line.startswith("M106"):
-                    lines[index] = line.replace("P", "T")
+                # Make adjustments to the fan lines                
                 if line.startswith("M107"):
                     lines[index] = "M106 S0 T" + str(active_tool)
+                if line.startswith("M106"):
+                    lines[index] = line.replace("P", "T")
+                    fan_speed = self.getValue(line, "S")
+                    lines[index] += "\nM106 S" + str(fan_speed) + " T"
+                    lines[index] += "0" if active_tool == "1" else "1"    
                 # Flash print doens't use G0 so change them all to G1
                 if line.startswith("G0"):
                     lines[index] = lines[index].replace("G0", "G1")
