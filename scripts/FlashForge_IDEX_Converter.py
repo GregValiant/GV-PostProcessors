@@ -1,15 +1,14 @@
 # Copyright (c) 2023 GregValiant (Greg Foresi)
-#    This script is for Flash Forge IDEX printers that use the 'M104 S T' syntax.
+#    This script is for Flash Forge IDEX printers like the Creator 2 Pro and 3 Pro.  The intent is to convert a Cura slice into a gcode suitable for a Flash Forge printer.
 #    - The Cura M104 and M109 lines will convert from 'M104/9 T S' syntax to 'M104/9 S T' syntax.
 #    - The Tool Number is tracked through the gcode and the active tool number is added to all M104 and M109 lines.
-#    - Cura ':TYPE:" lines will be changed to ";structure:" lines.
-#    - Selecting the Print Mode (Normal, Duplicate, Mirror) will add relevant commands.
+#    - The fan lines are changed from 'M106 P' to M106 T'
+#    - Cura ':TYPE:" lines will be changed to ";structure:" lines.  The gcode should preview correctly in Flash Print
+#    - Selecting the Print Mode (Normal, Duplicate, Mirror) will add relevant commands to the beginning of the file so the printer can adjust it's mode.
 
 from ..Script import Script
 from UM.Application import Application
 from UM.Message import Message
-import re
-import os
 
 class FlashForge_IDEX_Converter(Script):
 
@@ -20,7 +19,7 @@ class FlashForge_IDEX_Converter(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Flash Forge IDEX Converter",
+            "name": "Flash Forge IDEX Converter Beta",
             "key": "FlashForge_IDEX_Converter",
             "metadata": {},
             "version": 2,
@@ -106,7 +105,13 @@ class FlashForge_IDEX_Converter(Script):
         elif print_mode == "mode_duplicate":
             location_str += "\nM7 T0\nM6 T0\nM6 T1\nM651 S255\nM109 T2"
         elif print_mode == "mode_normal":
-            location_str += "\nM7 T0\nM6 T0\nM651 S255\nM108 T" + str(active_extruder)           
+            location_str += "\nM7 T0"
+            if t0_enabled:
+                location_str += "\nM6 T0"
+            if t1_enabled:
+                location_str += "\nM6 T1"
+            location_str += "\nM651 S255\nM108 T" + str(active_extruder)
+        location_str += "\n;extrude_ratio:1"
         opening_paragraph = data[1].split("\n")
         opening_paragraph.insert(1, insert_str + location_str)
         data[1] = "\n".join(opening_paragraph)
@@ -125,27 +130,40 @@ class FlashForge_IDEX_Converter(Script):
                     active_tool = str(self.getValue(line, "T"))
                     continue
                 if line[0:4] in ["M104","M109"]:
-                    if "T" in line:
+                    if " T" in line and not ";" in line:
                         g_cmd = self.getValue(line, "M")
                         tool_num = self.getValue(line, "T")
                         temp = self.getValue(line, "S")
                         lines[index] = f"M{g_cmd} S{temp} T{tool_num}"
-                    if not "T" in line:
+                    if not " T" in line and not ";" in line:
                         lines[index] = line + " T" + str(active_tool)
+                    if " T" in line and ";" in line:
+                        g_cmd = self.getValue(line, "M")
+                        tool_num = self.getValue(line, "T")
+                        temp = self.getValue(line, "S")
+                        c_comment = self._get_comment
+                        lines[index] = f"M{g_cmd} S{temp} T{tool_num} {c_comment}"
+                    # If there is a comment at the end of the line it needs to be handled differently
+                    elif not "T" in line and ";" in line:
+                        frt_part = line.split(";")[0].rstrip()
+                        frt_part = frt_part + " T" + str(active_tool)
+                        c_comment = self._get_comment(line)
+                        lines[index] = frt_part + (" " * spaces) + c_comment
                 # Move any F parameters to the end of the line
                 if " F" in line and self.getValue(line, "F") is not None:
                     f_val = self.getValue(line, "F")
                     if not ";" in line:
                         lines[index] = lines[index].replace(" F" + str(f_val), "") + " F" + str(f_val)
+                    # If there is a comment at the end of the line it needs to be handled differently
                     else:
-                        frt_part = line.split(";")[0]
-                        frt_len = len(frt_part)
-                        frt_part = frt_part.rstrip()
-                        frt_2_len = len(frt_part)
-                        spaces = frt_len - frt_2_len
+                        frt_part = line.split(";")[0].rstrip()
+                        c_comment = self._get_comment(line)
                         frt_part = frt_part.replace(" F" + str(f_val), "") + " F" + str(f_val)
-                        back_part = line.split(";")[1]
-                        lines[index] = frt_part + (" " * spaces) + ";" + back_part
+                        lines[index] = frt_part + (" " * spaces) + ";" + c_comment
+                if line.startswith("M106"):
+                    lines[index] = line.replace("P", "T")
+                if line.startswith("M107"):
+                    lines[index] = "M106 S0 T" + str(active_tool)
                 # Flash print doens't use G0 so change them all to G1
                 if line.startswith("G0"):
                     lines[index] = lines[index].replace("G0", "G1")
@@ -185,3 +203,13 @@ class FlashForge_IDEX_Converter(Script):
                     continue
             data[num] = "\n".join(lines)
         return data
+
+    def _get_comment(self, c_line: str) -> str:
+        frt_part = c_line.split(";")[0]
+        frt_len = len(frt_part)
+        frt_part = frt_part.rstrip()
+        frt_2_len = len(frt_part)
+        spaces = frt_len - frt_2_len
+        c_comment = spaces + ";" + line.split(";")[1]
+        return c_comment
+
