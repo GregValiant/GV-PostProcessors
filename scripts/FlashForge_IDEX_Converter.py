@@ -16,12 +16,13 @@
 from ..Script import Script
 from UM.Application import Application
 from UM.Message import Message
+import re
 
 class FlashForge_IDEX_Converter(Script):
 
     def initialize(self) -> None:
         super().initialize()
-        msg_txt = "    NOTE: The model must be located at the exact mid-point of the build plate.\n  If it is a single extruder print then the un-used extruder should be disabled.  Mirror and Duplicate modes assume that both extruders are used.\nIn 'Normal' mode the model cannot exceed the build plate 'machine_width'.  In 'Mirror' or 'Duplicate' mode the model may not exceed about 45% of the 'machine_width'.  Check the gcode preview in Flash Print to ensure the print will fit on the build plate."
+        msg_txt = "    NOTE: The model must be located at the 'X' mid-point of the build plate.\n    If it is a single extruder print then the un-used extruder should be disabled.\nIn 'Normal' mode the model cannot exceed the build plate 'machine_width'.\nIn 'Mirror' or 'Duplicate' mode the model may not exceed about 45% of the 'machine_width'.  Check the gcode preview in Flash Print to ensure the print will fit on the build plate.\n\nNOTE:  'Flash Forge IDEX Converter' should be last in the post-processor list."
         Message(title = "[Flash Forge IDEX Model Placement]", text = msg_txt).show()
 
     def getSettingDataString(self):
@@ -32,7 +33,7 @@ class FlashForge_IDEX_Converter(Script):
             "version": 2,
             "settings":
             {
-                "enable_add_tool_nums":
+                "enable_flash_forge_IDEX_converter":
                 {
                     "label": "Enable FF IDEX Conversion",
                     "description": "This script will convert a slice from a normal Cura slice to a 'Normal', 'Duplicate', or 'Mirror' mode print for the Flash Forge printer.  The printer in Cura must be configured as an 'Origin at Center' machine.  Max Model Size Normal: X300 Y240.  Max Model Size Duplicate or Mirror: X133 Y240.  Multiple models are allowed but all X locations must be '0'.",
@@ -51,14 +52,14 @@ class FlashForge_IDEX_Converter(Script):
                         "mode_mirror": "Mirror"
                         },
                     "default_value": "mode_normal",
-                    "enabled": "enable_add_tool_nums"
+                    "enabled": "enable_flash_forge_IDEX_converter"
                 }
             }
         }"""
 
     def execute(self, data):
         # Exit if the script is not enabled
-        if not self.getSettingValueByKey("enable_add_tool_nums"):
+        if not self.getSettingValueByKey("enable_flash_forge_IDEX_converter"):
             return data
         mycura = Application.getInstance().getGlobalContainerStack()
         extruder = mycura.extruderList
@@ -134,8 +135,8 @@ class FlashForge_IDEX_Converter(Script):
                     lines[index] = lines[index].replace(" P", " T")
             if line.startswith("M107"):
                 lines[index] = "M107 T0\nM107 T1"
-        data[1] = "\n".join(lines)                    
-        
+        data[1] = "\n".join(lines)
+
         # Go through all the layers and make the changes.
         for num in range(2, len(data)-1):
             lines = data[num].split("\n")
@@ -143,6 +144,8 @@ class FlashForge_IDEX_Converter(Script):
                 if line.startswith("T"):
                     active_tool = str(self.getValue(line, "T"))
                     continue
+                
+                # Rearrange the tool numbers in the temperature lines.  Add the tool number if it isn't there.
                 if line[0:4] in ["M104","M109"]:
                     if " T" in line and not ";" in line:
                         g_cmd = self.getValue(line, "M")
@@ -163,6 +166,7 @@ class FlashForge_IDEX_Converter(Script):
                         frt_part = frt_part + " T" + str(active_tool)
                         c_comment = self._get_comment(line)
                         lines[index] = frt_part + (" " * spaces) + c_comment
+                
                 # Move any F parameters to the end of the line
                 if " F" in line and self.getValue(line, "F") is not None:
                     f_val = self.getValue(line, "F")
@@ -174,21 +178,21 @@ class FlashForge_IDEX_Converter(Script):
                         c_comment = self._get_comment(line)
                         frt_part = frt_part.replace(" F" + str(f_val), "") + " F" + str(f_val)
                         lines[index] = frt_part + (" " * spaces) + ";" + c_comment
-                # Make adjustments to the fan lines                
+                
+                # Make adjustments to the fan lines
                 if line.startswith("M107"):
                     lines[index] = "M106 S0 T" + str(active_tool)
                 if line.startswith("M106"):
                     lines[index] = line.replace("P", "T")
                     fan_speed = self.getValue(line, "S")
                     lines[index] += "\nM106 S" + str(fan_speed) + " T"
-                    lines[index] += "0" if active_tool == "1" else "1"    
+                    lines[index] += "0" if active_tool == "1" else "1"
+                
                 # Flash print doens't use G0 so change them all to G1
                 if line.startswith("G0"):
                     lines[index] = lines[index].replace("G0", "G1")
-                # Flash Print doesn't use layer numbers
-                if line.startswith(";LAYER:"):
-                    lines[index] = ";layer:" + str(layer_height) + "\n" + line
                     continue
+                
                 # Changing the "TYPE" lines to "structure" lines allows the preview to show correctly in Flash Print
                 if "TYPE:WALL-OUTER" in line:
                     lines[index] = lines[index].replace("TYPE:WALL-OUTER", "structure:shell-outer")
@@ -220,6 +224,54 @@ class FlashForge_IDEX_Converter(Script):
                             break
                     continue
             data[num] = "\n".join(lines)
+        
+        # This final section adds the ';layer:x.xx' lines that indicate the layer height to the Flash Print Gcode pre-viewer.
+        # Both Adaptive Layers and Z-hops must be considered.
+        cur_z = float(mycura.getProperty("layer_height_0", "value"))
+        z_hop_enabled = bool(extruder[0].getProperty("retraction_hop_enabled", "value"))
+        layer_hgt = cur_z
+        working_z = cur_z
+        prev_z = 0.0
+        hop_up = False
+        if not z_hop_enabled:
+            for num in range(2, len(data) - 1):
+                # For one-at-a-time items in the data[list] that are not layers.
+                if re.search(";LAYER:", data[num]) is None:
+                    continue
+                lines = data[num].split("\n")
+                for index, line in enumerate(lines):
+                    if " Z" in line and self.getValue(line, "Z") is not None:
+                        cur_z = float(self.getValue(line, "Z"))
+                        layer_hgt = round(cur_z - prev_z, 2)
+                        prev_z = cur_z
+                    if line.startswith(";LAYER:"):
+                        lines[index] = line + "\n;layer:" + str(layer_hgt)
+                data[num] = "\n".join(lines)
+                
+        elif z_hop_enabled:
+            l_index = 0
+            for num in range(1, len(data) - 1):
+                # For one-at-a-time items in the data[list] that are not layers.
+                if re.search(";LAYER:", data[num]) is None:
+                    continue
+                lines = data[num].split("\n")
+                for index, line in enumerate(lines):
+                    # In case another post processor added lines before the LAYER line.
+                    if re.search(";LAYER:", line) is not None:
+                        l_index = index
+                        # Track the Z so the actual layer height can be calculated
+                    if re.search("G1 Z(\d.*) F(\d.*)", line) is not None:
+                        cur_z = self.getValue(line, "Z")
+                        continue
+                    if line.startswith("G1") and " X" in line and " Y" in line and " Z" in line:
+                        cur_z = self.getValue(line, "Z")
+                        continue
+                    if line.startswith("G1") and " X" in line and " Y" in line and " E" in line:   
+                        if "\n" not in lines[l_index]:                     
+                            layer_hgt = round(cur_z - prev_z, 2)
+                            lines[l_index] = lines[l_index] + "\n;layer:" + str(layer_hgt)
+                            prev_z = cur_z
+                data[num] = "\n".join(lines)
         return data
 
     def _get_comment(self, c_line: str) -> str:
