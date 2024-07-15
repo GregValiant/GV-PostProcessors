@@ -31,14 +31,14 @@ class SuptIntMatlChangePlugin(Extension):
 
         self._settings_dict = OrderedDict()
         self._settings_dict["suptintmatlchange_enable"] = {
-            "label": "Enable Support-Interface Mat'l Change",
+            "label": "    Enable Support-Interface Mat'l Change",
             "description": "Enable the Support Interface Material Change settings.  This plugin enters pauses so you may change to a different Supt-Interface Material for certain layers, and then revert back to the model material.  There will be two pauses per layer number entered so use this sparingly or it gets annoying.  An air gap of 0.0 coupled with a 'Lines' interface at 100% density is suggested.  NOTE:  This is not available in 'One at a Time' mode or if more than one extruder is enabled.  The enabled extruder must be T0.",
             "type": "bool",
             "default_value": False,
             "settable_per_mesh": False,
             "settable_per_extruder": False,
             "settable_per_meshgroup": False,
-            "enabled": "extruders_enabled_count == 1 and support_enable and print_sequence == 'all_at_once'"
+            "enabled": "extruders_enabled_count == 1 and support_enable and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["pause_method"] = {
             "label": "    Pause Command",
@@ -57,7 +57,7 @@ class SuptIntMatlChangePlugin(Extension):
             "g_4": "G4 (dwell)",
             "custom": "Custom Command"},
             "default_value": "marlin",
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["g4_dwell_time"] = {
             "label": "    G4 dwell time (in minutes)",
@@ -67,35 +67,35 @@ class SuptIntMatlChangePlugin(Extension):
             "minimum_value": 0.5,
             "maximum_value_warning": 30.0,
             "unit": "minutes   ",
-            "enabled": "suptintmatlchange_enable and pause_method == 'g_4' and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and pause_method == 'g_4' and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["custom_pause_command"] = {
             "label": "    Enter your pause command",
             "description": "If none of the the stock options work with your printer you can enter a custom command here.",
             "type": "str",
             "default_value": "",
-            "enabled": "suptintmatlchange_enable and pause_method == 'custom' and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and pause_method == 'custom' and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["gcode_after_pause"] = {
             "label": "    Gcode after pause",
             "description": "Some printers require a buffer after the pause when M25 is used. Typically 6 M105's works well.  Delimit multiple commands with a comma EX: M105,M105,M105",
             "type": "str",
             "default_value": "M105,M105,M105,M105,M105,M105",
-            "enabled": "suptintmatlchange_enable and pause_method not in ['marlin','marlin2','griffin','g_4'] and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and pause_method not in ['marlin','marlin2','griffin','g_4'] and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["layers_of_interest"] = {
             "label": "    Layers #'s for Mat'l Change",
-            "description": "Use the Cura preview layer numbers.  Enter the layer numbers that you want to change material for the support interfaces.  The numbers must be ascending.  Delimit individual layer numbers with a ',' (comma) and delimit layer ranges with a '-' (dash).  Spaces are not allowed.  If there is no 'SUPPORT-INTERFACE' on a layer then it is ignored.",
+            "description": "Use the Cura preview layer numbers.  Enter the layer numbers that you want to change material for the support interfaces.  The numbers must be ascending.  Delimit individual layer numbers with a ',' (comma) and delimit layer ranges with a '-' (dash).  Spaces are not allowed.  If there is no 'SUPPORT-INTERFACE' found on a layer in the list then that layer is ignored.",
             "type": "str",
-            "default_value": "10,15,28-31",
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "default_value": "10,28-31,54",
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["model_str"] = {
             "label": "    Model Mat'l (Msg to LCD)",
             "description": "Message to appear on the LCD for the filament change.",
             "type": "str",
             "default_value": "PLA",
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["model_temp"] = {
             "label": "         Model mat'l print temperature",
@@ -103,14 +103,14 @@ class SuptIntMatlChangePlugin(Extension):
             "type": "int",
             "value": "material_print_temperature",
             "default_value": "material_print_temperature",
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["interface_str"] = {
             "label": "    Interface Mat'l (Msg to LCD)",
             "description": "Message to appear on the LCD for the filament change.",
             "type": "str",
             "default_value": "PETG",
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["interface_temp"] = {
             "label": "         Interface mat'l print temp",
@@ -118,7 +118,7 @@ class SuptIntMatlChangePlugin(Extension):
             "type": "int",
             "value": 235,
             "default_value": 235,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["interface_flow"] = {
             "label": "     Interface Flow Rate",
@@ -129,7 +129,7 @@ class SuptIntMatlChangePlugin(Extension):
             "default_value": 100,
             "minimum_value": 50,
             "maximum_value": 150,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }        
         self._settings_dict["interface_feed"] = {
             "label": "     Interface Feed Rate",
@@ -140,7 +140,7 @@ class SuptIntMatlChangePlugin(Extension):
             "default_value": 100,
             "minimum_value": 50,
             "maximum_value": 150,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["unload_dist"] = {
             "label": "    Unload Filament Amount",
@@ -151,18 +151,29 @@ class SuptIntMatlChangePlugin(Extension):
             "value": 0,
             "minimum_value": 0,
             "maximum_value": 800,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
-        self._settings_dict["cold_pull_temp"] = {
-            "label": "        Temperature for unloading",
-            "description": "This will be cooler than the printing temperature.  The default of 190 works well with both PLA and PETG.  Too hot and a piece may break off in the hot end creating a clog.  Too cool and the filament won't pull out.  This temperature should be the hotter of the 'Cold Pull' temperature of the two materials.",
+        self._settings_dict["cold_pull_temp_model"] = {
+            "label": "    Temperature for unloading Model filament",
+            "description": "This will be cooler than the model printing temperature.  The default of 190 works well with both PLA and PETG.  Too hot and a piece may break off in the hot end creating a clog.  Too cool and the filament won't pull out.  This temperature should be the hotter of the 'Cold Pull' temperature of the two materials.",
             "type": "int",
             "unit": "deg  ",
             "value": 190,
-            "default_value": 190,
+            "default_value": "material_print_temperature - 15",
             "maximum_value": 365,
             "minimum_value": 180,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and unload_dist > 0"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+        }
+        self._settings_dict["cold_pull_temp_interface"] = {
+            "label": "    Temperature for unloading Interface filament",
+            "description": "This will be cooler than the interface print temperature.  The default of 190 works well with both PLA and PETG.  Too hot and a piece may break off in the hot end creating a clog.  Too cool and the filament won't pull out.  This temperature should be the hotter of the 'Cold Pull' temperature of the two materials.",
+            "type": "int",
+            "unit": "deg  ",
+            "value": 190,
+            "default_value": "material_print_temperature - 15",
+            "maximum_value": 365,
+            "minimum_value": 180,
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["load_dist"] = {
             "label": "    Load Filament Amount",
@@ -173,14 +184,14 @@ class SuptIntMatlChangePlugin(Extension):
             "value": 0,
             "minimum_value": 0,
             "maximum_value": 800,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["enable_purge"] = {
             "label": "    Enable Purge After Each Change",
             "description": "Enable a filament purge before resuming the print.  Not purging can have side-effects.",
             "type": "bool",
             "default_value": True,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["purge_amt_model"] = {
             "label": "        Interface Matl Purge Amt",
@@ -190,7 +201,7 @@ class SuptIntMatlChangePlugin(Extension):
             "maximum_value": 150,
             "minimum_value": 10,
             "unit": "mm  ",
-            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["purge_amt_interface"] = {
             "label": "        Model Matl Purge Amt",
@@ -200,14 +211,14 @@ class SuptIntMatlChangePlugin(Extension):
             "maximum_value": 150,
             "minimum_value": 10,
             "unit": "mm  ",
-            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["park_head"] = {
             "label": "    Park Head for changes?",
             "description": "Whether to park the head when changing filament. The park position is the same for all pauses.",
             "type": "bool",
             "default_value": True,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["park_x"] = {
             "label": "        Park X",
@@ -216,7 +227,7 @@ class SuptIntMatlChangePlugin(Extension):
             "default_value": 0,
             "maximum_value": "machine_width/2 if 'machine_center_is_0' else machine_width",
             "minimum_value": "machine_width/-2 if 'machine_center_is_0' else 0",
-            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["park_y"] = {
             "label": "        Park Y",
@@ -225,21 +236,21 @@ class SuptIntMatlChangePlugin(Extension):
             "default_value": 0,
             "maximum_value": "machine_depth/2 if 'machine_center_is_0' else machine_depth",
             "minimum_value": "machine_depth/-2 if 'machine_center_is_0' else 0",
-            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["m300_add"] = {
             "label": "    Beep at Pauses",
             "description": "Add M300 line to beep at each pause.",
             "type": "bool",
             "default_value": True,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["m118_add"] = {
-            "label": "    Add M118",
+            "label": "    Add M118                                                                        ---(Supt Int Matl Change End)----",
             "description": "M118 bounces the M117 messages over the USB to a print server (Ex: Pronterface or Octoprint).",
             "type": "bool",
             "default_value": False,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once'"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
 
         ContainerRegistry.getInstance().containerLoadComplete.connect(self._onContainerLoadComplete)
@@ -277,18 +288,19 @@ class SuptIntMatlChangePlugin(Extension):
         interface_temp = container.findDefinitions(key=list(self._settings_dict.keys())[9])
         interface_flow = container.findDefinitions(key=list(self._settings_dict.keys())[10])
         unload_dist = container.findDefinitions(key=list(self._settings_dict.keys())[11])
-        cold_pull_temp = container.findDefinitions(key=list(self._settings_dict.keys())[12])
-        load_dist = container.findDefinitions(key=list(self._settings_dict.keys())[13])
-        enable_purge = container.findDefinitions(key=list(self._settings_dict.keys())[14])
-        purge_amt_model = container.findDefinitions(key=list(self._settings_dict.keys())[15])
-        purge_amt_interface = container.findDefinitions(key=list(self._settings_dict.keys())[16])
-        park_head = container.findDefinitions(key=list(self._settings_dict.keys())[17])
-        park_x = container.findDefinitions(key=list(self._settings_dict.keys())[18])
-        park_y = container.findDefinitions(key=list(self._settings_dict.keys())[19])
-        m300_add = container.findDefinitions(key=list(self._settings_dict.keys())[20])
-        m118_add = container.findDefinitions(key=list(self._settings_dict.keys())[21])
+        cold_pull_temp_model = container.findDefinitions(key=list(self._settings_dict.keys())[12])
+        cold_pull_temp_interface = container.findDefinitions(key=list(self._settings_dict.keys())[13])
+        load_dist = container.findDefinitions(key=list(self._settings_dict.keys())[14])
+        enable_purge = container.findDefinitions(key=list(self._settings_dict.keys())[15])
+        purge_amt_model = container.findDefinitions(key=list(self._settings_dict.keys())[16])
+        purge_amt_interface = container.findDefinitions(key=list(self._settings_dict.keys())[17])
+        park_head = container.findDefinitions(key=list(self._settings_dict.keys())[18])
+        park_x = container.findDefinitions(key=list(self._settings_dict.keys())[19])
+        park_y = container.findDefinitions(key=list(self._settings_dict.keys())[20])
+        m300_add = container.findDefinitions(key=list(self._settings_dict.keys())[21])
+        m118_add = container.findDefinitions(key=list(self._settings_dict.keys())[22])
 
-        num = 1
+        insert_pt = 41
         if support_category:
             support_category = support_category[0]
             for setting_key, setting_dict in self._settings_dict.items():
@@ -297,10 +309,10 @@ class SuptIntMatlChangePlugin(Extension):
                 definition.deserialize(setting_dict)
 
                 # add the setting to the already existing platform adhesion setting definition
-                support_category._children.insert(num, definition)
+                support_category._children.insert(insert_pt, definition)
                 container._definition_cache[setting_key] = definition
                 container._updateRelations(definition)
-                num += 1
+                insert_pt += 1
 
     def _ParseGcode(self, output_device):
         scene = self._application.getController().getScene()
@@ -345,23 +357,37 @@ class SuptIntMatlChangePlugin(Extension):
         park_y = extruder[0].getProperty("park_y", "value")
         m300_add = extruder[0].getProperty("m300_add", "value")
         m118_add = extruder[0].getProperty("m118_add", "value")
-        if not suptintmatlchange_enable:
-            return
-
+        support_enable = bool(global_container_stack.getProperty("support_enable", "value"))
+        support_interface_enable = bool(extruder[0].getProperty("support_interface_enable", "value"))
+        
         gcode_dict = getattr(scene, "gcode_dict", {})
         if not gcode_dict: # this also checks for an empty dict
             Logger.log("w", "Scene has no gcode to process")
             return
 
         dict_changed = False
-        interface_not_found = ""
         for plate_id in gcode_dict:
             gcode_list = gcode_dict[plate_id]
             if len(gcode_list) < 2:
                 Logger.log("w", "G-Code %s does not contain any layers", plate_id)
                 continue
-
-            if ";  [Support-Interface Material Change] plugin is enabled\n" not in gcode_list[0]:
+                
+            # More reasons to exit
+            if not support_enable:
+                Logger.log("i", "[Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.")
+                gcode_list[0] += ";    [Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.\n"
+                return
+            if not support_interface_enable:
+                Logger.log("i", "[Supt-Int Matl Change] Did not run because 'Enable Support Interface' was not enabled for Extruder 1.")
+                gcode_list[0] += ";    [Supt-Int Matl Change] Did not run because 'Enable Support Interface' was not enabled for Extruder 1.\n"
+                return
+            if not suptintmatlchange_enable:
+                Logger.log("i", "[Supt-Int Matl Change] was not enabled.")
+                gcode_list[0] += ";    [Supt-Int Matl Change] was not enabled.\n"
+                return
+            
+            # If the gcode has already been processed then don't run again.
+            if ";    [Support-Interface Material Change] plugin is enabled\n" not in gcode_list[0]:
 
                 # Count the raft layers
                 raft_layers = 0
@@ -508,25 +534,21 @@ class SuptIntMatlChangePlugin(Extension):
                     m118_interface_str = ""
 
                 # Temperature lines
-                interface_temp = int(extruder[0].getProperty("interface_temp", "value"))
-                model_temp = int(extruder[0].getProperty("model_temp", "value"))
-                cold_pull_temp = str(extruder[0].getProperty("cold_pull_temp", "value"))
+                cold_pull_temp_model = "M109 R" + str(extruder[0].getProperty("cold_pull_temp_model", "value")) + "; Cold Pull temperature for Model Matl unload\n"
+                cold_pull_temp_interface = "M109 R" + str(extruder[0].getProperty("cold_pull_temp_interface", "value")) + "; Cold Pull temperature for Interface Matl unload\n"
                 interface_temp = "M109 R" + str(extruder[0].getProperty("interface_temp", "value")) + "; Interface material temperature\n"
-                model_temp = "M109 R" + str(extruder[0].getProperty("model_temp", "value")) + "; Print material temperature\n"
-                if extruder[0].getProperty("unload_dist", "value") > 0:
-                    cold_pull_temp = "M109 R" + str(cold_pull_temp) + "; Cold Pull temperature for unload\n"
-                    pre_pause_interface_temp = "M104 S" + str(extruder[0].getProperty("interface_temp", "value")) + "; Interface material temperature\n"
-                    pre_pause_model_temp = "M104 S" + str(extruder[0].getProperty("model_temp", "value")) + "; Print material temperature\n"
-                else:
-                    cold_pull_temp = ""
-                    pre_pause_interface_temp = ""
+                model_temp = "M109 R" + str(round(extruder[0].getProperty("model_temp", "value"))) + "; Print material temperature\n"
+                pre_pause_interface_temp = "M104 S" + str(extruder[0].getProperty("interface_temp", "value")) + "; Interface material temperature\n"                
+                pre_pause_model_temp = "M104 S" + str(round(extruder[0].getProperty("model_temp", "value"))) + "; Print material temperature\n"
+                if extruder[0].getProperty("unload_dist", "value") == 0:
+                    pre_pause_interface_temp = ""                
                     pre_pause_model_temp = ""
 
                 ## Flow lines
-                flow_rate_str = f"M221 S{interface_flow}        ; Set interface flow\n"
+                flow_rate_str = f"M221 S{interface_flow} ; Set interface flow\n"
                 flow_rate_reset = "M221 S100; Reset flow rate\n"
                 # Feed lines
-                feed_rate_str = f"M220 S{interface_feed}        ; Set interface feed rate\n"
+                feed_rate_str = f"M220 S{interface_feed} ; Set interface feed rate\n"
                 feed_rate_reset = "M220 S100; Reset flow rate\n"
 
                 ## Load and Unload lines
@@ -534,7 +556,7 @@ class SuptIntMatlChangePlugin(Extension):
                     unload_str = self._getUnloadReloadScript(gcode_list, unload_dist, unload_reload_speed, retract_speed, True, retract_dist)
                 else:
                     unload_str = ""
-                if load_dist != 0:
+                if load_dist != 0 and (purge_amt_interface != 0 or purge_amt_model != 0):
                     load_str = self._getUnloadReloadScript(gcode_list, load_dist, unload_reload_speed, unretract_speed, False, retract_dist)
                 else:
                     load_str = ""
@@ -578,12 +600,12 @@ class SuptIntMatlChangePlugin(Extension):
 
                 # Put together the preliminary strings for the interface material and model material
                 interface_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Change to Interface Material" + "\n" + m84_line + "\nG91; Relative movement\nM83; Relative extrusion\n"
-                interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp + m300_str + unload_str + m117_interface_str + m118_interface_str + pre_pause_interface_temp +pause_cmd_interface + gcode_after_pause + interface_temp
+                interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_model + m300_str + unload_str + m117_interface_str + m118_interface_str + pre_pause_interface_temp +pause_cmd_interface + gcode_after_pause + interface_temp
                 model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement" + "\nM83; Relative extrusion\n"
-                model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp + m300_str + unload_str + m117_model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
-                interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp + m300_str + unload_str + m117_interface_str + m118_interface_str + pre_pause_interface_temp + pause_cmd_interface + interface_temp
+                model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_interface + m300_str + unload_str + m117_model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
+                interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_model + m300_str + unload_str + m117_interface_str + m118_interface_str + pre_pause_interface_temp + pause_cmd_interface + interface_temp
                 model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement" + "\nM83; Relative extrusion\n"
-                model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp + m300_str + unload_str + m117_model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + model_temp
+                model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_interface + m300_str + unload_str + m117_model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + model_temp
 
                 # Go through the relevant layers and add the strings
                 error_chk_list = []
@@ -667,7 +689,7 @@ class SuptIntMatlChangePlugin(Extension):
                         lines[start_at_line] += "\n" + startout_final_str
                         break
                     gcode_list[dnum] = "\n".join(lines)
-                gcode_list[0] += ";  [Support-Interface Material Change] plugin is enabled\n"
+                gcode_list[0] += ";    [Support-Interface Material Change] plugin is enabled\n"
                 gcode_dict[plate_id] = gcode_list
                 dict_changed = True            
                 err_string = "Check if 'SUPPORT-INTERFACE' was found on the layer:\n"
