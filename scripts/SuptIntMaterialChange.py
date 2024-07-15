@@ -6,16 +6,16 @@
 # RULES:
 #   If insufficient material is purged, then the two materials may mix for the first few cm's of model extrusion.  That will affect the layer adhesion for that portion of the print.  It will also affect the color as the interface material might not be the same color as the print material.
 #   Rafts are allowed.  Set the raft "Air Gap" to 0.0 and the Support Bottom Distance to 0.0.  If you try to use this script on the 2 topmost layers of a raft you will get back-to-back filament changes because rafts take up the entire layer and jumping between layers in post process isn't really allowed.  Using a second material for only the top raft layer works well.
-#   If this script is used on the bottom interface then you can set the bottom distance to 0.  When used on a top interface the interface density should be 100% and the "Top Distance" 0.
+#   If this script is used on the bottom interface then you can set the bottom distance to 0.  When used on a top interface the interface density should be a high % and the "Top Distance" 0.
 #   Multi-extruder printers are allowed but may only have a single extruder enabled (tool change retractions are a problem).
 #   The layer numbers you enter are the only ones searched for "TYPE:SUPPORT-INTERFACE" so be accurate when you pick the "layers of interest".  Checking the output gcode is a really good idea.
-
-#   My normal setup is for the top two interface layers at 100% density and 0 air gap.  75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My Ender 3 Pro is a bowden printer and 470mm of unload and 370mm of reload works well.  Yours will vary according to the length of the filament path from the extruder to the hot end.
-
+#   It was apparent that too high of a temperature could cause filament to break off in the hot end when unloading.  The 'Unload Temperature' for the model material and the interface material have been added.  Those temperatures should be near the 'Cold Pull' temperature of each material.
+#   My normal setup is for the top two interface layers at 100% density and 0 air gap.  75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My Ender 3 Pro is a bowden printer and 440mm of unload and 370mm of reload works well.  Yours will vary according to the length of the filament path from the extruder to the hot end.
 
 from ..Script import Script
 from cura.CuraApplication import CuraApplication
 from UM.Message import Message
+from UM.Logger import Logger
 import re
 
 class SuptIntMaterialChange(Script):
@@ -104,10 +104,10 @@ class SuptIntMaterialChange(Script):
                 "layers_of_interest":
                 {
                     "label": "Layers #'s for Mat'l Change",
-                    "description": "Use the Cura preview layer numbers.  Enter the layer numbers that you want to change material for the support interfaces.  The numbers must be ascending.  Delimit individual layer numbers with a ',' comma and delimit layer ranges with a '-' dash.  Spaces are not allowed.  If there is no 'SUPPORT-INTERFACE' on a layer then it is ignored.",
+                    "description": "Use the Cura preview layer numbers.  Enter the layer numbers that you want to change material for the support interfaces.  The numbers must be ascending.  Delimit individual layer numbers with a ',' comma and delimit layer ranges with a '-' dash.  Spaces are not allowed.  If there is no 'SUPPORT-INTERFACE' found on a layer in the list, then that layer is ignored.",
                     "type": "str",
-                    "default_value": "10,15,28-31",
-                    "enabled": "enable_supt_int_matl_change" 
+                    "default_value": "10,28-31,54",
+                    "enabled": "enable_supt_int_matl_change"
                 },
                 "model_str":
                 {
@@ -176,6 +176,26 @@ class SuptIntMaterialChange(Script):
                     "default_value": 440,
                     "minimum_value": 0,
                     "maximum_value": 1000,
+                    "enabled": "enable_supt_int_matl_change"
+                },
+                "cold_pull_temp_model":
+                {
+                    "label": "    Temperature for unloading model filament",
+                    "description": "This will be cooler than the model printing temperature.  The default of 190 works for me with both PLA and PETG.  Too hot and a piece may break off in the hot end creating a clog.  Too cool and the filament won't pull out.",
+                    "type": "int",
+                    "unit": "deg  ",
+                    "value": 190,
+                    "default_value": "model_temp - 15",
+                    "enabled": "enable_supt_int_matl_change"
+                },
+                "cold_pull_temp_interface":
+                {
+                    "label": "    Temperature for unloading interface filament",
+                    "description": "This will be cooler than the interface print temperature.  The default of 190 works for me with both PLA and PETG.  Too hot and a piece may break off in the hot end creating a clog.  Too cool and the filament won't pull out.",
+                    "type": "int",
+                    "unit": "deg  ",
+                    "value": 190,
+                    "default_value": "interface_temp - 15",
                     "enabled": "enable_supt_int_matl_change"
                 },
                 "load_dist":
@@ -266,6 +286,7 @@ class SuptIntMaterialChange(Script):
 
     def execute(self, data):
         if not self.getSettingValueByKey("enable_supt_int_matl_change"):
+            Logger.log("i", "[Supt-Interface Material Change] Is not enabled.")
             return data
         mycura = CuraApplication.getInstance().getGlobalContainerStack()
         extruder = mycura.extruderList
@@ -279,7 +300,18 @@ class SuptIntMaterialChange(Script):
                     ext_enabled += 1
         if ext_enabled > 1:
             Message(title = "[Supt-Interface Material Change]", text = "Is not compatible with more than a single enabled extruder.").show()
-            data[0] += ";  [Supt-Interface Material Change] Did not run because more than one extruder is enabled.\n"
+            data[0] += ";    [Supt-Interface Material Change] Did not run because more than one extruder is enabled.\n"
+            Logger.log("i", "[Supt-Interface Material Change] Did not run because more than one extruder is enabled.")
+            return data
+        if not mycura.getProperty("support_enable", "value"):
+            Message(title = "[Supt-Interface Material Change]", text = "'Generate Support' is not enabled.").show()
+            data[0] += ";    [Supt-Interface Material Change] Did not run because 'Generate Support' is not enabled.\n"
+            Logger.log("i", "[Supt-Interface Material Change] Did not run because 'Generate Support' is not enabled.")
+            return data
+        if not extruder[0].getProperty("support_interface_enable", "value"):
+            Message(title = "[Supt-Interface Material Change]", text = "'Enable Support Interface' is not enabled.").show()
+            data[0] += ";    [Supt-Interface Material Change] Did not run because 'Enable Support Interface' is not enabled.\n"
+            Logger.log("i", "[Supt-Interface Material Change] Did not run because 'Enable Support Interface' is not enabled.")
             return data
 
         # Count the raft layers
@@ -316,7 +348,7 @@ class SuptIntMaterialChange(Script):
         data_list = []
         for num in range(0,len(layer_list)):
             the_layer = int(layer_list[num])
-            for data_num in range(the_layer, len(data)-1):
+            for data_num in range(the_layer, len(data) - 1):
                 if ";LAYER:" + str(the_layer) + "\n" in data[data_num]:
                     data_list.append(data_num)
                     break
@@ -388,15 +420,15 @@ class SuptIntMaterialChange(Script):
         pause_cmd_model = {
             "marlin": "M0 ",
             "marlin2": "M0",
-            "griffin": self.putValue(M = 0),
-            "bq": self.putValue(M = 25),
-            "reprap": self.putValue(M = 226),
-            "repetier": self.putValue("@pause now change filament and press continue printing"),
-            "alt_octo": self.putValue(M = 125),
-            "raise_3d": self.putValue(M = 2000),
-            "klipper": self.putValue("PAUSE"),
-            "custom": self.putValue(str(custom_pause_command)),
-            "g_4": self.putValue(G = 4, S = g4_dwell_time)}[pause_method]
+            "griffin": "M0",
+            "bq": "M25",
+            "reprap": "M226",
+            "repetier": "@pause now change filament and press continue printing",
+            "alt_octo": "M125",
+            "raise_3d": "M2000",
+            "klipper": "PAUSE",
+            "custom": str(custom_pause_command),
+            "g_4": f"G4 S{g4_dwell_time}"}[pause_method]
         # M0 can overwrite the M117 message so add it to the M0 line if Marlin is chosen.  Add a comment and newline if it is other than Marlin.
         if pause_method == "marlin":
             pause_cmd_interface = pause_cmd_model + interface_str + " Click to Resume; Pause\n"
@@ -441,17 +473,18 @@ class SuptIntMaterialChange(Script):
             m118_interface_str = ""
 
         # Temperature lines
-        interface_temp = int(self.getSettingValueByKey("interface_temp"))
-        model_temp = int(self.getSettingValueByKey("model_temp"))
-        if interface_temp > model_temp:
-            median_temp = ((interface_temp - model_temp) / 2) + model_temp
-        elif model_temp > interface_temp:
-            median_temp = ((model_temp - interface_temp) / 2) + interface_temp
+        #interface_temp = int(self.getSettingValueByKey("interface_temp"))
+        #model_temp = int(self.getSettingValueByKey("model_temp"))
+        cold_pull_temp_model = "M109 R" + str(self.getSettingValueByKey("cold_pull_temp_model")) + "; Cold Pull temperature for Model Matl unload\n"
+        cold_pull_temp_interface = "M109 R" + str(self.getSettingValueByKey("cold_pull_temp_interface")) + "; Cold Pull temperature for Interface Matl unload\n"
+        interface_temp = "M109 R" + str(int(self.getSettingValueByKey("interface_temp"))) + "; Interface material temperature\n"
+        model_temp = "M109 R" + str(int(self.getSettingValueByKey("model_temp"))) + "; Print material temperature\n"
+        if self.getSettingValueByKey("unload_dist") > 0:
+            pre_pause_interface_temp = "M104 S" + str(int(self.getSettingValueByKey("interface_temp"))) + "; Interface material temperature\n"
+            pre_pause_model_temp = "M104 S" + str(int(self.getSettingValueByKey("model_temp"))) + "; Print material temperature\n"
         else:
-            median_temp = model_temp
-        median_temp = "M104 S" + str(median_temp) + "; Median temperature during pause\n"
-        interface_temp = "M109 R" + str(self.getSettingValueByKey("interface_temp")) + "; Interface material temperature\n"
-        model_temp = "M109 R" + str(self.getSettingValueByKey("model_temp")) + "; Print material temperature\n"
+            pre_pause_interface_temp = ""
+            pre_pause_model_temp = ""
 
         # Flow lines
         flow_rate = str(self.getSettingValueByKey("interface_flow"))
@@ -461,7 +494,7 @@ class SuptIntMaterialChange(Script):
         feed_rate = str(self.getSettingValueByKey("interface_feed"))
         feed_rate_str = f"M220 S{feed_rate}        ; Set interface feed rate\n"
         feed_rate_reset = "M220 S100; Reset flow rate\n"
-        
+
         # Load and Unload lines
         if self.getSettingValueByKey("unload_dist") != 0:
             unload_dist = self.getSettingValueByKey("unload_dist")
@@ -487,7 +520,7 @@ class SuptIntMaterialChange(Script):
         purge_str_model += "M400; Complete all moves\n"
         purge_str_model += "M300 P250; Beep\n"
         purge_str_model += "G4 S2; Wait for 2 seconds\n"
-        
+
         # Purge Lines Interface
         # Complete purge of the Interface material is necessary to avoid weak layers upon resumption of the model.  The interface purge is in three steps.
         purge_str_interface = "M83; Relative extrusion\n"
@@ -502,23 +535,20 @@ class SuptIntMaterialChange(Script):
             purge_str_interface += "G1 F" + str(retract_speed) + " E-" + str(retract_dist) + "; Retract to clean\n"
             purge_str_interface += "G4 S1; Wait 1 second\n"
             purge_str_interface += "G1 F" + str(unretract_speed) + " E" + str(retract_dist) + "; UnRetract\n"
-            purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge remainder\n"            
+            purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge remainder\n"
         if not firmware_retract:
             purge_str_interface += "G1 F" + str(int(retract_speed)) + " E-" + str(retract_dist) + "; Retract\n"
         else:
             purge_str_interface += "G10; Retract\n"
         purge_str_interface += "M400; Complete all moves\n"
         purge_str_interface += "M300 P250; Beep\n"
-        purge_str_interface += "G4 S2; Wait for 2 seconds\n"            
+        purge_str_interface += "G4 S2; Wait for 2 seconds\n"
 
         # Put together the preliminary strings for the interface material and model material
         interface_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Change to Interface Material" + "\n" + m84_line + "\nG91; Relative movement\nM83; Relative extrusion\n"
-        interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + m300_str + unload_str + interface_str + m118_interface_str + median_temp + pause_cmd_interface + gcode_after_pause + interface_temp
+        interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_model + m300_str + unload_str + interface_str + m118_interface_str + pre_pause_interface_temp +pause_cmd_interface + gcode_after_pause + interface_temp
         model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement" + "\nM83; Relative extrusion\n"
-        model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + m300_str + unload_str + model_str + m118_model_str + median_temp + pause_cmd_model + gcode_after_pause + model_temp
-        interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + m300_str + unload_str + interface_str + m118_interface_str + median_temp + pause_cmd_interface + interface_temp
-        model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement" + "\nM83; Relative extrusion\n"
-        model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + m300_str + unload_str + model_str + m118_model_str + median_temp + pause_cmd_model + model_temp
+        model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_interface + m300_str + unload_str + model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
 
         # Go through the relevant layers and add the strings
         # Make a list of the layers and whether or not 'Support-Interface' was found on the layer.  Use in a message at the end.
@@ -534,12 +564,13 @@ class SuptIntMaterialChange(Script):
                 if ";TYPE:SUPPORT-INTERFACE" in line:
                     index_list.append(index)
                     error_chk_list.append("OK")
-                    for check in range(index + 1, len(lines), 1):
+                    for check in range(index + 1, len(lines) - 1):
                         if lines[check].startswith(";"):
                             index_list.append(check)
                             break
             if error_chk_list[len(error_chk_list) - 1] != "OK":
                 error_chk_list.append("Supt-Int not found")
+
             # Make a list of the starts and stops within a layer
             for index_num in range(0, len(index_list), 2):
                 start_at_line = index_list[index_num]
@@ -579,7 +610,7 @@ class SuptIntMaterialChange(Script):
                 else:
                     start_retract_str = retract_line
                     start_unretract_str = unretract_line
-        
+
                 startout_to_str = "G0 F" + str(speed_travel) + startout_location + "; Return to print\n"
                 startout_final_str = interface_replacement_pre_string_1 + start_retract_str + z_raise + interface_replacement_pre_string_2 + load_str + purge_str_model + startout_to_str + "G91; Relative movement\n" + z_lower + start_unretract_str + start_e_reset_str + flow_rate_str + feed_rate_str + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
 
@@ -603,7 +634,7 @@ class SuptIntMaterialChange(Script):
             data[dnum] = "\n".join(lines)
         err_string = "Check if 'SUPPORT-INTERFACE' was found on the layer:\n"
         for num in range(0, len(error_chk_list) - 1, 2):
-            err_string += "Layer: " + str(int(error_chk_list[num]) + 1) + " --- " + str(error_chk_list[num + 1]) + "\n"        
+            err_string += "Layer: " + str(int(error_chk_list[num]) + 1) + " --- " + str(error_chk_list[num + 1]) + "\n"
         Message(title = "[Support-Interface Material Change]", text = err_string).show()
         return data
 

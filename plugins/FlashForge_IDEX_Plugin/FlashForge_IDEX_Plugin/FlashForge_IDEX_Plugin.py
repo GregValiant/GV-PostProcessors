@@ -4,6 +4,7 @@
 # Flash Forge IDEX Converter is released under the terms of the AGPLv3 or higher.
 #
 # Description:  Postprocessing script to convert Cura Gcode to Normal, Duplicate, or Mirror gcodes for FLash Forge Creator IDEX printers
+#    The settings will be available under "Special Modes".
 #
 #------------------------------------------------------------------------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ class FlashForge_IDEX_Plugin(Extension):
         self._settings_dict = OrderedDict()
         self._settings_dict["flashforgeidexconverter_enable"] = {
             "label": "Enable Flash Forge IDEX Converter",
-            "description": "Enable the converter to create Flash Forge IDEX compatible gcode files from Cura slices.",
+            "description": "Enable the converter to create Flash Forge IDEX compatible gcode files from Cura slices.  This script will run after any post-processors.  NOTE: Other post processors that may use G91 Relative Movement, or cause large Z moves (such as PauseAtHeight), will cause the Flash Print preview to misplace Layers below the build plate, or indicate a very tall layer.  The gcode will be correct though the preview is in error.",
             "type": "bool",
             "default_value": True,
             "settable_per_mesh": False,
@@ -38,7 +39,7 @@ class FlashForge_IDEX_Plugin(Extension):
         }
         self._settings_dict["print_mode"] = {
             "label": "    Print Mode",
-            "description": "Normal, Duplicate, or Mirror",
+            "description": "Normal, Duplicate, or Mirror.  You should always load the gcode file in Flash Print and check the preview to insure that the print will fit the build plate of your printer.",
             "type": "enum",
             "options": {
                 "mode_normal": "Normal",
@@ -69,22 +70,24 @@ class FlashForge_IDEX_Plugin(Extension):
             # skip containers that are not definitions
             return
 
-        experimental_category = container.findDefinitions(key="experimental")
+        special_modes_category = container.findDefinitions(key="blackmagic")
 
         flashforgeidexconverter_enable = container.findDefinitions(key=list(self._settings_dict.keys())[0])
         print_mode = container.findDefinitions(key=list(self._settings_dict.keys())[1])
-
-        if experimental_category:
-            experimental_category = experimental_category[0]
+        
+        num = 0
+        if special_modes_category:
+            special_modes_category = special_modes_category[0]
             for setting_key, setting_dict in self._settings_dict.items():
 
-                definition = SettingDefinition(setting_key, container, experimental_category, self._i18n_catalog)
+                definition = SettingDefinition(setting_key, container, special_modes_category, self._i18n_catalog)
                 definition.deserialize(setting_dict)
 
                 # add the setting to the already existing platform adhesion setting definition
-                experimental_category._children.append(definition)
+                special_modes_category._children.insert(num, definition)
                 container._definition_cache[setting_key] = definition
                 container._updateRelations(definition)
+                num += 1
 
     def _ParseGcode(self, output_device):
         scene = self._application.getController().getScene()
@@ -92,24 +95,33 @@ class FlashForge_IDEX_Plugin(Extension):
         global_container_stack = self._application.getGlobalContainerStack()
         if not global_container_stack:
             return
-            extruder = global_container_stack.extruderList
-            # Check the extruder count to see if more than one is enabled and if that one is T0.
-            flashforgeidexconverter_enable = extruder[0].getProperty("flashforgeidexconverter_enable", "value")
-            # Exit if more than one extruder is enabled and that extruder is not T0
-            if flashforgeidexconverter_enable and int(global_container_stack.getProperty("machine_extruder_count", "value")) == 1:
-                Logger.log("w", "[FLash Forge IDEX Converter] Requires multi-extruder printer model.  The plugin did not run.")
-                Message(title = "[FLash Forge IDEX Converter]", text = "Requires multi-extruder printer model.  The plugin did not run.").show()
-                return
-            # get settings from Cura
-            print_mode = extruder[0].getProperty("print_mode", "value")
-            if not flashforgeidexconverter_enable:
-                return
-
+        extruder = global_container_stack.extruderList
+        # Check the extruder count to see if more than one is enabled and if that one is T0.
+        flashforgeidexconverter_enable = extruder[0].getProperty("flashforgeidexconverter_enable", "value")
+        # Exit if more than one extruder is enabled and that extruder is not T0
+        if flashforgeidexconverter_enable and int(global_container_stack.getProperty("machine_extruder_count", "value")) == 1:
+            Logger.log("w", "[Flash Forge IDEX Converter] Requires multi-extruder printer model.  The plugin did not run.")
+            return
+        # Exit if the script isn't enabled        
+        if not flashforgeidexconverter_enable:
+            Logger.log("i", "[Flash Forge IDEX Converter] Was not enabled.")
+            return
+        # get settings from Cura
+        print_mode = extruder[0].getProperty("print_mode", "value")
         gcode_dict = getattr(scene, "gcode_dict", {})
         if not gcode_dict: # this also checks for an empty dict
             Logger.log("w", "Scene has no gcode to process")
             return
-
+        
+        mycura = Application.getInstance().getGlobalContainerStack()
+        extruder = mycura.extruderList
+        machine_name = str(mycura.getProperty("machine_name", "value"))
+        bed_size_ratio = 0.40
+        if "Creator Pro 2" in machine_name:
+            bed_size_ratio = 0.37
+        elif "Creator 3 Pro" in machine_name:
+            bed_size_ratio = 0.45
+            
         dict_changed = False
         interface_not_found = ""
         for plate_id in gcode_dict:
@@ -117,9 +129,7 @@ class FlashForge_IDEX_Plugin(Extension):
             if len(gcode_list) < 2:
                 Logger.log("w", "G-Code %s does not contain any layers", plate_id)
                 continue
-            if ";  [Support-Interface Material Change] plugin is enabled\n" not in gcode_list[0]:
-                mycura = Application.getInstance().getGlobalContainerStack()
-                extruder = mycura.extruderList
+            if ";  [Flash Forge IDEX Converter] plugin is enabled" not in gcode_list[0]:
                 machine_width = int(mycura.getProperty("machine_width", "value"))
                 print_mode = extruder[0].getProperty("print_mode", "value")
                 cura_start = gcode_list[0].split("\n")
@@ -129,7 +139,7 @@ class FlashForge_IDEX_Plugin(Extension):
                     if "MAXX:" in line or "MAX.X" in line:
                         max_x = abs(float(line.split(":")[1]))
                 x_size = max_x + min_x
-                if print_mode != "mode_normal" and x_size > .45 * machine_width or print_mode == "mode_normal" and x_size > machine_width:
+                if print_mode != "mode_normal" and x_size > bed_size_ratio * machine_width or print_mode == "mode_normal" and x_size > machine_width:
                     msgtext = "The X footprint of the 'model+skirt/brim/raft+supports' is " + str(x_size) + "mm.\nYou must view the gcode file in the Flash Print preview to ensure the print will fit the build plate of the printer."
                     Message(title = "[FlashForge Max Footprint]", text = msgtext).show()
                 # Exit if the printer is a single extruder printer
@@ -150,15 +160,12 @@ class FlashForge_IDEX_Plugin(Extension):
                 t1_temp = str(extruder[1].getProperty("material_print_temperature", "value"))
                 bed_temp = str(mycura.getProperty("material_bed_temperature", "value"))
                 layer_height = str(mycura.getProperty("layer_height", "value"))
-                insert_str = ";machine_type: Creator 3\n;right_extruder_material: " + t0_material + "\n;right_extruder_material_density: 1.24\n;left_extruder_material: " + t1_material + "\n;left_extruder_material_density: 1.24\n;filament_diameter0: 1.75\n;right_extruder_temperature: " + t0_temp + "\n;filament_diameter1: 1.75\n;left_extruder_temperature: " + t1_temp + "\n;platform_temperature: " + bed_temp + "\n"
-                active_extruder = "0"
-                if print_mode == "mode_normal":
-                    if t1_enabled and not t0_enabled:
-                        active_extruder = "1"
+                # Put together the opening conversion string
+                insert_str = ";----- Flash Forge IDEX Converter Start"
+                insert_str += "\n;machine_type: Flash Forge Creator 2/3 Pro\n;right_extruder_material: " + t0_material + "\n;right_extruder_material_density: 1.24\n;left_extruder_material: " + t1_material + "\n;left_extruder_material_density: 1.24\n;filament_diameter0: 1.75\n;right_extruder_temperature: " + t0_temp + "\n;filament_diameter1: 1.75\n;left_extruder_temperature: " + t1_temp + "\n;platform_temperature: " + bed_temp + "\n"
                 location_str = ";start gcode\nM118 X31.60 Y69.10 Z26.65"
-                if t0_enabled:
-                    location_str += " T0"
-                if t1_enabled and print_mode in ["mode_mirror", "mode_duplicate"]:
+                location_str += " T0"
+                if print_mode in ["mode_mirror", "mode_duplicate"]:
                     location_str += " T1"
                 if print_mode == "mode_mirror":
                     location_str += " D1"
@@ -168,30 +175,18 @@ class FlashForge_IDEX_Plugin(Extension):
                 if print_mode == "mode_mirror":
                     location_str += "\nM7 T0\nM6 T0\nM6 T1\nM651 S255\nM109 T1"
                 elif print_mode == "mode_duplicate":
-                    location_str += "\nM7 T0\nM6 T0\nM6 T1\nM651 S255\nM109 T2"
+                    location_str += "\nM7 T0\nM6 T0\nM6 T1\nM651 S255\nM109 T0"            
                 elif print_mode == "mode_normal":
-                    location_str += "\nM7 T0"
-                    if t0_enabled:
-                        location_str += "\nM6 T0"
-                    if t1_enabled:
-                        location_str += "\nM6 T1"
-                    location_str += "\nM651 S255\nM108 T" + str(active_extruder)
-                location_str += "\n;extrude_ratio:1"
+                    location_str += "\nM7 T0\nM6 T0"
+                    location_str += "\nM651 S255\nM108 T0"            
+                location_str += "\n;extrude_ratio:1\n;----- End of Flash Forge Start"
+                # Insert the string at the G92 E0 closest to the start of the initial layer
                 opening_paragraph = gcode_list[1].split("\n")
-                opening_paragraph.insert(1, insert_str + location_str)
+                for num in range(len(opening_paragraph) - 1, 0, -1):
+                    if "G92 E0" in opening_paragraph[num]:
+                        opening_paragraph.insert(num + 1, insert_str + location_str)
+                        break
                 gcode_list[1] = "\n".join(opening_paragraph)
-                active_tool = "0"
-                # Go through the StartUp Gcode section and track the active tool.  It is assumed that the StartUp Gcode is correct and works.  If there is an M106 or M107 it will be changed.
-                lines = gcode_list[1].split("\n")
-                for index, line in enumerate(lines):
-                    if line.startswith("T"):
-                        active_tool = self.getValue(line, "T")
-                    if line.startswith("M106 S"):
-                        if " P" in line:
-                            lines[index] = lines[index].replace(" P", " T")
-                    if line.startswith("M107"):
-                        lines[index] = "M107 T0\nM107 T1"
-                gcode_list[1] = "\n".join(lines)
 
                 # Go through all the layers and make the changes.
                 for num in range(2, len(gcode_list) - 1):
@@ -220,7 +215,7 @@ class FlashForge_IDEX_Plugin(Extension):
                                 frt_part = line.split(";")[0].rstrip()
                                 frt_part = frt_part + " T" + str(active_tool)
                                 c_comment = self._get_comment(line)
-                                lines[index] = frt_part + (" " * spaces) + c_comment
+                                lines[index] = frt_part + c_comment
 
                         # Move any F parameters to the end of the line
                         if " F" in line and self.getValue(line, "F") is not None:
@@ -232,15 +227,22 @@ class FlashForge_IDEX_Plugin(Extension):
                                 frt_part = line.split(";")[0].rstrip()
                                 c_comment = self._get_comment(line)
                                 frt_part = frt_part.replace(" F" + str(f_val), "") + " F" + str(f_val)
-                                lines[index] = frt_part + (" " * spaces) + ";" + c_comment
+                                lines[index] = frt_part + c_comment
                         # Make adjustments to the fan lines
                         if line.startswith("M107"):
-                            lines[index] = "M106 S0 T" + str(active_tool)
+                            lines[index] = "M106 S0 T0\nM106 S0 T1"
+                            continue
                         if line.startswith("M106"):
-                            lines[index] = line.replace("P", "T")
                             fan_speed = self.getValue(line, "S")
-                            lines[index] += "\nM106 S" + str(fan_speed) + " T"
-                            lines[index] += "0" if active_tool == "1" else "1"
+                            lines[index] = "M106 S" + str(fan_speed) + " T0"
+                            if print_mode != "mode_normal":
+                                lines[index] += "\nM106 S" + str(fan_speed) + " T1"
+                            continue
+                            
+                        # Flash print doens't use G0 so change them all to G1
+                        if line.startswith("G0"):
+                            lines[index] = lines[index].replace("G0", "G1")
+                            continue
 
                         # Flash print doens't use G0 so change them all to G1
                         if line.startswith("G0"):
@@ -269,13 +271,24 @@ class FlashForge_IDEX_Plugin(Extension):
                         if "TYPE:BRIM" in line:
                             lines[index] = lines[index].replace("TYPE:BRIM", "structure:brim")
                             continue
-                        if "TYPE:SUPPORT" in line:
-                            lines[index] = ";support-start\n;structure:line-support-sparse"
+                        if "TYPE:SUPPORT-INTERFACE" in line:
+                            lines[index] = ";support-start\n;structure:line-support-solid\n" + line
                             new_index = index + 1
                             for nr in range(new_index, len(lines) - 1):
                                 if lines[nr].startswith(";"):
                                     lines[nr] = ";support-end\n" + lines[nr]
                                     break
+                            continue
+                        if "TYPE:SUPPORT" in line:
+                            lines[index] = ";support-start\n;structure:line-support-sparse\n" + line
+                            new_index = index + 1
+                            for nr in range(new_index, len(lines) - 1):
+                                if lines[nr].startswith(";"):
+                                    lines[nr] = ";support-end\n" + lines[nr]
+                                    break
+                            continue
+                        if "TYPE:CUSTOM" in line:
+                            lines[index] = lines[index] = ";structure:custom" + lines[index]
                             continue
                     gcode_list[num] = "\n".join(lines)
 
@@ -297,6 +310,8 @@ class FlashForge_IDEX_Plugin(Extension):
                             if " Z" in line and self.getValue(line, "Z") is not None:
                                 cur_z = float(self.getValue(line, "Z"))
                                 layer_hgt = round(cur_z - prev_z, 2)
+                                # This is required for pause code that can produce large Z moves or relative moves.
+                                if layer_hgt < 0: layer_hgt = layer_height
                                 prev_z = cur_z
                             if line.startswith(";LAYER:"):
                                 lines[index] = line + "\n;layer:" + str(layer_hgt)
@@ -342,7 +357,7 @@ class FlashForge_IDEX_Plugin(Extension):
         frt_part = frt_part.rstrip()
         frt_2_len = len(frt_part)
         spaces = frt_len - frt_2_len
-        c_comment = spaces + ";" + line.split(";")[1]
+        c_comment = (" " * spaces) + ";" + c_line.split(";")[1]
         return c_comment
 
     def getValue(self, line: str, param: str)->str:
