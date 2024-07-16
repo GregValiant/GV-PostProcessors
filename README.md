@@ -29,6 +29,9 @@ AddCuraSettings:
 AlterZHops:
 	This allows the Z-hop height to be altered for ranges of layers.  Setting the new hop height to "0" effectively turns it off although the lines are not removed from the gcode.
 
+AnnealingCoolDown:
+	Allows "End-of-print" control of the bed (and chamber) temperatures.  The bed temperature can be adjusted and the "cool down" can be stretched out to "anneal" a print.  The print head can be parked out of the way so a cover can be placed over the print.
+
 BridgeTemperatureAdjustment:
 	Allows a temperature change for bridging and then returns the temperature to the normal print temperature when the bridge is finished.
 
@@ -80,9 +83,6 @@ SearchAndReplace:
 
 SuptIntMaterialChange:
 	This one is really cool.  With the air-gap over the support-interface (or raft) at "0" the user can select the layers to insert filament changes just for the Support-Interface.  After the interface is printed there is another pause to change back to the original material.  (Using PETG for the interface of a PLA print, or vice-versa, works well.)  This allows for excellent release of the support from the model and excellent finishes on the support side of the "first layer over support".  The downside is that as good as it is with large flats, it's value decreases as the number of pauses required grows which makes it annoying for things like the support in large horizontal holes.  But if you have a box top and it needs to be printed riht-side-up, this is really good.
-
-TimedCoolDown:
-	Allows the cooling of the build plate (and build volume) to be stretched out to "anneal" a print.
 
 TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options.
