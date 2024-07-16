@@ -14,14 +14,14 @@ from UM.Message import Message
 from UM.Platform import Platform
 import os
 
-class DiscoverSettings572(Script):
+class DiscoverSettings(Script):
     """Add the Cura settings as a post-script to the g-code.
     """
 
     def getSettingDataString(self):
         return """{
-            "name": "Discover Settings 5.7.2",
-            "key": "DiscoverSettings572",
+            "name": "Discover Cura Settings",
+            "key": "DiscoverSettings",
             "metadata": {},
             "version": 2,
             "settings":
