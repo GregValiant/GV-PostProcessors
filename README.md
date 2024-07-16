@@ -67,7 +67,7 @@ MultiExtruderColorMix:
 	A work in process.  This is intended to allow graduated mixing for printers with mixing hot ends.  The Marlin side is well along.  The RepRap side is just started.
 
 PauseAtLayer:
-	My re-work of PauseAtHeight.  Allows for unloading, purging, and re-loading and other new options.
+	My re-work of PauseAtHeight.  Allows for unloading, purging, and re-loading and other new options.  There is an option to add pauses to all the models in a "One at a Time" project. 
 
 Raise3DIDEX:
 	Does for the Raise3D IDEX machines what the other post does for the Flash Forge IDEX machines.

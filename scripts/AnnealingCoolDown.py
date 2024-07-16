@@ -7,7 +7,7 @@ from UM.Application import Application
 from ..Script import Script
 from UM.Message import Message
 
-class TimedCoolDown(Script):
+class AnnealingCoolDown(Script):
 
     def initialize(self) -> None:
         super().initialize()
@@ -17,8 +17,8 @@ class TimedCoolDown(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Timed Cool Down (Anneal)",
-            "key": "TimedCoolDown",
+            "name": "Annealing Bed/Chamber CoolDown",
+            "key": "AnnealingCoolDown",
             "metadata": {},
             "version": 2,
             "settings":
@@ -204,7 +204,7 @@ class TimedCoolDown(Script):
         anneal_string += "M140 S0 ;Shut off the bed heater" + "\n"
         if anneal_type == "bed_chamber":
             anneal_string += "M141 S0 ;Shut off the chamber heater\n"
-        anneal_string += beep_string + "M117 CoolDown Complete\n;TYPE:CUSTOM End of Cool Down\n"
+        anneal_string += beep_string + "M117 CoolDown Complete\n"
         anneal_string += "M118 CoolDown Complete\n;TYPE:CUSTOM End of Cool Down\n"
         layer = data[len(data)-1]
         lines = layer.split("\n")
