@@ -69,7 +69,7 @@ class DiscoverSettings(Script):
     def execute(self, data): #Application.getInstance().getPrintInformation().
         init_version = self.getSettingValueByKey("cura_version")
         if init_version == "v5_80":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.8.0\share\cura\resources\definitions\fdmprinter.def.json"
+            init_path = r"C:\Program Files\UltiMaker Cura 5.8.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_72":
             init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_71":
