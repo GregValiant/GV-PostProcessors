@@ -34,6 +34,10 @@ BridgeTemperatureAdjustment:
 
 CuraPrependBugFix:
 	This is specifically for Cura 5.7.2 and removes the temperature prepend lines that are being erroneously entered before the StartUp Gcode.
+	
+DiscoverSettings:
+    NOTE:  This does not generate a gcode file.
+	Goes through "fdmprinter.def.json" and retrieves all the settings and pastes them into the gcode file.  If a comparison between two Cura versions is being made then it lists all the settings in each version and reports the differences between the two versions.
 
 DisplayInfoOnLCD
 	Now included in Cura, it adds some info to the LCD and can bounce that information back to a print server like OctoPrint or PrintRun.
