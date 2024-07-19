@@ -1,4 +1,4 @@
-# GV-PostProcessors
+# GV-PostProcessors and Plugins
  PostProcessing Scripts for Cura
 
 As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
@@ -87,8 +87,7 @@ SuptIntMaterialChange:
 TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
 
-#GV Plugins
- Plugin Extensions for Cura
+Plugin Extensions for Cura
 SovolSV04_IDEX
 	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" settings of Cura.
 	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
