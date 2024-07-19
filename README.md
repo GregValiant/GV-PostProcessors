@@ -87,10 +87,8 @@ SuptIntMaterialChange:
 TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
 
------------------------------------------------------------------------------
-
 #GV Plugins
-Plugin Extensions for Cura
+ Plugin Extensions for Cura
 SovolSV04_IDEX
 	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" settings of Cura.
 	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
