@@ -24,7 +24,7 @@ AddCoolingProfile.py:
 	This one is now included with Cura.  If gives fine control over the layer cooling fan(s) either "By Layer" or "By Feature".
 
 AddCuraSettings:
-	Adds a list of over 300 Cura settings to the end of the gcode file.  The exact number depends on the number of extruders, whether certain settings are checked, etc.  It was turned down by the Cura team as being too difficult to maintain.  I see their point, but it is useful to have sometimes none the less.
+	Adds a list of over 600 Cura settings to the end of the gcode file.  The exact number depends on the number of extruders, whether certain settings are checked, etc.  It was turned down by the Cura team as being too difficult to maintain.  I see their point, but it is useful to have sometimes none the less.  The current version has been updtated to Cura 5.8-beta.
 
 AlterZHops:
 	This allows the Z-hop height to be altered for ranges of layers.  Setting the new hop height to "0" effectively turns it off although the lines are not removed from the gcode.
@@ -40,7 +40,7 @@ CuraPrependBugFix:
 	
 DiscoverSettings:
     NOTE:  This does not generate a gcode file.
-	Goes through "fdmprinter.def.json" and retrieves all the settings and pastes them into the gcode file.  If a comparison between two Cura versions is being made then it lists all the settings in each version and reports the differences between the two versions.
+	Goes through "fdmprinter.def.json" and retrieves all the settings and pastes them into the gcode file.  If a comparison between two Cura versions is being made then it lists all the settings in each version and reports the differences between the two versions.  This is what I use to update "AddCuraSettings".
 
 DisplayInfoOnLCD
 	Now included in Cura, it adds some info to the LCD and can bounce that information back to a print server like OctoPrint or PrintRun.
@@ -58,7 +58,7 @@ HighTempPrinting:
 	A workaround for the Cura 365° temperature limit of the hot end.  When printing a material like PEEK the user enters 1/2 print temperature values and the post-processor will double them in the gcode.
 
 InsertAtLayerChange:
-	A re-write with added options
+	A re-write with added options such as "Frequency" of the insertion.
 
 LimitXYAccelJerk:
 	For bed slinger printers, the accel can be changed at a layer, or gradually changed across a range of layers.  It can keep jerky motion of tall prints from breaking the print loose from the bed.
@@ -85,5 +85,21 @@ SuptIntMaterialChange:
 	This one is really cool.  With the air-gap over the support-interface (or raft) at "0" the user can select the layers to insert filament changes just for the Support-Interface.  After the interface is printed there is another pause to change back to the original material.  (Using PETG for the interface of a PLA print, or vice-versa, works well.)  This allows for excellent release of the support from the model and excellent finishes on the support side of the "first layer over support".  The downside is that as good as it is with large flats, it's value decreases as the number of pauses required grows which makes it annoying for things like the support in large horizontal holes.  But if you have a box top and it needs to be printed riht-side-up, this is really good.
 
 TimeLapse:
-	A re-write that has been submitted to UM.  It includes additional options.
+	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
+
+-----------------------------------------------------------------------------
+
+#GV Plugins
+Plugin Extensions for Cura
+SovolSV04_IDEX
+	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" settings of Cura.
+	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
+	
+FlashForge_IDEX_Plugin
+	Same as the post-processor but as a plugin/extension
+
+Support Interface Material Change
+	This is the same as the post-processor.  It is available in the normal Cura settings under 'Enable Support Interface'
+
+-----------------------------------------------------------------------------
 

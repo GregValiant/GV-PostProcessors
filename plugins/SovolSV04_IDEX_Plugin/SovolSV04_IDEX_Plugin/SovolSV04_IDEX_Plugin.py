@@ -49,7 +49,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             "enabled": "sovolidexconverter_enable"
         }
         self._settings_dict["enable_t0_start"] = {
-            "label": "Enable T0 StartUp macro",
+            "label": "    Enable T0 StartUp macro",
             "description": "Enable a Custom Gcode to run the first time that T0 is called.",
             "type": "bool",
             "default_value": False,
@@ -63,7 +63,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             "enabled": "sovolidexconverter_enable and enable_t0_start and print_mode == 'mode_dual'"
         }
         self._settings_dict["enable_t0_end"] = {
-            "label": "Enable T0 Ending macro",
+            "label": "    Enable T0 Ending macro",
             "description": "Enable a Custom Gcode to run the last time that T0 is called.",
             "type": "bool",
             "default_value": False,
@@ -77,7 +77,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             "enabled": "sovolidexconverter_enable and enable_t0_end and print_mode == 'mode_dual'"
         }
         self._settings_dict["enable_t1_start"] = {
-            "label": "Enable T1 StartUp macro",
+            "label": "    Enable T1 StartUp macro",
             "description": "Enable a Custom Gcode to run the first time that T1 is called.",
             "type": "bool",
             "default_value": False,
@@ -91,7 +91,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             "enabled": "sovolidexconverter_enable and enable_t1_start and print_mode == 'mode_dual'"
         }
         self._settings_dict["enable_t1_end"] = {
-            "label": "Enable T1 Ending macro",
+            "label": "    Enable T1 Ending macro",
             "description": "Enable a Custom Gcode to run the last time that T0 is called.",
             "type": "bool",
             "default_value": False,
@@ -126,7 +126,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             # skip containers that are not definitions
             return
 
-        special_modes_category = container.findDefinitions(key="blackmagic")
+        special_modes_category = container.findDefinitions(key="dual")
 
         sovolidexconverter_enable = container.findDefinitions(key=list(self._settings_dict.keys())[0])
         print_mode = container.findDefinitions(key=list(self._settings_dict.keys())[1])
@@ -231,6 +231,45 @@ class SovolSV04_IDEX_Plugin(Extension):
 
                 # If in Dual mode then get any Start and End gcode macros for each tool
                 if print_mode == "mode_dual":
+                    start_gcode = gcode_list[1].split("\n")
+                    initial_extruder_nr = 0
+                    for index, line in enumerate(start_gcode):
+                        if line.startswith("T1"):
+                            initial_extruder_nr = 1
+                            break
+                        elif line.startswith("T0"):
+                            initial_extruder_nr = 0
+                            break
+                    if initial_extruder_nr == 0:
+                        alt_extruder_nr = 1
+                    else:
+                        alt_extruder_nr = 0
+                    # Check if the alternate extruder is used in the print
+                    alt_extruder_used = False
+                    for num in range(1, len(gcode_list) - 1):
+                        if f"\nT{alt_extruder_nr}\n" in gcode_list[num]:
+                            alt_extruder_used = True
+                            break
+                    # Check if an extruder is disabled
+                    enabled_list = list([mycura.isEnabled for mycura in mycura.extruderList])
+                    if enabled_list[initial_extruder_nr]:
+                        init_temp = round(extruder[initial_extruder_nr].getProperty("material_print_temperature_layer_0", "value"))
+                        heat_first_line = f"M109 T{initial_extruder_nr} S{init_temp}                   ; Extruder #{initial_extruder_nr + 1} to Start-Out Temp"
+                    else:
+                        heat_first_line = f"M104 T{initial_extruder_nr} S0                     ; Extruder #{initial_extruder_nr + 1} is disabled or not used"
+                    # Set the temperature for the Initial Extruder
+                    if enabled_list[alt_extruder_nr] and alt_extruder_used:
+                        off_temp = round(extruder[alt_extruder_nr].getProperty("material_standby_temperature", "value"))
+                        heat_second_line = f"M104 T{alt_extruder_nr} S{off_temp}                   ; Extruder #{alt_extruder_nr + 1} to Start-Out Temp"
+                    else:
+                        heat_second_line = f"M104 T{alt_extruder_nr} S0                     ; Extruder #{alt_extruder_nr + 1} is disabled or not used"
+                    for index, line in enumerate(start_gcode):
+                        if line.startswith("G92 E"):
+                            start_gcode.insert(index, heat_first_line)
+                            start_gcode.insert(index, heat_second_line)
+                            break
+                    gcode_list[1] = "\n".join(start_gcode)
+                    
                     t0_initial_gcode = ""
                     t0_end_gcode = ""
                     t1_initial_gcode = ""
@@ -331,6 +370,15 @@ class SovolSV04_IDEX_Plugin(Extension):
                     gcode_list[0] += ";  [Sovol SV04 IDEX Converter] plugin is enabled\n"
                     gcode_dict[plate_id] = gcode_list
                     dict_changed = True
+                elif print_mode == "mode_copy" or print_mode == "mode_mirror":                    
+                    start_gcode = gcode_list[1].split("\n")
+                    start_temp = round(extruder[0].getProperty("material_print_temperature_layer_0", "value"))
+                    heat_first_line = f"M109 S{start_temp}                   ; Both Extruders to Start-Out Temp"
+                    for index, line in enumerate(start_gcode):
+                        if line.startswith("G92 E"):
+                            start_gcode.insert(index, heat_first_line)
+                            break
+                    gcode_list[1] = "\n".join(start_gcode)
                 else:
                     Logger.log("d", "G-Code %s has already been processed", plate_id)
                     continue
