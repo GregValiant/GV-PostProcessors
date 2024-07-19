@@ -299,8 +299,14 @@ class SuptIntMatlChangePlugin(Extension):
         park_y = container.findDefinitions(key=list(self._settings_dict.keys())[20])
         m300_add = container.findDefinitions(key=list(self._settings_dict.keys())[21])
         m118_add = container.findDefinitions(key=list(self._settings_dict.keys())[22])
-
-        insert_pt = 41
+        
+        cura_version = str(Application.getInstance().getVersion())
+        if "5.8" in cura_version:
+            insert_pt = 43
+        elif "5.7" in cura_version:
+            insert_pt = 41
+        else:
+            insert_pt = 0
         if support_category:
             support_category = support_category[0]
             for setting_key, setting_dict in self._settings_dict.items():
