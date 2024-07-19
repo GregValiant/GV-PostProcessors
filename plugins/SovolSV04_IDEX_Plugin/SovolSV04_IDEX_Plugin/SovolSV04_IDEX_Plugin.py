@@ -68,7 +68,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             "description": "Enable a Custom Gcode to run the last time that T0 is called.",
             "type": "bool",
             "default_value": False,
-            "enabled": "sovolidexconverter_enable and print_mode == 'mode_dual'"        
+            "enabled": "sovolidexconverter_enable and print_mode == 'mode_dual'"
         }
         self._settings_dict["t0_end_gcode"] = {
             "label": "    T0 Last Use Commands",
@@ -160,14 +160,14 @@ class SovolSV04_IDEX_Plugin(Extension):
         global_container_stack = self._application.getGlobalContainerStack()
         if not global_container_stack:
             return
-        extruder = global_container_stack.extruderList     
+        extruder = global_container_stack.extruderList
 
-        # Exit if the script isn't enabled   
+        # Exit if the script isn't enabled
         sovolidexconverter_enable = extruder[0].getProperty("sovolidexconverter_enable", "value")
         if not sovolidexconverter_enable:
             Logger.log("i", "[Sovol SV04 IDEX Converter] Was not enabled.")
             return
-        
+
         # get settings from Cura
         print_mode = extruder[0].getProperty("print_mode", "value")
         gcode_dict = getattr(scene, "gcode_dict", {})
@@ -184,7 +184,7 @@ class SovolSV04_IDEX_Plugin(Extension):
             if len(gcode_list) < 2:
                 Logger.log("w", "G-Code %s does not contain any layers", plate_id)
                 continue
-                
+
             # Skip to the end if the Gcode is being saved a second time with no changes to the settings.
             if ";  [Sovol SV04 IDEX Converter] plugin is enabled" not in gcode_list[0]:
                 match print_mode:
@@ -203,15 +203,18 @@ class SovolSV04_IDEX_Plugin(Extension):
                     case "mode_tool_02":
                         mode_str = "SV04 Single Mode 02"
                         sv04_cmd = "M605 S0 ;Set printer to Single Mode 02"
-                        
-                # If in 'Auto Select' mode the printer name determines the mode.
+
+                # If in 'Auto Select' mode the printer name determines the print mode.
                 if not "SV04" in machine_name and print_mode == "mode_auto":
                     Logger.log("i", "The printer name does not contain 'SV04'.  Auto-Mode cannot be used with this printer.")
                     Message(title = "[SovolSV04 IDEX Plugin]", text = "The active printer does not have 'SV04' in its name which 'Auto Mode' requires.  The SovolSV04_IDEX plugin must exit.").show()
                     return
+                    
+                mode_str = "SV04 Dual Mode"
+                sv04_cmd = "M605 S0 ;Set printer to Dual Mode"
                 if print_mode == "mode_auto":
                     if "Copy" in machine_name:
-                        print_mode = "mode_copy"                    
+                        print_mode = "mode_copy"
                         mode_str = "SV04 Copy Mode"
                         sv04_cmd = "M605 S2 ;Set printer to Copy Mode"
                     elif "Dual" in machine_name:
@@ -222,15 +225,15 @@ class SovolSV04_IDEX_Plugin(Extension):
                         print_mode = "mode_mirror"
                         mode_str = "SV04 Mirror Mode"
                         sv04_cmd = "M605 S3 ;Set printer to Mirror Mode"
-                    elif "Single01" in machine_name:
+                    elif "Mode 01" in machine_name:
                         print_mode = "mode_tool_01"
                         mode_str = "SV04 Single Mode 01"
                         sv04_cmd = "M605 S0 ;Set printer to Single Mode 01"
-                    elif "Single02" in machine_name:
+                    elif "Mode 02" in machine_name:
                         print_mode = "mode_tool_02"
                         mode_str = "SV04 Single Mode 02"
                         sv04_cmd = "M605 S0 ;Set printer to Single Mode 02"
-                    
+
                 # Add the printer name so it is in the second line of the gcode ala Sovol Cura
                 lines = gcode_list[0].split("\n")
                 lines.insert(1, ";TARGET_MACHINE.NAME:" + mode_str)
@@ -268,14 +271,14 @@ class SovolSV04_IDEX_Plugin(Extension):
                         alt_extruder_nr = 1
                     else:
                         alt_extruder_nr = 0
-                        
+
                     # Check if the alternate extruder is used in the print
                     alt_extruder_used = False
                     for num in range(1, len(gcode_list) - 1):
                         if f"\nT{alt_extruder_nr}\n" in gcode_list[num]:
                             alt_extruder_used = True
                             break
-                            
+
                     # Check if an extruder is disabled
                     enabled_list = list([mycura.isEnabled for mycura in mycura.extruderList])
                     if enabled_list[initial_extruder_nr]:
@@ -283,7 +286,7 @@ class SovolSV04_IDEX_Plugin(Extension):
                         heat_first_line = f"M109 T{initial_extruder_nr} S{init_temp}                   ; Extruder #{initial_extruder_nr + 1} to Start-Out Temp"
                     else:
                         heat_first_line = f"M104 T{initial_extruder_nr} S0                     ; Extruder #{initial_extruder_nr + 1} is disabled or not used"
-                    
+
                     # Set the temperature for the Initial Extruder
                     if enabled_list[alt_extruder_nr] and alt_extruder_used:
                         off_temp = round(extruder[alt_extruder_nr].getProperty("material_standby_temperature", "value"))
@@ -296,7 +299,7 @@ class SovolSV04_IDEX_Plugin(Extension):
                             start_gcode.insert(index, heat_second_line)
                             break
                     gcode_list[1] = "\n".join(start_gcode)
-                    
+
                     # Prepare the one-time startup and ending gcode macros
                     t0_initial_gcode = ""
                     t0_end_gcode = ""
@@ -351,9 +354,9 @@ class SovolSV04_IDEX_Plugin(Extension):
                         lines = gcode_list[first_t1_line[0]].split("\n")
                         lines[first_t1_line[1]] += str(t1_initial_gcode)
                         gcode_list[first_t1_line[0]] = "\n".join(lines)
-                    
+
                     # If T0 is the last tool used add the macro code to the end of the last layer.
-                    if last_t0_line[0] > last_t1_line[0]:                
+                    if last_t0_line[0] > last_t1_line[0]:
                         if last_t0_line != [len_of_data ,0] and enable_t1_end:
                             lines = gcode_list[last_t0_line[0]].split("\n")
                             lines[last_t0_line[1]] = str(t1_end_gcode) + lines[last_t0_line[1]]
@@ -364,7 +367,7 @@ class SovolSV04_IDEX_Plugin(Extension):
                                     l_lines.insert(len(l_lines) - 2, t0_end_gcode[:-1])
                                     gcode_list[l_num] = "\n".join(l_lines)
                                     break
-                    
+
                     # If T1 is the last tool used add the macro code to the end of the last layer.
                     elif last_t1_line[0] > last_t0_line[0]:
                         if last_t1_line != [len_of_data ,0] and enable_t0_end:
@@ -377,7 +380,7 @@ class SovolSV04_IDEX_Plugin(Extension):
                                     l_lines.insert(len(l_lines) - 2, t1_end_gcode[:-1])
                                     gcode_list[l_num] = "\n".join(l_lines)
                                     break
-                    
+
                     # For prints that only use T0
                     if last_t1_line[0] == len(gcode_list) and t0_used:
                         for l_num in range(len(gcode_list) - 1, 0, -1):
@@ -386,7 +389,7 @@ class SovolSV04_IDEX_Plugin(Extension):
                                 l_lines.insert(len(l_lines) - 2, t0_end_gcode[:-1])
                                 gcode_list[l_num] = "\n".join(l_lines)
                                 break
-                    
+
                     # For prints that only use T1
                     if last_t0_line[0] == len(gcode_list) and t1_used:
                         for l_num in range(len(gcode_list) - 1, 0, -1):
@@ -398,7 +401,7 @@ class SovolSV04_IDEX_Plugin(Extension):
                     gcode_list[0] += ";  [Sovol SV04 IDEX Converter] plugin is enabled\n"
                     gcode_dict[plate_id] = gcode_list
                     dict_changed = True
-                elif print_mode == "mode_copy" or print_mode == "mode_mirror":                    
+                elif print_mode == "mode_copy" or print_mode == "mode_mirror":
                     start_gcode = gcode_list[1].split("\n")
                     start_temp = round(extruder[0].getProperty("material_print_temperature_layer_0", "value"))
                     heat_first_line = f"M109 S{start_temp}                   ; Both Extruders to Start-Out Temp"
