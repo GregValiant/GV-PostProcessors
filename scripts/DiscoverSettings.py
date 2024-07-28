@@ -244,7 +244,7 @@ class DiscoverSettings(Script):
             category_list.append("Support:         ")
 
             start_at = "    platform_adhesion:"
-            end_at = "    meshfix:"
+            end_at = "    dual:"
             bed_adhesion_setting_list = self._get_settings(whole_file, start_at, end_at)[0]
             label_list = self._get_settings(whole_file, start_at, end_at)[1]
             data[0] += "\n    [Build Plate Adhesion]\n"
@@ -252,6 +252,16 @@ class DiscoverSettings(Script):
                 data[0] += bed_adhesion_setting_list[lnum] + str("."*(50-len(bed_adhesion_setting_list[lnum]))) + " ;" + label_list[lnum] + "\n"
             total_setting_list.append(str(len(bed_adhesion_setting_list)))
             category_list.append("Adhesion:        ")
+            
+            start_at = "    dual:"
+            end_at = "    meshfix:"
+            dual_extruder_setting_list = self._get_settings(whole_file, start_at, end_at)[0]
+            label_list = self._get_settings(whole_file, start_at, end_at)[1]
+            data[0] += "\n    [Dual Extruder]\n"
+            for lnum in range(0, len(dual_extruder_setting_list),1):
+                data[0] += dual_extruder_setting_list[lnum] + str("."*(50-len(dual_extruder_setting_list[lnum]))) + " ;" + label_list[lnum] + "\n"
+            total_setting_list.append(str(len(dual_extruder_setting_list)))
+            category_list.append("Dual Extruder:   ")
 
             start_at = "    meshfix:"
             end_at = "    blackmagic:"

@@ -21,7 +21,6 @@
 #     19) Adjust starting E location - If the skirt/brim/raft doesn't start where the nozzle starts because of a retraction in the StartUp then an adjustment to the E location may be needed.
 #     20) Fix the 5.7.2 Prepend Temperature bug
 #     21) 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
-#     22) The Flash Forge IDEX printers want temperature lines as M104/9 Sxxx Tx but Cura forms them as M104/9 Tx Sxxx.  This script switches the location of the parameters in each temperature line.  In addition, the script also adds T#'s to all temperature lines that don't have them (M104/9 lines that would normally refer to the 'Active Extruder'.
 
 from ..Script import Script
 from UM.Application import Application
@@ -109,14 +108,6 @@ class LittleUtilities_v20(Script):
                     "description": "These are scripts that fix noticed problems with Cura.",
                     "type": "bool",
                     "default_value": false
-                },
-                "cura_prepend_bug_fix":
-                {
-                    "label": "    5.7.2 Prepend Temperature bug fix",
-                    "description": "When enabled the script will check if Bed and Hot End temperature prepends were required.  It will go ahead and remove the prepend temperature lines from before the StartUp Gcode if they were not.",
-                    "type": "bool",
-                    "default_value": false,
-                    "enabled": "bug_fixes"
                 },
                 "add_extruder_end":
                 {
@@ -734,9 +725,6 @@ class LittleUtilities_v20(Script):
         # If the Unload option is not selected, format the Ending Gcode anyway.
         if not self.getSettingValueByKey("enable_unload"):
             data[len(data) - 1] = self.format_string(data[len(data) - 1])
-        # 5.7.2 bug fix for temperature 
-        if self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("cura_prepend_bug_fix"):
-            data[1] = self._fix_prepend_bug(data[1])
         return data
 
     # Add Extruder Ending Gcode-------------------------------------------
@@ -760,6 +748,7 @@ class LittleUtilities_v20(Script):
         adjust_amt = self.getSettingValueByKey("adjust_e_loc_to")
         data[1] = re.sub("G1 F(\d*) E-(\d.*)", f"G92 E{adjust_amt}", data[1])
         data[1] = self.format_string(data[1])
+        return
 
     # Add data headers to the end of each data section.  Add 'Total Cmd Lines' to data[0]
     def _add_data_header(self, data:str)->str:
@@ -1632,7 +1621,7 @@ class LittleUtilities_v20(Script):
         origin_at_center = bool(mycura.getProperty("machine_center_is_zero", "value"))
         startup_gcode = mycura.getProperty("machine_start_gcode", "value")
         machine_width = mycura.getProperty("machine_width", "value")
-        machine_depth = mycura.getProperty("machine_width", "value")
+        machine_depth = mycura.getProperty("machine_depth", "value")
         material_diameter = extruder[0].getProperty("material_diameter", "value")
         mm3_per_mm = (material_diameter / 2)**2 * 3.14159
         init_line_width = extruder[0].getProperty("skirt_brim_line_width", "value")
@@ -1705,28 +1694,28 @@ class LittleUtilities_v20(Script):
             if where_at == "purge_left":
                 purge_len = int(machine_depth) - 20
                 purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X-{machine_width / 2} Y-{machine_depth / 2 - 10} ; Move to start\n"
+                purge_str += f"G0 F{travel_speed} X-{machine_width / 2} Y-{(machine_depth / 2) - 10} ; Move to start\n"
                 purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X-{machine_width / 2} Y{machine_depth / 2 - 10} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X-{machine_width / 2 - 3} Y{machine_depth / 2 - 10} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X-{machine_width / 2 - 3} Y-{machine_depth / 2 - 10} E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
+                purge_str += f"G1 F{print_speed} X-{machine_width / 2} Y{(machine_depth / 2) - 10} E{purge_volume} ; First line\n"
+                purge_str += f"G0 X-{(machine_width / 2) - 3} Y{(machine_depth / 2) - 10} ; Move over\n"
+                purge_str += f"G1 F{print_speed} X-{(machine_width / 2) - 3} Y-{(machine_depth / 2) - 10} E{round(purge_volume * 2, 5)} ; Second line\n"
+                purge_str += f"G1 F{int(retract_speed)} E{round(purge_volume * 2 - retract_dist, 5)} ; Retract\n"
                 purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X-{machine_width / 2 - 3} Y-{machine_depth / 2 - 20} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 X-{machine_depth / 2 - 3} Y-{machine_depth / 2 - 35} ; Wipe\n"
+                purge_str += f"G0 F{print_speed} X-{(machine_width / 2) - 3} Y-{(machine_depth / 2) - 20} Z0.3 ; Slide over and down\n"
+                purge_str += f"G0 X-{(machine_depth / 2) - 3} Y-{(machine_depth / 2) - 35} ; Wipe\n"
                 self._purge_end_loc = "LF"
             elif where_at == "purge_right":
                 purge_len = int(machine_depth) - 20
                 purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X{machine_width / 2} Z1 ; Move\nG0 Y{machine_depth / 2 - 10} Z1 ; Move to start\n"
+                purge_str += f"G0 F{travel_speed} X{machine_width / 2} Z1 ; Move\nG0 Y{(machine_depth / 2) - 10} Z1 ; Move to start\n"
                 purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X{machine_width / 2} Y-{machine_depth / 2 - 10} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X{machine_width / 2 - 3} Y-{machine_depth / 2 - 10} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X{machine_width / 2 - 3} Y{machine_depth / 2 - 10} E{purge_volume * 2} ; Second line\n"
+                purge_str += f"G1 F{print_speed} X{machine_width / 2} Y-{(machine_depth / 2) - 10} E{purge_volume} ; First line\n"
+                purge_str += f"G0 X{(machine_width / 2) - 3} Y-{(machine_depth / 2) - 10} ; Move over\n"
+                purge_str += f"G1 F{print_speed} X{(machine_width / 2) - 3} Y{(machine_depth / 2) - 10} E{purge_volume * 2} ; Second line\n"
                 purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
                 purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X{machine_width / 2 - 3} Y{machine_depth / 2 - 20} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 F{travel_speed} X{machine_depth / 2 - 3} Y{machine_depth / 2 - 35} ; Wipe\n"
+                purge_str += f"G0 F{print_speed} X{(machine_width / 2) - 3} Y{(machine_depth / 2) - 20} Z0.3 ; Slide over and down\n"
+                purge_str += f"G0 F{travel_speed} X{(machine_depth / 2) - 3} Y{(machine_depth / 2) - 35} ; Wipe\n"
                 self._purge_end_loc = "RR"
             elif where_at == "purge_bottom":
                 purge_len = int(machine_width) - 20
@@ -1738,8 +1727,8 @@ class LittleUtilities_v20(Script):
                 purge_str += f"G1 F{print_speed} X-{machine_width / 2 - 10} Y-{machine_depth / 2 - 3} E{purge_volume * 2} ; Second line\n"
                 purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
                 purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X-{machine_width / 2 - 20} Y-{machine_depth / 2 - 3} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 F{print_speed} X-{machine_width / 2 - 35} Y-{machine_depth / 2 - 3} ; Wipe\n"
+                purge_str += f"G0 F{print_speed} X-{(machine_width / 2) - 20} Y-{(machine_depth / 2) - 3} Z0.3 ; Slide over and down\n"
+                purge_str += f"G0 F{print_speed} X-{(machine_width / 2) - 35} Y-{(machine_depth / 2) - 3} ; Wipe\n"
                 self._purge_end_loc = "LF"
             elif where_at == "purge_top":
                 purge_len = int(machine_width) - 20
@@ -2246,35 +2235,3 @@ class LittleUtilities_v20(Script):
         msg_text = "The post processor 'Little Utilities | Max Temperature Override' is enabled. All the temperatures in the Cura settings for Tool 'T" + tool_num + "' have been doubled in the Gcode.  The new print temperatures are as high as " + str(max_temp) + "°.  Your printer and the material must be capable of handling the high temperatures.  It is up to the user to determine the suitablility of High Temperature Overrides."
         Message(title = "HIGH TEMP PRINT WARNING", text = msg_text).show()
         return alt_data
-
-    def _fix_prepend_bug(self, alt_data_1: str) -> str:
-        startup = alt_data_1.split("\n")
-        startup_gcode = Application.getInstance().getGlobalContainerStack().getProperty("machine_start_gcode", "value")
-        prepend_hot_end = True
-        prepend_bed = True
-        modified_data = []
-        if "material_print_temperature" in startup_gcode:
-            prepend_hot_end = False
-        if "material_bed_temperature" in startup_gcode:
-            prepend_bed = False
-        # If the prepend is required then exit.
-        if prepend_hot_end and prepend_bed:
-            return data
-        for index, line in enumerate(startup):
-            first_part = startup[index][0:4]
-            if not prepend_hot_end:
-                if first_part in ["M104", "M109"]:
-                    continue
-            if not prepend_bed:
-                if first_part in ["M140", "M190"]:
-                    continue
-            if not prepend_hot_end and not prepend_bed:
-                if first_part == "M105":
-                    continue
-            # Once the M82 line is reached then we are past the prepend lines so just continue to add to modified_data.
-            if line.startswith("M82"):
-                prepend_hot_end = True
-                prepend_bed = True
-            modified_data.append(line)
-        alt_data_1 = "\n".join(modified_data)
-        return alt_data_1
