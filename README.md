@@ -97,6 +97,9 @@ FlashForge_IDEX_Plugin
 
 Support Interface Material Change
 	This is the same as the post-processor.  It is available in the normal Cura settings under 'Enable Support Interface'
+	
+Zhop On Travel
+	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode.
 
 -----------------------------------------------------------------------------
 
