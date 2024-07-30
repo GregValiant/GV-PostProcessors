@@ -63,6 +63,71 @@ class LittleUtilities_v20(Script):
             "version": 2,
             "settings":
             {
+                "adjust_starting_e":
+                {
+                    "label": "Adjust Starting E location",
+                    "description": "If there is a retraction after the purge lines in the Startup Gcode (like the 'Add Purge Lines' script here does) then often the skirt does not start where the nozzle starts.  It is because Cura always adds a retraction prior to the print starting which results in a double retraction.  Enabling this will allow you to adjust the starting E location and tune it so the skirt starts right where it should.  To fix a blob enter a positive number.  To fix a 'dry start' enter a negative number.",
+                    "type": "bool",
+                    "default_value": false,
+                    "value": false,
+                    "enabled": true
+                },
+                "adjust_e_loc_to":
+                {
+                    "label": "    Starting E location",
+                    "description": "This is usually a negative amount and often equal to the '-Retraction Distance'.  This adjustment changes where the printer 'thinks' the end of the filament is in relation to the nozzle.  If retraction is not enabled then this setting has no effect.",
+                    "type": "float",
+                    "unit": "mm  ",
+                    "default_value": -6.5,
+                    "enabled": "adjust_starting_e"
+                },
+                "add_purge_lines":
+                {
+                    "label": "Add Purge Lines to StartUp",
+                    "description": "The purge lines can be left, right, front or back.  If there are purge lines present in the StartUp Gcode remove them or comment them out before using this script.  You don't want to double dip.",
+                    "type": "bool",
+                    "default_value": false,
+                    "value": false,
+                    "enabled": true
+                },
+                "purge_line_location":
+                {
+                    "label": "    Purge Line Location",
+                    "description": "What edge of the build plate should have the purge lines.  If the printer is 'Elliptical' then it is assumed to be an 'Origin At Center' printer and the purge lines are 90° arcs.",
+                    "type": "enum",
+                    "options": {
+                        "purge_left": "On left edge (Xmin)",
+                        "purge_right": "On right edge (Xmax)",
+                        "purge_bottom": "On front edge (Ymin)",
+                        "purge_top": "On back edge (Ymax)"},
+                    "default_value": "purge_left",
+                    "enabled": "add_purge_lines"
+                },
+                "move_to_start":
+                {
+                    "label": "Circle around to layer start",
+                    "description": "Depending on where the 'Layer Start X' and 'Layer Start Y' are for the print, the opening travel move can pass across the print area and leave a string there.  This option will generate a path that moves the nozzle around the edges of the build plate and then comes in to the Start Point.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": true
+                },
+                "enable_unload":
+                {
+                    "label": "Unload filament at print end",
+                    "description": "Adds an unload script to the Ending Gcode section.  It goes in just ahead of the M104 S0.  This scripts always unloads the active extruder.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": true
+                },
+                "unload_distance":
+                {
+                    "label": "    Unload Distance",
+                    "description": "The last layer to end wiping.  Use the Cura preview numbers or '-1' for the end layer.",
+                    "type": "int",
+                    "default_value": 440,
+                    "unit": "mm  ",
+                    "enabled": "enable_unload"
+                },
                 "remove_comments":
                 {
                     "label": "Remove Comments",
@@ -396,7 +461,7 @@ class LittleUtilities_v20(Script):
                 "debug_file":
                 {
                     "label": "    Create a debugging file",
-                    "description": "Removes all M commands and extrusions from the layer range specified.  All other layers are deleted.",
+                    "description": "Removes all M commands and extrusions from the layer range specified.  All other layers are deleted.  This allows you to air-print parts of a file to check the motion.",
                     "type": "bool",
                     "default_value": false,
                     "enabled": "debugging_tools"
@@ -527,7 +592,7 @@ class LittleUtilities_v20(Script):
                 "speed_limit_enable":
                 {
                     "label": "Enable Speed Enforcement",
-                    "description": "Whether to enforce the speeds in Cura if they have been effected by 'Flow Compensation'.",
+                    "description": "Whether to enforce the speeds in Cura if they have been effected by 'Flow Compensation'.  Speeds that are above the Cura settings will be adjusted down to the setting value.  Speeds that are slower than the setting are not affected.",
                     "type": "bool",
                     "default_value": false,
                     "enabled": true
@@ -543,54 +608,6 @@ class LittleUtilities_v20(Script):
                         "all_speeds": "Both"},
                     "default_value": "all_speeds",
                     "enabled": "speed_limit_enable"
-                },
-                "adjust_starting_e":
-                {
-                    "label": "Adjust Starting E location",
-                    "description": "If there is a retraction after the purge lines in the Startup Gcode (like the 'Add purge lines' script does) then often the skirt does not start where the nozzle starts.  It is because Cura always adds a retraction prior to the print starting which results in a double retraction.  Enabling this will allow you to adjust the starting E location and tune it so the skirt starts right where it should.",
-                    "type": "bool",
-                    "default_value": false,
-                    "value": false,
-                    "enabled": true
-                },
-                "adjust_e_loc_to":
-                {
-                    "label": "    Starting E location",
-                    "description": "This is usually a negative amount and often equal to the '-Retraction Distance'.  This adjustment changes where the printer 'thinks' the end of the filament is in relation to the nozzle.  If retraction is not enabled then this setting has no effect.",
-                    "type": "float",
-                    "unit": "mm  ",
-                    "default_value": -6.5,
-                    "enabled": "adjust_starting_e"
-                },
-                "add_purge_lines":
-                {
-                    "label": "Add Purge Lines to StartUp",
-                    "description": "The purge lines can be left, right, front or back.  If there are purge lines present in the StartUp Gcode remove them or comment them out before using this script.  You don't want to double dip.",
-                    "type": "bool",
-                    "default_value": false,
-                    "value": false,
-                    "enabled": true
-                },
-                "purge_line_location":
-                {
-                    "label": "    Purge Line Location",
-                    "description": "What edge of the build plate should have the purge lines.  If the printer is 'Elliptical' then it is assumed to be an 'Origin At Center' printer and the purge lines are 90° arcs.",
-                    "type": "enum",
-                    "options": {
-                        "purge_left": "On left edge (Xmin)",
-                        "purge_right": "On right edge (Xmax)",
-                        "purge_bottom": "On front edge (Ymin)",
-                        "purge_top": "On back edge (Ymax)"},
-                    "default_value": "purge_left",
-                    "enabled": "add_purge_lines"
-                },
-                "move_to_start":
-                {
-                    "label": "Circle around to layer start",
-                    "description": "Depending on where the 'Layer Start X' and 'Layer Start Y' are for the print, the opening travel move can pass across the print area and leave a string there.  This option will generate a path that moves the nozzle around the edges of the build plate and then comes in to the Start Point.",
-                    "type": "bool",
-                    "default_value": false,
-                    "enabled": true
                 },
                 "kill_wipe":
                 {
@@ -628,23 +645,6 @@ class LittleUtilities_v20(Script):
                     "type": "int",
                     "default_value": -1,
                     "enabled": "kill_wipe"
-                },
-                "enable_unload":
-                {
-                    "label": "Unload filament at print end",
-                    "description": "Adds an unload script to the Ending Gcode section.  It goes in just ahead of the M104 S0.  This scripts always unloads the active extruder.",
-                    "type": "bool",
-                    "default_value": false,
-                    "enabled": true
-                },
-                "unload_distance":
-                {
-                    "label": "    Unload Distance",
-                    "description": "The last layer to end wiping.  Use the Cura preview numbers or '-1' for the end layer.",
-                    "type": "int",
-                    "default_value": 440,
-                    "unit": "mm  ",
-                    "enabled": "enable_unload"
                 },
                 "temp_override_enable":
                 {
@@ -1556,14 +1556,14 @@ class LittleUtilities_v20(Script):
                             if " F" in line:
                                 cur_speed = self.getValue(line, "F")
                                 if cur_speed > initial_print_speed:
-                                    lines[l_index] = re.sub("F(\d*)", "F" + str(initial_print_speed), lines[l_index])
+                                    lines[l_index] = re.sub("F((\d+(\.\d*)?)|(\.\d+)$)", "F" + str(round(initial_print_speed)), lines[l_index]) + " ; Speed was " + "/" + str(round(cur_speed / 60))
                     # Check the initial layer travel speeds
                     if speeds_to_check != "print_speeds":
                         if self.getValue(line, "G") == 0:
                             if " F" in line:
                                 cur_speed = self.getValue(line, "F")
                                 if cur_speed > initial_travel_speed:
-                                    lines[l_index] = re.sub("F(\d*)", "F" + str(initial_travel_speed), lines[l_index])
+                                    lines[l_index] = re.sub("F((\d+(\.\d*)?)|(\.\d+)$)", "F" + str(round(initial_travel_speed)), lines[l_index]) + " ; Speed was " + "/" + str(round(cur_speed / 60))
                 data[index] = "\n".join(lines)
                 break
             if not ";LAYER:0" in data[index]:
@@ -1589,14 +1589,14 @@ class LittleUtilities_v20(Script):
                         if " F" in line:
                             cur_speed = self.getValue(line, "F")
                             if cur_speed > new_speed:
-                                layer[l_index] = re.sub("F(\d*)", "F" + str(new_speed), layer[l_index])
+                                layer[l_index] = re.sub("F((\d+(\.\d*)?)|(\.\d+)$)", "F" + str(round(new_speed)), layer[l_index]) + " ; Speed was " + str(round(cur_speed)) + "/" + str(round(cur_speed / 60))
                 # Check the travel speeds
                 if speeds_to_check != "print_speeds":
                     if self.getValue(line, "G") == 0:
                         if " F" in line:
                             cur_speed = self.getValue(line, "F")
                             if cur_speed > travel_speed:
-                                layer[l_index] = re.sub("F(\d*)", "F" + str(travel_speed), layer[l_index])
+                                layer[l_index] = re.sub("F((\d+(\.\d*)?)|(\.\d+)$)", "F" + str(round(travel_speed)), layer[l_index]) + " ; Speed was " + str(round(cur_speed)) + "/" + str(round(cur_speed / 60))
             data[num] = "\n".join(layer)
         return
 
