@@ -615,23 +615,26 @@ class SuptIntMatlChangePlugin(Extension):
 
                 # Go through the relevant layers and add the strings
                 error_chk_list = []
+                for index, num in enumerate(data_list):
+                    if ";TYPE:SUPPORT-INTERFACE" in gcode_list[num]:
+                        error_chk_list.append(str(layer_list[index] + 1) + " --- OK")
+                    else:
+                        error_chk_list.append(str(layer_list[index] + 1) + " --- Supt-Int not found")
+                # Go through the relevant layers and add the strings
                 for lnum in range(0,len(data_list)):
-                    error_chk_list.append(str(layer_list[lnum]))
                     index_list = []
                     dnum = data_list[lnum]
                     z_raise = f"G0 F2400 Z{z_lift_list[lnum]}; Move up\n"
                     z_lower = f"G0 F2400 Z-{z_lift_list[lnum]}; Move back down\n"
                     lines = gcode_list[dnum].split("\n")
+                    # get in index within each layer of the start and end of the support interface section
                     for index, line in enumerate(lines):
                         if ";TYPE:SUPPORT-INTERFACE" in line:
-                            index_list.append(index)                    
-                            error_chk_list.append("OK")
-                            for check in range(index + 1, len(lines), 1):
+                            index_list.append(index)
+                            for check in range(index + 1, len(lines) - 1):
                                 if lines[check].startswith(";"):
                                     index_list.append(check)
                                     break
-                    if error_chk_list[len(error_chk_list) - 1] != "OK":
-                        error_chk_list.append("Supt-Int not found")
 
                     ## Make a list of the starts and stops within a layer
                     for index_num in range(0, len(index_list), 2):
@@ -698,10 +701,11 @@ class SuptIntMatlChangePlugin(Extension):
                 gcode_list[0] += ";    [Support-Interface Material Change] plugin is enabled\n"
                 gcode_dict[plate_id] = gcode_list
                 dict_changed = True            
+                # Let the user know if there was an error inputting the layer numbers
                 err_string = "Check if 'SUPPORT-INTERFACE' was found on the layer:\n"
-                for num in range(0, len(error_chk_list) - 1, 2):
-                    err_string += "Layer: " + str(int(error_chk_list[num]) + 1) + " --- " + str(error_chk_list[num + 1]) + "\n"        
-                Message(title = "[Support-Interface Material Change]", text = err_string).show()            
+                for index, layer in enumerate(error_chk_list):
+                    err_string += "Layer: " + str(layer) + "\n"
+                Message(title = "[Support-Interface Material Change]", text = err_string).show()   
             else:
                 Logger.log("d", "G-Code %s has already been processed", plate_id)
                 continue
