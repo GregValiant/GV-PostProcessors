@@ -12,7 +12,7 @@
 #   It was apparent that too high of a temperature during unload could cause filament to break off in the hot end.  The 'Unload Temperature' for the model material and the interface material have been added.  Those temperatures should be near the 'Cold Pull' temperature of each material.
 #   My normal setup is for the Interface 100% density and 0 air gap.  That is dependent on how many interfaces occur in the model because the density and air gap will be the same for all of them when can make it hard to remove the supports from areas where the interface is still Model Material.
 #   75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My bowden printer works will with 440mm of unload and 370mm of reload.  That would be way too much for a direct drive hot end.  Yours will vary according to the length of the filament path from the extruder to the hot end.  You can set the unload and reload amounts to '0' to disable the features.
-#   Let me know if you find any problems, bugs, or have suggestions - let me know.
+#   Let me know if you find any problems, bugs, or have suggestions.  You can post them on the Git page under "Issues" or "Discussions".
 #      GregValiant
 #-------------------------------------------------------------------------------------
 
