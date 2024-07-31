@@ -550,28 +550,30 @@ class SuptIntMaterialChange(Script):
         model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement" + "\nM83; Relative extrusion\n"
         model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_interface + m300_str + unload_str + model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
 
-        # Go through the relevant layers and add the strings
         # Make a list of the layers and whether or not 'Support-Interface' was found on the layer.  Use in a message at the end.
         error_chk_list = []
+        for index, num in enumerate(data_list):
+            if ";TYPE:SUPPORT-INTERFACE" in data[num]:
+                error_chk_list.append(str(layer_list[index] + 1) + " --- OK")
+            else:
+                error_chk_list.append(str(layer_list[index] + 1) + " --- Supt-Int not found")
+        # Go through the relevant layers and add the strings
         for lnum in range(0,len(data_list)):
-            error_chk_list.append(str(layer_list[lnum]))
             index_list = []
             dnum = data_list[lnum]
             z_raise = f"G0 F2400 Z{z_lift_list[lnum]}; Move up\n"
             z_lower = f"G0 F2400 Z-{z_lift_list[lnum]}; Move back down\n"
             lines = data[dnum].split("\n")
+            # get in index within each layer of the start and end of the support interface section
             for index, line in enumerate(lines):
                 if ";TYPE:SUPPORT-INTERFACE" in line:
                     index_list.append(index)
-                    error_chk_list.append("OK")
                     for check in range(index + 1, len(lines) - 1):
                         if lines[check].startswith(";"):
                             index_list.append(check)
                             break
-            if error_chk_list[len(error_chk_list) - 1] != "OK":
-                error_chk_list.append("Supt-Int not found")
 
-            # Make a list of the starts and stops within a layer
+            # Track the nozzle location, and put the pause strings together for start and end.
             for index_num in range(0, len(index_list), 2):
                 start_at_line = index_list[index_num]
                 end_at_line = index_list[index_num + 1]
@@ -632,14 +634,16 @@ class SuptIntMaterialChange(Script):
                 lines[start_at_line] += "\n" + startout_final_str
                 break
             data[dnum] = "\n".join(lines)
+            
+        # Let the user know if there was an error inputting the layer numbers
         err_string = "Check if 'SUPPORT-INTERFACE' was found on the layer:\n"
-        for num in range(0, len(error_chk_list) - 1, 2):
-            err_string += "Layer: " + str(int(error_chk_list[num]) + 1) + " --- " + str(error_chk_list[num + 1]) + "\n"
+        for index, layer in enumerate(error_chk_list):
+            err_string += "Layer: " + str(layer) + "\n"
         Message(title = "[Support-Interface Material Change]", text = err_string).show()
         return data
 
     # Get the return location and see if there was a retraction before the Interface
-    def getReturnLocation(self, data: str, num: int, index: int, retract_speed: str):  #
+    def getReturnLocation(self, data: str, num: int, index: int, retract_speed: str):
         lines = data[num].split("\n")
         is_retraction = None
         ret_x = None
