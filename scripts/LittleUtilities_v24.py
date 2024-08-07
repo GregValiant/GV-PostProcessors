@@ -21,6 +21,7 @@
 #     19) Adjust starting E location - If the skirt/brim/raft doesn't start where the nozzle starts because of a retraction in the StartUp then an adjustment to the E location may be needed.
 #     20) Fix the 5.7.2 Prepend Temperature bug
 #     21) 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
+#     22) Move the Tool Changes - "Enable Prime Tower" must be checked for this to run.  Cura adds tool changes just prior to the nozzle moving to the prime tower.  This script moves the tool change to just past the move to the prime tower so the change occurs above the prime tower rather than above the model.
 
 from ..Script import Script
 from UM.Application import Application
@@ -28,7 +29,7 @@ from UM.Message import Message
 import re
 import os
 
-class LittleUtilities_v20(Script):
+class LittleUtilities_v24(Script):
 
     def initialize(self) -> None:
         super().initialize()
@@ -57,8 +58,8 @@ class LittleUtilities_v20(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Little Utilities v20",
-            "key": "LittleUtilities_v20",
+            "name": "Little Utilities v24",
+            "key": "LittleUtilities_v24",
             "metadata": {},
             "version": 2,
             "settings":
@@ -127,6 +128,14 @@ class LittleUtilities_v20(Script):
                     "default_value": 440,
                     "unit": "mm  ",
                     "enabled": "enable_unload"
+                },
+                "move_tool_changes":
+                {
+                    "label": "Move IDEX Tool Changes",
+                    "description": "Move the tool changes from above the 'travel-to-Prime-Tower' moves to below those moves so the tool change occurs over the Prime Tower.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": true
                 },
                 "remove_comments":
                 {
@@ -683,6 +692,8 @@ class LittleUtilities_v20(Script):
             self._add_extruder_end(data)
         if self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("final_z"):
             self._final_z(data)
+        if self.getSettingValueByKey("move_tool_changes"):
+            self._move_tool_changes(data)
         if self.getSettingValueByKey("renum_or_revert"):
             self._renumber_layers(data)
         if self.getSettingValueByKey("add_data_headers") and self.getSettingValueByKey("debugging_tools"):
@@ -2234,4 +2245,47 @@ class LittleUtilities_v20(Script):
         alt_data[1] = ";  [Little Utilities] The print temperatures for Tool 'T" + tool_num + "' have been doubled.  The new print temperatures are as high as " + str(max_temp) + "°.\n" + alt_data[1]
         msg_text = "The post processor 'Little Utilities | Max Temperature Override' is enabled. All the temperatures in the Cura settings for Tool 'T" + tool_num + "' have been doubled in the Gcode.  The new print temperatures are as high as " + str(max_temp) + "°.  Your printer and the material must be capable of handling the high temperatures.  It is up to the user to determine the suitablility of High Temperature Overrides."
         Message(title = "HIGH TEMP PRINT WARNING", text = msg_text).show()
+        return alt_data
+        
+    
+    def _move_tool_changes(self, alt_data: str) -> str:
+        if not bool(Application.getInstance().getGlobalContainerStack().getProperty("prime_tower_enable", "value")):
+            Message(title = "[Little Utilities]", text = "Move Tool Changes ... Did not run because 'Prime Tower' is not enabled.").show()
+            return alt_data
+        machine_extruder_count = int(Application.getInstance().getGlobalContainerStack().getProperty("machine_extruder_count", "value"))
+        if machine_extruder_count < 2:
+            return alt_data
+        start_index = 2
+        for num in range(2, len(alt_data) - 1):
+            if ";LAYER:0" in alt_data[num]:
+                start_index = num + 1
+                break
+        pull_lines = ""
+        for num in range(start_index, len(alt_data)-1):
+            if not ";TYPE:PRIME-TOWER" in alt_data[num]:
+                continue
+            lines = alt_data[num].split("\n")
+            modified_data = ""
+            for index, line in enumerate(lines):
+                if line.startswith("M135") or line.startswith("T"):
+                    pull_lines = ""
+                    p_index = index
+                    # Pull out the lines before the travel moves to the prime tower
+                    while not lines[p_index].startswith(";") and not " Z" in lines[p_index]:
+                        pull_lines += "\n" + lines[p_index]
+                        lines.pop(p_index)
+                    if lines[p_index].startswith("G0 F") and " Z" in lines[p_index]:
+                        modified_data += lines[p_index] + "\n"
+                        continue
+                    # For situations where there is no MESH:NONMESH line
+                    if lines[p_index].startswith(";TYPE:") and pull_lines != "":
+                        lines[p_index] += pull_lines
+                        modified_data += lines[p_index] + "\n"
+                    continue
+                # Add the pulled lines back in after travel to the prime tower
+                if lines[index].startswith(";TYPE") and pull_lines != "":
+                    lines[index] += pull_lines
+                    pull_lines = ""
+                modified_data += lines[index] + "\n"
+            alt_data[num] = modified_data[:-1]
         return alt_data
