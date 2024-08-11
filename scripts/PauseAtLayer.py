@@ -129,10 +129,10 @@ class PauseAtLayer(Script):
                 "extra_prime_amount":
                 {
                     "label": "Extra Prime Amount",
-                    "description": "Sometimes a little more is needed to account for oozing during a pause.  At .2 layer height and .4 line width - 0.10mm of 1.75 filament of 'Extra Prime' is 3mm of extrusion.  0.10mm of 2.85 filament of 'Extra Prime' would be 8mm of extrusion.  Plan accordingly.",
-                    "unit": "mm   ",
+                    "description": "Sometimes a little more is needed to account for oozing during a pause.  At .2 layer height and .4 line width - 0.10mm of 1.75 filament of 'Extra Prime' is equal to 3mm of extrusion.  0.10mm of 2.85 filament of 'Extra Prime' would be equal to 8mm of extrusion.  Plan accordingly.",
+                    "unit": "mm    ",
                     "type": "str",
-                    "value": "0.30",
+                    "value": "0.0",
                     "default_value": "0.30",
                     "enabled": "enable_pause_at_layer and pause_method != 'griffin' and reason_for_pause == 'reason_other'"
                 },
@@ -480,8 +480,6 @@ class PauseAtLayer(Script):
         current_layer = 0
         current_extrusion_f = 0
         got_first_g_cmd_on_layer_0 = False
-        current_t = 0 ## Tracks the current extruder for tracking the target temperature.
-        target_temperature = {} ## Tracks the current target temperature for each extruder.
 
         nbr_negative_layers = 0
 
@@ -572,7 +570,7 @@ class PauseAtLayer(Script):
                             break
 
                 ## Start putting together the pause string 'prepend_gcode'
-                prepend_gcode = f";TYPE:CUSTOM---------------; Pause at end of preview layer {current_layer} (end of Gcode LAYER:{int(current_layer) - 1})\n"
+                prepend_gcode = f";TYPE:CUSTOM---------------;current layer: {current_layer} (end of Gcode LAYER:{int(current_layer) - 1})\n"
 
                 if pause_method == "repetier":
                     ## Retraction

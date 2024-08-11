@@ -9,7 +9,7 @@
 #     7) Very Cool FanPath - Raise 1mm and follow a zigzag path across the print with just the Layer Cooling Fan running.
 #     8) Disable ABL for small models.  The user defines 'small' and models that fall below that area on the build plate cause G29 and M420 to be commented out of the StartUp Gcode.  There is also a 'minimum time' option.
 #     9) Gcode Line Numbering - Numbers the lines in the gcode.  A prefix is an option.  (authored by: Slashee the Cow)
-#     10) Debug Gcode File - A debug tool that removes all the extrusions and heating lines from a range of layers or the whole file.  The result is a 'Movement Only' file so users can check a toolpath.
+#     10) Debug Gcode File - A debug tool that removes all the extrusions and heating lines from a range of layers or the whole file.  The result is a 'Movement Only' file so users can check a toolpath.  There is an option to leave the Hot End heating commands or comment them out.
 #     11) One-at-a-Time Final Z - A bug fix that adds a move up to the transit (print MAXZ) height before the ending Gcode.  Prevents a crash if the last print is shorter than others.
 #     12) One-at-a-Time Adjust Print Temperatures - Enter a list of temperatures and each succesive model will print at the assigned temperature.
 #     13) Enable Speed Enforcement - If Flow Rate Compensation alters some print speeds to very high values this script will reset them to the speeds in the Cura settings.  The speeds are checked per feature and per extruder.  Speeds might be lowered, never raised.
@@ -22,6 +22,7 @@
 #     20) Fix the 5.7.2 Prepend Temperature bug
 #     21) 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
 #     22) Move the Tool Changes - "Enable Prime Tower" must be checked for this to run.  Cura adds tool changes just prior to the nozzle moving to the prime tower.  This script moves the tool change to just past the move to the prime tower so the change occurs above the prime tower rather than above the model.
+#     23) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
 
 from ..Script import Script
 from UM.Application import Application
@@ -34,14 +35,14 @@ class LittleUtilities_v24(Script):
     def initialize(self) -> None:
         super().initialize()
         # Get the Max Feedrate and Max Accel from Cura Printer Settings (may be different than what the printer has)
-        mycura = Application.getInstance().getGlobalContainerStack()
+        curaApp = Application.getInstance().getGlobalContainerStack()
         extruder = Application.getInstance().getGlobalContainerStack().extruderList
-        self._instance.setProperty("change_feedrate_x", "value", mycura.getProperty("machine_max_feedrate_x", "value"))
-        self._instance.setProperty("change_feedrate_y", "value", mycura.getProperty("machine_max_feedrate_y", "value"))
-        self._instance.setProperty("change_feedrate_z", "value", mycura.getProperty("machine_max_feedrate_z", "value"))
-        self._instance.setProperty("change_feedrate_e", "value", mycura.getProperty("machine_max_feedrate_e", "value"))
-        self._instance.setProperty("change_accel_x", "value", mycura.getProperty("machine_max_acceleration_x", "value"))
-        self._instance.setProperty("change_accel_y", "value", mycura.getProperty("machine_max_acceleration_y", "default_value"))
+        self._instance.setProperty("change_feedrate_x", "value", curaApp.getProperty("machine_max_feedrate_x", "value"))
+        self._instance.setProperty("change_feedrate_y", "value", curaApp.getProperty("machine_max_feedrate_y", "value"))
+        self._instance.setProperty("change_feedrate_z", "value", curaApp.getProperty("machine_max_feedrate_z", "value"))
+        self._instance.setProperty("change_feedrate_e", "value", curaApp.getProperty("machine_max_feedrate_e", "value"))
+        self._instance.setProperty("change_accel_x", "value", curaApp.getProperty("machine_max_acceleration_x", "value"))
+        self._instance.setProperty("change_accel_y", "value", curaApp.getProperty("machine_max_acceleration_y", "default_value"))
         self._instance.setProperty("change_steps_x", "value", str(extruder[0].getProperty("machine_steps_per_mm_x", "value")))
         self._instance.setProperty("change_steps_y", "value", str(extruder[0].getProperty("machine_steps_per_mm_y", "value")))
         self._instance.setProperty("change_steps_z", "value", str(extruder[0].getProperty("machine_steps_per_mm_z", "value")))
@@ -50,7 +51,7 @@ class LittleUtilities_v24(Script):
         self._purge_end_loc = None
         self._instance.setProperty("adjust_e_loc_to", "value", round(float(extruder[0].getProperty("retraction_amount", "value")) * -1), 1)
 
-        machine_extruder_count = int(mycura.getProperty("machine_extruder_count", "value"))
+        machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
         if machine_extruder_count > 1:
             self._instance.setProperty("temp_override_extruder_check", "value", True)
         else:
@@ -467,6 +468,22 @@ class LittleUtilities_v24(Script):
                     "default_value": true,
                     "enabled": "add_data_headers and debugging_tools"
                 },
+                "dual_ext_to_single":
+                {
+                    "label": "    Dual extruder to single extr",
+                    "description": "Turns a dual extruder project into a single extruder file by commenting out the tool changes and adding beeps instead.  At tool change there is a single beep for T0 and a double beep for T1.  Tool numbers in heating commands are moved to the end as a comment.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "debugging_tools"
+                },
+                "dual_convert_M109":
+                {
+                    "label": "        Convert M109 to M104",
+                    "description": "Checking this will convert all temperature lines from 'M109' to 'M104'.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "debugging_tools and dual_ext_to_single"
+                },
                 "debug_file":
                 {
                     "label": "    Create a debugging file",
@@ -498,6 +515,14 @@ class LittleUtilities_v24(Script):
                     "type": "int",
                     "default_value": 25,
                     "enabled": "debug_file and debugging_tools"
+                },
+                "debug_leave_temperature_lines":
+                {
+                    "label": "        Leave HE temperature lines",
+                    "description": "All temperature lines are commented out by default.  Checking this will leave the Hot End temperature lines active and the hot end will heat.  Any M140 and M190 bed temperature lines will still be commented out.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "debugging_tools and debug_file"
                 },
                 "data_num_and_line_nums":
                 {
@@ -694,6 +719,8 @@ class LittleUtilities_v24(Script):
             self._final_z(data)
         if self.getSettingValueByKey("move_tool_changes"):
             self._move_tool_changes(data)
+        if self.getSettingValueByKey("dual_ext_to_single"):
+            self._dual_ext_to_single(data)
         if self.getSettingValueByKey("renum_or_revert"):
             self._renumber_layers(data)
         if self.getSettingValueByKey("add_data_headers") and self.getSettingValueByKey("debugging_tools"):
@@ -1086,19 +1113,19 @@ class LittleUtilities_v24(Script):
                 if e_feedrate != "":
                     Application.getInstance().getGlobalContainerStack().setProperty("machine_max_feedrate_e", "value", int(e_feedrate))
             if bool(self.getSettingValueByKey("change_steps")):
-                mycura = Application.getInstance().getGlobalContainerStack()
-                extruder = mycura.extruderList
+                curaApp = Application.getInstance().getGlobalContainerStack()
+                extruder = curaApp.extruderList
                 if x_steps != "":
-                    mycura.setProperty("machine_steps_per_mm_x", "value", x_steps)
+                    curaApp.setProperty("machine_steps_per_mm_x", "value", x_steps)
                     extruder[0].setProperty("machine_steps_per_mm_x", "value", x_steps)
                 if y_steps != "":
-                    mycura.setProperty("machine_steps_per_mm_y", "value", y_steps)
+                    curaApp.setProperty("machine_steps_per_mm_y", "value", y_steps)
                     extruder[0].setProperty("machine_steps_per_mm_y", "value", y_steps)
                 if z_steps != "":
-                    mycura.setProperty("machine_steps_per_mm_z", "value", z_steps)
+                    curaApp.setProperty("machine_steps_per_mm_z", "value", z_steps)
                     extruder[0].setProperty("machine_steps_per_mm_z", "value", z_steps)
                 if e_steps != "":
-                    mycura.setProperty("machine_steps_per_mm_e", "value", e_steps)
+                    curaApp.setProperty("machine_steps_per_mm_e", "value", e_steps)
                     extruder[0].setProperty("machine_steps_per_mm_e", "value", e_steps)
 
         # Add the changes to the gcode at the end of the StartUp Gcode
@@ -1278,11 +1305,11 @@ class LittleUtilities_v24(Script):
             min_print_time = int(self.getSettingValueByKey("disable_abl_min_time")) * 60
         else:
             min_print_time = 999999999
-        mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
-        adhesion_extruder_nr = int(mycura.getProperty("adhesion_extruder_nr", "value"))
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
+        adhesion_extruder_nr = int(curaApp.getProperty("adhesion_extruder_nr", "value"))
         if adhesion_extruder_nr == -1: adhesion_extruder_nr = 0
-        adhesion_type = str(mycura.getProperty("adhesion_type", "value"))
+        adhesion_type = str(curaApp.getProperty("adhesion_type", "value"))
         skirt_gap = int(extruder[adhesion_extruder_nr].getProperty("skirt_gap", "value")) * 2
         skirt_line_count = int(extruder[adhesion_extruder_nr].getProperty("skirt_line_count", "value"))
         brim_width = int(extruder[adhesion_extruder_nr].getProperty("brim_width", "value")) * 2
@@ -1363,12 +1390,14 @@ class LittleUtilities_v24(Script):
 
     # Debug Practice File with no extrusions or heating -----------------------
     def _practice_file(self, data:str)->str:
+        curaApp = Application.getInstance().getGlobalContainerStack()
         start_layer = int(self.getSettingValueByKey("debug_start_layer")) - 1
         end_layer = int(self.getSettingValueByKey("debug_end_layer"))
         debug_autohome_cmd = str(self.getSettingValueByKey("debug_autohome_cmd")).upper()
-        print_sequence = str(Application.getInstance().getGlobalContainerStack().getProperty("print_sequence", "value"))
-        layer_height = Application.getInstance().getGlobalContainerStack().getProperty("layer_height", "value")
-        layer_height_0 = Application.getInstance().getGlobalContainerStack().getProperty("layer_height_0", "value")
+        debug_leave_temperature_lines = bool(self.getSettingValueByKey("debug_leave_temperature_lines"))
+        print_sequence = str(curaApp.getProperty("print_sequence", "value"))
+        layer_height = curaApp.getProperty("layer_height", "value")
+        layer_height_0 = curaApp.getProperty("layer_height_0", "value")
         # Get the Initial Z
         for index, layer in enumerate(data):
             if ";LAYER:" + str(start_layer) + "\n" in layer:
@@ -1406,12 +1435,13 @@ class LittleUtilities_v24(Script):
         for num in range(1,len(data),1):
             layer = data[num]
             data[num] = re.sub(" E([-+]?[0-9]*\.[0-9]*)", "", data[num])
-            data[num] = re.sub("M104", ";M104", data[num])
-            data[num] = re.sub("M109", ";M109", data[num])
+            if not debug_leave_temperature_lines:
+                data[num] = re.sub("M104", ";M104", data[num])
+                data[num] = re.sub("M109", ";M109", data[num])
             data[num] = re.sub("M140", ";M140", data[num])
             data[num] = re.sub("M190", ";M190", data[num])
         # Insert a parking move at the end of the last remaining layer
-        data[practice_end] += "G1 X0 Y0\nM118 END OF GCODE\n"
+        data[practice_end] += "G1 X0 Y0\nM104 S0\nM140 S0\nM118 END OF GCODE\n"
         return
 
     # One-at-a-Time Final Z move (to clear the tops of taller prints)----------
@@ -1511,14 +1541,14 @@ class LittleUtilities_v24(Script):
 
     # Enforce the Print and/or Travel speeds that might have been affected by Cura Flow Compensation.  Speeds higher than the settings will be lowered to the setting speed.  This works per feature and per extruder.
     def _speed_limits(self, data:str)->str:
-        mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
         print_speed = int(extruder[0].getProperty("speed_print", "value")) * 60
         initial_print_speed = int(extruder[0].getProperty("speed_print_layer_0", "value")) * 60
         travel_speed = int(extruder[0].getProperty("speed_travel", "value")) * 60
         initial_travel_speed = int(extruder[0].getProperty("speed_travel_layer_0", "value")) * 60
-        speed_slowdown_layers = int(mycura.getProperty("speed_slowdown_layers", "value"))
-        extruder_count = mycura.getProperty("machine_extruder_count", "value")
+        speed_slowdown_layers = int(curaApp.getProperty("speed_slowdown_layers", "value"))
+        extruder_count = curaApp.getProperty("machine_extruder_count", "value")
         extruder_speed_list = []
         extruder_speed = []
         cur_extruder = 0
@@ -1624,15 +1654,15 @@ class LittleUtilities_v24(Script):
 
     # Add Purge Lines----------------------------------------------------------
     def _add_purge_lines(self, data: str):
-        mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
         retract_dist = extruder[0].getProperty("retraction_amount", "value")
         retract_speed = extruder[0].getProperty("retraction_retract_speed", "value") * 60
-        bed_shape = str(mycura.getProperty("machine_shape", "value"))
-        origin_at_center = bool(mycura.getProperty("machine_center_is_zero", "value"))
-        startup_gcode = mycura.getProperty("machine_start_gcode", "value")
-        machine_width = mycura.getProperty("machine_width", "value")
-        machine_depth = mycura.getProperty("machine_depth", "value")
+        bed_shape = str(curaApp.getProperty("machine_shape", "value"))
+        origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
+        startup_gcode = curaApp.getProperty("machine_start_gcode", "value")
+        machine_width = curaApp.getProperty("machine_width", "value")
+        machine_depth = curaApp.getProperty("machine_depth", "value")
         material_diameter = extruder[0].getProperty("material_diameter", "value")
         mm3_per_mm = (material_diameter / 2)**2 * 3.14159
         init_line_width = extruder[0].getProperty("skirt_brim_line_width", "value")
@@ -1843,12 +1873,12 @@ class LittleUtilities_v24(Script):
             purge_end_loc = "LF"
         else:
             purge_end_loc = self._purge_end_loc
-        mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
-        bed_shape = str(mycura.getProperty("machine_shape", "value"))
-        origin_at_center = bool(mycura.getProperty("machine_center_is_zero", "value"))
-        machine_width = mycura.getProperty("machine_width", "value")
-        machine_depth = mycura.getProperty("machine_width", "value")
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
+        bed_shape = str(curaApp.getProperty("machine_shape", "value"))
+        origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
+        machine_width = curaApp.getProperty("machine_width", "value")
+        machine_depth = curaApp.getProperty("machine_width", "value")
         travel_speed = round(extruder[0].getProperty("speed_travel", "value") * 60)
         move_str = f";MESH:NONMESH---------[Little Utilities] Travel to layer start\nG0 F600 Z1 ; Move up\n"
         midpoint_x = machine_width / 2
@@ -2004,8 +2034,8 @@ class LittleUtilities_v24(Script):
 
     # Comment out the Wiping movement line after Infill, Outer Wall, or Both
     def _kill_wipes(self, data: str) -> str:
-        mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
         # Deterimine if wiping is enabled.  Don't bother going through the code if it is not.
         if float(extruder[0].getProperty("wall_0_wipe_dist", "value")) > 0.0:
             ow_wipe_enabled = True
@@ -2151,16 +2181,16 @@ class LittleUtilities_v24(Script):
         # Exit if the script is not enabled
         if not bool(self.getSettingValueByKey("temp_override_enable")):
             return alt_data
-        mycura = Application.getInstance().getGlobalContainerStack()
-        machine_extruder_count = int(mycura.getProperty("machine_extruder_count", "value"))
-        machine_extruders_enabled_count = int(mycura.getProperty("extruders_enabled_count", "value"))
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
+        machine_extruders_enabled_count = int(curaApp.getProperty("extruders_enabled_count", "value"))
         # Exit if the printer has more than 2 extruders
         if machine_extruder_count > 2:
             Message(title = "[Little Utilities]", text = "Max Temperature Override - Did not run because the Extruder Count > 2").show()
             return alt_data
         # Exit if the printer has a mixing hot end
-        shared_heater = bool(mycura.getProperty("machine_extruders_share_heater", "value"))
-        shared_nozzle = bool(mycura.getProperty("machine_extruders_share_nozzle", "value"))
+        shared_heater = bool(curaApp.getProperty("machine_extruders_share_heater", "value"))
+        shared_nozzle = bool(curaApp.getProperty("machine_extruders_share_nozzle", "value"))
         if shared_heater or shared_nozzle:
             Message(title = "[Little Utilities]", text = "Max Temperature Override - Did not run because it is not compatible with mixing hot ends.").show()
             return alt_data
@@ -2249,18 +2279,30 @@ class LittleUtilities_v24(Script):
         
     
     def _move_tool_changes(self, alt_data: str) -> str:
-        if not bool(Application.getInstance().getGlobalContainerStack().getProperty("prime_tower_enable", "value")):
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        if not bool(curaApp.getProperty("prime_tower_enable", "value")):
             Message(title = "[Little Utilities]", text = "Move Tool Changes ... Did not run because 'Prime Tower' is not enabled.").show()
             return alt_data
-        machine_extruder_count = int(Application.getInstance().getGlobalContainerStack().getProperty("machine_extruder_count", "value"))
+        machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
         if machine_extruder_count < 2:
             return alt_data
+            
         start_index = 2
         for num in range(2, len(alt_data) - 1):
             if ";LAYER:0" in alt_data[num]:
                 start_index = num + 1
                 break
         pull_lines = ""
+        extruder = curaApp.extruderList
+        prime_rad = curaApp.getProperty("prime_tower_size", "value") * 0.5
+        prime_x = curaApp.getProperty("prime_tower_position_x", "value") - prime_rad
+        prime_y = curaApp.getProperty("prime_tower_position_y", "value") + prime_rad
+        layer_z = curaApp.getProperty("layer_height", "value")
+        prime_feed = curaApp.getProperty("speed_prime_tower", "value") * 60
+        if extruder[0].getProperty("retraction_hop_after_extruder_switch", "value"):
+            paste_line = 1
+        else:
+            paste_line = 0
         for num in range(start_index, len(alt_data)-1):
             if not ";TYPE:PRIME-TOWER" in alt_data[num]:
                 continue
@@ -2270,6 +2312,7 @@ class LittleUtilities_v24(Script):
                 if line.startswith("M135") or line.startswith("T"):
                     pull_lines = ""
                     p_index = index
+                    pull_lines = f"\nG1 F{prime_feed} X{prime_x} Y{prime_y}"
                     # Pull out the lines before the travel moves to the prime tower
                     while not lines[p_index].startswith(";") and not " Z" in lines[p_index]:
                         pull_lines += "\n" + lines[p_index]
@@ -2283,9 +2326,27 @@ class LittleUtilities_v24(Script):
                         modified_data += lines[p_index] + "\n"
                     continue
                 # Add the pulled lines back in after travel to the prime tower
-                if lines[index].startswith(";TYPE") and pull_lines != "":
-                    lines[index] += pull_lines
+                if line.startswith(";TYPE:PRIME-TOWER") and pull_lines != "":
+                    lines[index + paste_line] += pull_lines
                     pull_lines = ""
                 modified_data += lines[index] + "\n"
             alt_data[num] = modified_data[:-1]
         return alt_data
+        
+    def _dual_ext_to_single(self, data: str) -> str:
+        convert_m109 = self.getSettingValueByKey("dual_convert_M109")
+        for num in range(2, len(data)-1):
+            lines = data[num].split("\n")
+            for index, line in enumerate(lines):
+                if line.startswith("T0"):
+                    lines[index] = "M117 Tool T0\nM118 Tool T0\n;T0\nM300 P150"
+                if line.startswith("T1"):
+                    lines[index] = "M117 Tool T1\nM118 Tool T1\n;T1\nM300 P150\nG4 P300\nM300 P150"
+                if line.startswith("M104") or line.startswith("M109"):
+                    if convert_m109:
+                        lines[index] = re.sub("M109", "M104", line)
+                    if "T" in line:
+                        tool_num = self.getValue(line, "T")
+                        lines[index] = re.sub(" T(\d)", "", line) + " ;T" + str(tool_num)
+            data[num] = "\n".join(lines)
+        return
