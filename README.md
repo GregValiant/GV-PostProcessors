@@ -70,7 +70,14 @@ MultiExtruderColorMix:
 	A work in process.  This is intended to allow graduated mixing for printers with mixing hot ends.  The Marlin side is well along.  The RepRap side is just started.
 
 PauseAtLayer:
-	My re-work of PauseAtHeight.  Allows for unloading, purging, and re-loading and other new options.  There is an option to add pauses to all the models in a "One at a Time" project. 
+	My re-work of PauseAtHeight.  Allows for unloading, purging, and re-loading and other new options.  There is an option to add pauses to all the models in a "One at a Time" project.
+
+PurgeLinesAndUnload:
+	Adds purge lines to the gcode.  The lines can be at the top, bottom, left, or right and either full length or half length.  Rectangular, elliptical and Origin at Center are supported.  If you have purge lines in your startup gcode you need to remove them as this post processor makes them redundant.
+	Other settings are:
+	Adjust the E location prior to the start of the print.  The filament start of the skirt/brim can be dialed in.
+	Circle around to start.  Adds orthogonal travel moves around the build plate periphery to the layer start point to keep strings from crossing where the print will be.
+	Unload will unload the filament from the extruder at the end of a print.	
 
 Raise3DIDEX:
 	Does for the Raise3D IDEX machines what the other post does for the Flash Forge IDEX machines.
