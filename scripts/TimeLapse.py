@@ -118,7 +118,7 @@ class TimeLapse(Script):
             rel_cmd = 83
         else:
             rel_cmd = 82
-        trav_speed = int(extruder[0].getProperty("speed_travel", "value"))*60
+        travel_speed = int(extruder[0].getProperty("speed_travel", "value"))*60
         park_print_head = self.getSettingValueByKey("park_print_head")
         x_park = self.getSettingValueByKey("head_park_x")
         y_park = self.getSettingValueByKey("head_park_y")
@@ -136,7 +136,7 @@ class TimeLapse(Script):
         is_retracted = False
         gcode_to_append = ""
         if park_print_head:
-            gcode_to_append += f"G1 F{trav_speed} X{x_park} Y{y_park} ;Park print head\n"
+            gcode_to_append += f"G0 F{travel_speed} X{x_park} Y{y_park} ;Park print head\n"
         gcode_to_append += "M400 ;Wait for moves to finish\n"
         gcode_to_append += trigger_command + " ;Snap the Image\n"
         gcode_to_append += f"G4 P{pause_length} ;Wait for camera\n"
@@ -198,14 +198,14 @@ class TimeLapse(Script):
                         else:
                             camera_code += ";TYPE:CUSTOM-----------------TimeLapse Begin\n"
                         if zhop != 0:
-                            camera_code += f"G1 F{speed_z} Z{last_z + zhop} ;Z-Hop\n"
+                            camera_code += f"G1 F{speed_z} Z{round(last_z + zhop,2)} ;Z-Hop\n"
                         camera_code += gcode_to_append
-                        camera_code += self.putValue(G=0, F=trav_speed, X=last_x, Y=last_y) + " ;Restore XY position \n"
+                        camera_code += f"G0 F{travel_speed} X{last_x} Y{last_y} ;Restore XY position\n"
                         if zhop != 0:
-                            camera_code += self.putValue(G=0, F=speed_z, Z=last_z) + "  ;Restore Z position \n"
+                            camera_code += f"G0 F{speed_z} Z{last_z} ;Restore Z position\n"
                         if retract and not is_retracted and retract_enabled:
-                            camera_code += self.putValue(G=1, E=retract_dist, F=retract_speed) + "  ;Un-Retract filament\n"
-                            camera_code += self.putValue(M=rel_cmd) + "          ;Extrude Mode\n"
+                            camera_code += f"G1 F{retract_speed} E{retract_dist} ;Un-Retract filament\n"
+                            camera_code += f"M{rel_cmd} ;Extrude Mode\n"
                         camera_code += f";{'-' * 28}TimeLapse End"
                         # Format the camera code to be inserted
                         temp_lines = camera_code.split("\n")

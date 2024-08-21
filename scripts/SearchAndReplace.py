@@ -52,7 +52,7 @@ class SearchAndReplace(Script):
                 "search_start":
                 {
                     "label": "Start S&R at Layer:",
-                    "description": "Use the Cura Preview layer numbering.  The Start Layer will be included. Enter '1' to start with gcode ';LAYER:0'. Enter ''-6'' to start with the first layer of a raft",
+                    "description": "Use the Cura Preview layer numbering.  The Start Layer will be included. Enter '1' to start with gcode ';LAYER:0'. Enter ''-6'' to start with the first layer of a raft.",
                     "type": "int",
                     "default_value": 1,
                     "minimum_value": -6,
@@ -61,7 +61,7 @@ class SearchAndReplace(Script):
                 "search_end":
                 {
                     "label": "Stop S&R at end of Layer:",
-                    "description": "Use the Cura Preview layer numbering.  Enter ''end'' to replace to the end of the file.  Enter any other layer number and the replacements will conclude at the end of that layer.",
+                    "description": "Use the Cura Preview layer numbering.  Enter '-1' to search and replace to the end of the file.  Enter any other layer number and the replacements will conclude at the end of that layer.  If the End Layer is equal to the Start Layer then only that single layer is searched.",
                     "type": "int",
                     "default_value": -1,
                     "minimum_value": -1,
@@ -95,9 +95,11 @@ class SearchAndReplace(Script):
         }"""
 
     def execute(self, data):
-        extruder = Application.getInstance().getGlobalContainerStack().extruderList
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
         retract_enabled = bool(extruder[0].getProperty("retraction_enable", "value"))
-        # If retractions are enabled a single retraction data item is inserted at the end of the last layer
+        # If retractions are enabled then the CuraEngine inserts a single data item for the retraction at the end of the last layer
+        # 'top_layer' accounts for that
         if retract_enabled:
             top_layer = 2
         else:
@@ -136,7 +138,7 @@ class SearchAndReplace(Script):
             else:
                 raft_layers = 0
         except:
-            all
+            pass
     #Determine the actual start and end indexes of the data----------------------------------------------------
         try:
             if not enable_layer_search:
@@ -148,8 +150,6 @@ class SearchAndReplace(Script):
                     end_index = len(data) - top_layer
                 else:
                     end_index = len(data)
-                    
-                    
             elif enable_layer_search:
                 if start_layer < 1 and start_layer != -6:
                     start_index = layer_0_index - raft_layers
@@ -161,13 +161,13 @@ class SearchAndReplace(Script):
                     end_index = len(data) - top_layer
                 else:
                     end_index = raft_start_index + int(end_layer)
-                if end_index > len(data) - 1: end_index = len(data) - 1 #For possible Input error
-                if int(end_index) < int(start_index): end_index = start_index #For possible Input error
+                if end_index > len(data) - 1: end_index = len(data) - 1 #For possible user input error
+                if int(end_index) < int(start_index): end_index = start_index #For possible user input error
         except:
             start_index = 2
-            end_index = len(data) -1
-            
-    #if "first_instance_only" is enabled:
+            end_index = len(data) - top_layer
+
+    # If "first_instance_only" is enabled:
         replaceone = False
         if first_instance_only:
             if not is_regex:
@@ -175,17 +175,14 @@ class SearchAndReplace(Script):
             search_regex = re.compile(search_string)
             for num in range(start_index, end_index, 1):
                 layer = data[num]
-                lines = layer.split("\n")
-                for index, line in enumerate(lines):
-                    if re.search(search_regex, line) and replaceone == False:
-                        lines[index] = re.sub(search_regex, replace_string, line)
-                        data[num] = "\n".join(lines)
-                        replaceone = True
-                        break
+                if re.search(search_regex, layer) and replaceone == False:
+                    data[num] = re.sub(search_regex, replace_string, data[num], 1)
+                    replaceone = True
+                    break
                 if replaceone: break
             return data
-            
-    #Do all the replacements---------------------------------------------------------------------------------------
+
+    # For all the replacements
         if not is_regex:
             search_string = re.escape(search_string)
         search_regex = re.compile(search_string)
@@ -197,4 +194,3 @@ class SearchAndReplace(Script):
             layer = data[start_index]
             data[start_index] = re.sub(search_regex, replace_string, layer)
         return data
-        

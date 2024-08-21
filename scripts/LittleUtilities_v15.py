@@ -13,16 +13,11 @@
 #     11) One-at-a-Time Final Z - A bug fix that adds a move up to the transit (print MAXZ) height before the ending Gcode.  Prevents a crash if the last print is shorter than others.
 #     12) One-at-a-Time Adjust Print Temperatures - Enter a list of temperatures and each succesive model will print at the assigned temperature.
 #     13) Enable Speed Enforcement - If Flow Rate Compensation alters some print speeds to very high values this script will reset them to the speeds in the Cura settings.  The speeds are checked per feature and per extruder.  Speeds might be lowered, never raised.
-#     14) Add Purge Lines - You can add the purge lines to the left, right, back, or front of the build plate.  If you have purge lines in your startup gcode you should at least comment them out.
-#     15) Circle around to layer start - moves the print head around the periphery of the build plate so it doesn't cut across where the print will be.
-#     16) Add line numbers for each layer - Debugging tool that addes a layer line number as a comment.
-#     17) Kill Wipe at layer - Negates the wipe move for 'Outer-Wall, Infill, or Both' within a layer range.
-#     18) Unload Filament - Adds a script to the Ending Gcode to unload the filament from the active extruder.
-#     19) Adjust starting E location - If the skirt/brim/raft doesn't start where the nozzle starts because of a retraction in the StartUp then an adjustment to the E location may be needed.
-#     20) Fix the 5.7.2 Prepend Temperature bug
-#     21) 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
-#     22) Move the Tool Changes - "Enable Prime Tower" must be checked for this to run.  Cura adds tool changes just prior to the nozzle moving to the prime tower.  This script moves the tool change to just past the move to the prime tower so the change occurs above the prime tower rather than above the model.
-#     23) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
+#     14) Add line numbers for each layer - Debugging tool that addes a layer line number as a comment.
+#     15) Kill Wipe at layer - Negates the wipe move for 'Outer-Wall, Infill, or Both' within a layer range.
+#     26) 2X Print Temperatures (must be enabled in this script) - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
+#     17) Move the Tool Changes - "Enable Prime Tower" must be checked for this to run.  Cura adds tool changes just prior to the nozzle moving to the prime tower.  This script moves the tool change to just past the move to the prime tower so the change occurs above the prime tower rather than above the model.
+#     18) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
 
 from ..Script import Script
 from UM.Application import Application
@@ -30,7 +25,7 @@ from UM.Message import Message
 import re
 import os
 
-class LittleUtilities_v24(Script):
+class LittleUtilities_v15(Script):
 
     def initialize(self) -> None:
         super().initialize()
@@ -59,77 +54,12 @@ class LittleUtilities_v24(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Little Utilities v24",
-            "key": "LittleUtilities_v24",
+            "name": "Little Utilities v15",
+            "key": "LittleUtilities_v15",
             "metadata": {},
             "version": 2,
             "settings":
             {
-                "adjust_starting_e":
-                {
-                    "label": "Adjust Starting E location",
-                    "description": "If there is a retraction after the purge lines in the Startup Gcode (like the 'Add Purge Lines' script here does) then often the skirt does not start where the nozzle starts.  It is because Cura always adds a retraction prior to the print starting which results in a double retraction.  Enabling this will allow you to adjust the starting E location and tune it so the skirt starts right where it should.  To fix a blob enter a positive number.  To fix a 'dry start' enter a negative number.",
-                    "type": "bool",
-                    "default_value": false,
-                    "value": false,
-                    "enabled": true
-                },
-                "adjust_e_loc_to":
-                {
-                    "label": "    Starting E location",
-                    "description": "This is usually a negative amount and often equal to the '-Retraction Distance'.  This adjustment changes where the printer 'thinks' the end of the filament is in relation to the nozzle.  If retraction is not enabled then this setting has no effect.",
-                    "type": "float",
-                    "unit": "mm  ",
-                    "default_value": -6.5,
-                    "enabled": "adjust_starting_e"
-                },
-                "add_purge_lines":
-                {
-                    "label": "Add Purge Lines to StartUp",
-                    "description": "The purge lines can be left, right, front or back.  If there are purge lines present in the StartUp Gcode remove them or comment them out before using this script.  You don't want to double dip.",
-                    "type": "bool",
-                    "default_value": false,
-                    "value": false,
-                    "enabled": true
-                },
-                "purge_line_location":
-                {
-                    "label": "    Purge Line Location",
-                    "description": "What edge of the build plate should have the purge lines.  If the printer is 'Elliptical' then it is assumed to be an 'Origin At Center' printer and the purge lines are 90° arcs.",
-                    "type": "enum",
-                    "options": {
-                        "purge_left": "On left edge (Xmin)",
-                        "purge_right": "On right edge (Xmax)",
-                        "purge_bottom": "On front edge (Ymin)",
-                        "purge_top": "On back edge (Ymax)"},
-                    "default_value": "purge_left",
-                    "enabled": "add_purge_lines"
-                },
-                "move_to_start":
-                {
-                    "label": "Circle around to layer start",
-                    "description": "Depending on where the 'Layer Start X' and 'Layer Start Y' are for the print, the opening travel move can pass across the print area and leave a string there.  This option will generate a path that moves the nozzle around the edges of the build plate and then comes in to the Start Point.",
-                    "type": "bool",
-                    "default_value": false,
-                    "enabled": true
-                },
-                "enable_unload":
-                {
-                    "label": "Unload filament at print end",
-                    "description": "Adds an unload script to the Ending Gcode section.  It goes in just ahead of the M104 S0.  This scripts always unloads the active extruder.",
-                    "type": "bool",
-                    "default_value": false,
-                    "enabled": true
-                },
-                "unload_distance":
-                {
-                    "label": "    Unload Distance",
-                    "description": "The last layer to end wiping.  Use the Cura preview numbers or '-1' for the end layer.",
-                    "type": "int",
-                    "default_value": 440,
-                    "unit": "mm  ",
-                    "enabled": "enable_unload"
-                },
                 "move_tool_changes":
                 {
                     "label": "Move IDEX Tool Changes",
@@ -286,7 +216,7 @@ class LittleUtilities_v24(Script):
                 "change_printer_settings":
                 {
                     "label": "Change Printer Settings",
-                    "description": "Add gcode commands to a file to change the internal printer settings.",
+                    "description": "Add gcode commands to a file to change the internal printer settings.  NOTE: Changes remain in effect until printer power-off (they do not reset at the end of the print).  The changes will become the new printer defaults if you elect to save with M500 (firmware dependent).",
                     "type": "bool",
                     "default_value": false
                 },
@@ -735,8 +665,6 @@ class LittleUtilities_v24(Script):
             self._very_cool(data)
         if self.getSettingValueByKey("disable_abl"):
             self._disable_abl(data)
-        if self.getSettingValueByKey("enable_unload"):
-            self._unload_filament(data)
         if self.getSettingValueByKey("line_numbers"):
             self._line_numbering(data)
         if self.getSettingValueByKey("debug_file") and self.getSettingValueByKey("debugging_tools"):
@@ -745,24 +673,14 @@ class LittleUtilities_v24(Script):
             self._adjust_temps_per_model(data)
         if self.getSettingValueByKey("speed_limit_enable"):
             self._speed_limits(data)
-        if self.getSettingValueByKey("add_purge_lines"):
-            self._add_purge_lines(data)
-        if self.getSettingValueByKey("move_to_start"):
-            self._move_to_start(data)
         if self.getSettingValueByKey("kill_wipe"):
             self._kill_wipes(data)
         if self.getSettingValueByKey("data_num_and_line_nums") and self.getSettingValueByKey("debugging_tools"):
             self._data_num_and_line_nums(data)
-        if self.getSettingValueByKey("adjust_starting_e"):
-            self._adjust_starting_e(data)
         if self.getSettingValueByKey("temp_override_enable"):
             data = self._print_temp_change(data)
-        # If the starting E is not being adjusted, format the StartUp Gcode anyway.
-        if not self.getSettingValueByKey("adjust_starting_e"):
-            data[1] = self.format_string(data[1])
-        # If the Unload option is not selected, format the Ending Gcode anyway.
-        if not self.getSettingValueByKey("enable_unload"):
-            data[len(data) - 1] = self.format_string(data[len(data) - 1])
+        data[1] = self.format_string(data[1])
+        data[len(data) - 1] = self.format_string(data[len(data) - 1])
         return data
 
     # Add Extruder Ending Gcode-------------------------------------------
@@ -779,13 +697,6 @@ class LittleUtilities_v24(Script):
             end_gcode = Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_extruder_end_code","value")
         if end_gcode != "":
             data[len(data)-2] += end_gcode + "\n"
-        return
-
-    # Make an adjustment to the starting E location so the skirt/brim/raft starts out when the nozzle starts out.
-    def _adjust_starting_e(self, data: str) -> str:
-        adjust_amt = self.getSettingValueByKey("adjust_e_loc_to")
-        data[1] = re.sub("G1 F(\d*) E-(\d.*)", f"G92 E{adjust_amt}", data[1])
-        data[1] = self.format_string(data[1])
         return
 
     # Add data headers to the end of each data section.  Add 'Total Cmd Lines' to data[0]
@@ -1026,7 +937,7 @@ class LittleUtilities_v24(Script):
 
     # Change printer settings--------------------------------------------------
     def _change_printer_settings(self, data:str)->str:
-        change_feed_string = ";  Change Printer Settings\n"
+        change_feed_string = ";-------------------------------Change Printer Settings\n"
         change_accel_string = ""
         change_home_string = ""
         change_steps_string = ""
@@ -1129,7 +1040,7 @@ class LittleUtilities_v24(Script):
                     extruder[0].setProperty("machine_steps_per_mm_e", "value", e_steps)
 
         # Add the changes to the gcode at the end of the StartUp Gcode
-        data[1] += change_feed_string + change_accel_string + change_home_string + change_steps_string + save_string + ";  End of Changes\n"
+        data[1] += change_feed_string + change_accel_string + change_home_string + change_steps_string + save_string + ";-------------------------------End of Changes\n"
         data[1] = data[1][0:-1]
         lines = data[1].split("\n")
 
@@ -1652,386 +1563,6 @@ class LittleUtilities_v24(Script):
             data[layer_index] = "\n".join(new_lines) + "\n"
         return
 
-    # Add Purge Lines----------------------------------------------------------
-    def _add_purge_lines(self, data: str):
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
-        retract_dist = extruder[0].getProperty("retraction_amount", "value")
-        retract_speed = extruder[0].getProperty("retraction_retract_speed", "value") * 60
-        bed_shape = str(curaApp.getProperty("machine_shape", "value"))
-        origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
-        startup_gcode = curaApp.getProperty("machine_start_gcode", "value")
-        machine_width = curaApp.getProperty("machine_width", "value")
-        machine_depth = curaApp.getProperty("machine_depth", "value")
-        material_diameter = extruder[0].getProperty("material_diameter", "value")
-        mm3_per_mm = (material_diameter / 2)**2 * 3.14159
-        init_line_width = extruder[0].getProperty("skirt_brim_line_width", "value")
-        where_at = self.getSettingValueByKey("purge_line_location")
-        travel_speed = extruder[0].getProperty("speed_travel", "value") * 60
-        print_speed = round(extruder[0].getProperty("speed_print", "value") * 60 * .75)
-        purge_str = ";TYPE:CUSTOM----------[Little Utilities] Add Purge Lines\nG0 F600 Z2 ; Move up\nG92 E0 ; Reset extruder\n"
-        # Normal cartesian printer
-        # self.purge_end_loc is used by 'Move to Start' and indicates which corner the nozzle is in after the purge lines
-        if bed_shape == "rectangular" and not origin_at_center:
-            if where_at == "purge_left":
-                purge_len = int(machine_depth) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str = purge_str.replace("Lines", "Lines at MinX")
-                purge_str += f"G0 F{travel_speed} X0 Y10 ; Move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X0 Y{machine_depth - 10} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X3 Y{machine_depth - 10} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X3 Y10 E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X3 Y20 Z0.3 ; Slide over and down\n"
-                purge_str += "G0 X3 Y35 ; Wipe\n"
-                self._purge_end_loc = "LF"
-            elif where_at == "purge_right":
-                purge_str = purge_str.replace("Lines", "Lines at MaxX")
-                purge_len = int(machine_depth) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X{machine_width} ; Move\nG0 Y{machine_depth - 10} ; Move\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X{machine_width} Y10 E{purge_volume} ; First line\n"
-                purge_str += f"G0 X{machine_width - 3} Y10 ; Move over\n"
-                purge_str += f"G1 F{print_speed} X{machine_width - 3} Y{machine_depth - 10} E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X{machine_width - 3} Y{machine_depth - 20} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 X{machine_width - 3} Y{machine_depth - 35} ; Wipe\n"
-                self._purge_end_loc = "RR"
-            elif where_at == "purge_bottom":
-                purge_str = purge_str.replace("Lines", "Lines at MinY")
-                purge_len = int(machine_width) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X10 Y0 ; Move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X{machine_width - 10} Y0 E{purge_volume} ; First line\n"
-                purge_str += f"G0 X{machine_width - 10} Y3 ; Move over\n"
-                purge_str += f"G1 F{print_speed} X10 Y3 E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X20 Y3 Z0.3 ; Slide over and down\n"
-                purge_str += "G0 X35 Y3 ; Wipe\n"
-                self._purge_end_loc = "LF"
-            elif where_at == "purge_top":
-                purge_str = purge_str.replace("Lines", "Lines at MaxY")
-                purge_len = int(machine_width) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} Y{machine_depth} ; Ortho Move to back\n"
-                purge_str += f"G0 X{machine_width - 10} ; Ortho move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X10 Y{machine_depth} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X10 Y{machine_depth - 3} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X{machine_width - 10} Y{machine_depth - 3} E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait 1 second\n"
-                purge_str += f"G0 F{print_speed} X{machine_width - 20} Y{machine_depth - 3} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 X{machine_width - 35} Y{machine_depth - 3} ; Wipe\n"
-                self._purge_end_loc = "RR"
-        # Some cartesian printers are Origin at Center
-        elif bed_shape == "rectangular" and origin_at_center:
-            if where_at == "purge_left":
-                purge_len = int(machine_depth) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X-{machine_width / 2} Y-{(machine_depth / 2) - 10} ; Move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X-{machine_width / 2} Y{(machine_depth / 2) - 10} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X-{(machine_width / 2) - 3} Y{(machine_depth / 2) - 10} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X-{(machine_width / 2) - 3} Y-{(machine_depth / 2) - 10} E{round(purge_volume * 2, 5)} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{round(purge_volume * 2 - retract_dist, 5)} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X-{(machine_width / 2) - 3} Y-{(machine_depth / 2) - 20} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 X-{(machine_depth / 2) - 3} Y-{(machine_depth / 2) - 35} ; Wipe\n"
-                self._purge_end_loc = "LF"
-            elif where_at == "purge_right":
-                purge_len = int(machine_depth) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X{machine_width / 2} Z1 ; Move\nG0 Y{(machine_depth / 2) - 10} Z1 ; Move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X{machine_width / 2} Y-{(machine_depth / 2) - 10} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X{(machine_width / 2) - 3} Y-{(machine_depth / 2) - 10} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X{(machine_width / 2) - 3} Y{(machine_depth / 2) - 10} E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X{(machine_width / 2) - 3} Y{(machine_depth / 2) - 20} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 F{travel_speed} X{(machine_depth / 2) - 3} Y{(machine_depth / 2) - 35} ; Wipe\n"
-                self._purge_end_loc = "RR"
-            elif where_at == "purge_bottom":
-                purge_len = int(machine_width) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} X-{machine_width / 2 - 10} Z1 ; Move\nG0 Y-{machine_depth / 2} Z1 ; Move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X{machine_width / 2 - 10} Y-{machine_depth / 2} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X{machine_width / 2 - 10} Y-{machine_depth / 2 - 3} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X-{machine_width / 2 - 10} Y-{machine_depth / 2 - 3} E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X-{(machine_width / 2) - 20} Y-{(machine_depth / 2) - 3} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 F{print_speed} X-{(machine_width / 2) - 35} Y-{(machine_depth / 2) - 3} ; Wipe\n"
-                self._purge_end_loc = "LF"
-            elif where_at == "purge_top":
-                purge_len = int(machine_width) - 20
-                purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-                purge_str += f"G0 F{travel_speed} Y{machine_depth / 2} Z1; Ortho Move to back\n"
-                purge_str += f"G0 X{machine_width / 2 - 10} Z1 ; Ortho Move to start\n"
-                purge_str += f"G0 F600 Z0.3 ; Move down\n"
-                purge_str += f"G1 F{print_speed} X-{machine_width / 2 - 10} Y{machine_depth / 2} E{purge_volume} ; First line\n"
-                purge_str += f"G0 X-{machine_width / 2 - 10} Y{machine_depth / 2 - 3} ; Move over\n"
-                purge_str += f"G1 F{print_speed} X{machine_width / 2 - 10} Y{machine_depth / 2 - 3} E{purge_volume * 2} ; Second line\n"
-                purge_str += f"G1 F{int(retract_speed)} E{purge_volume * 2 - retract_dist} ; Retract\n"
-                purge_str += "G0 F600 Z8 ; Move Up\nG4 S1 ; Wait for 1 second\n"
-                purge_str += f"G0 F{print_speed} X{machine_width / 2 - 20} Y{machine_depth / 2 - 3} Z0.3 ; Slide over and down\n"
-                purge_str += f"G0 F{print_speed} X{machine_width / 2 - 35} Y{machine_depth / 2 - 3} ; Wipe\n"
-                self._purge_end_loc = "RR"
-        # Elliptic printers with Origin at Center
-        elif bed_shape == "elliptic":
-            if where_at in ["purge_left","purge_right"]:
-                radius_1 = round((machine_width / 2) - 1,2)
-            elif where_at in ["purge_bottom", "purge_top"]:
-                radius_1 = round((machine_depth / 2) - 1,2)
-            purge_len = int(radius_1) * 3.14159 / 4
-            purge_volume = round((init_line_width * 0.3 * purge_len) * 1.25 / mm3_per_mm, 5)
-            if where_at == "purge_left":
-                purge_str += f"G0 F{travel_speed} X-{round(radius_1 * .707, 2)} Y-{round(radius_1 * .707,2)}\n"
-                purge_str += f"G0 F600 Z0.3\n"
-                purge_str += f"G2 F{print_speed} X-{round(radius_1 * .707,2)} Y{round(radius_1 * .707,2)} I{round(radius_1 * .707,2)} J{round(radius_1 * .707,2)} E{purge_volume}\n"
-                purge_str += f"G0 X-{round((radius_1 - 3) * .707,2)} Y{round((radius_1 - 3) * .707,2)}\n"
-                purge_str += f"G3 F{print_speed} X-{round((radius_1 - 3) * .707,2)} Y-{round((radius_1 - 3) * .707,2)} I{round((radius_1 - 3) * .707,2)} J-{round((radius_1 - 3) * .707,2)} E{purge_volume * 2}\n"
-                purge_str += f"G1 X-{round((radius_1 - 3) * .707 - 25,2)} E{round(purge_volume * 2 + 1,5)}\n"
-                purge_str += f"G1 F{int(retract_speed)} E{round((purge_volume * 2 + 1) - retract_dist,5)}\n"
-                purge_str += "G0 F600 Z5\nG4 S1\n"
-                purge_str += f"G0 F{print_speed} X-{round((radius_1 - 3) * .707 - 15,2)} Z0.3\n"
-                purge_str += f"G0 F{print_speed} X-{round((radius_1 - 3) * .707,2)}\n"
-                self.purge_end_loc = "LR"
-            elif where_at == "purge_right":
-                purge_str += f"G0 F{travel_speed} X{round(radius_1 * .707, 2)} Y-{round(radius_1 * .707,2)}\n"
-                purge_str += f"G0 F600 Z0.3\n"
-                purge_str += f"G3 F{print_speed} X{round(radius_1 * .707,2)} Y{round(radius_1 * .707,2)} I-{round(radius_1 * .707,2)} J{round(radius_1 * .707,2)} E{purge_volume}\n"
-                purge_str += f"G0 X{round((radius_1 - 3) * .707,2)} Y{round((radius_1 - 3) * .707,2)}\n"
-                purge_str += f"G2 F{print_speed} X{round((radius_1 - 3) * .707,2)} Y-{round((radius_1 - 3) * .707,2)} I-{round((radius_1 - 3) * .707,2)} J-{round((radius_1 - 3) * .707,2)} E{purge_volume * 2}\n"
-                purge_str += f"G1 X{round((radius_1 - 3) * .707 - 25,2)} E{round(purge_volume * 2 + 1,5)}\n"
-                purge_str += f"G1 F{int(retract_speed)} E{round((purge_volume * 2 + 1) - retract_dist,5)}\n"
-                purge_str += "G0 F600 Z5\nG4 S1\n"
-                purge_str += f"G0 F{print_speed} X{round((radius_1 - 3) * .707 - 15,2)} Z0.3\n"
-                purge_str += f"G0 F{print_speed} X{round((radius_1 - 3) * .707,2)}\n"
-                self.purge_end_loc = "RR"
-            elif where_at == "purge_bottom":
-                purge_str += f"G0 F{travel_speed} X-{round(radius_1 * .707, 2)} Y-{round(radius_1 * .707,2)}\n"
-                purge_str += f"G0 F600 Z0.3\n"
-                purge_str += f"G3 F{print_speed} X{round(radius_1 * .707,2)} Y-{round(radius_1 * .707,2)} I{round(radius_1 * .707,2)} J{round(radius_1 * .707,2)} E{purge_volume}\n"
-                purge_str += f"G0 X{round((radius_1 - 3) * .707,2)} Y-{round((radius_1 - 3) * .707,2)}\n"
-                purge_str += f"G2 F{print_speed} X-{round((radius_1 - 3) * .707,2)} Y-{round((radius_1 - 3) * .707,2)} I-{round((radius_1 - 3) * .707,2)} J{round((radius_1 - 3) * .707,2)} E{purge_volume * 2}\n"
-                purge_str += f"G1 X-{round((radius_1 - 3) * .707 - 25,2)} E{round(purge_volume * 2 + 1, 5)}\n"
-                purge_str += f"G1 F{int(retract_speed)} E{round((purge_volume * 2 + 1) - retract_dist,5)}\n"
-                purge_str += "G0 F600 Z5\nG4 S1\n"
-                purge_str += f"G0 F{print_speed} X-{round((radius_1 - 3) * .707 - 15,2)} Z0.3\n"
-                purge_str += f"G0 F{print_speed} X-{round((radius_1 - 3) * .707,2)}\n"
-                self.purge_end_loc = "LF"
-            elif where_at == "purge_top":
-                purge_str += f"G0 F{travel_speed} X{round(radius_1 * .707, 2)} Y{round(radius_1 * .707,2)}\n"
-                purge_str += f"G0 F600 Z0.3\n"
-                purge_str += f"G3 F{print_speed} X-{round(radius_1 * .707,2)} Y{round(radius_1 * .707,2)} I-{round(radius_1 * .707,2)} J-{round(radius_1 * .707,2)} E{purge_volume}\n"
-                purge_str += f"G0 X-{round((radius_1 - 3) * .707,2)} Y{round((radius_1 - 3) * .707,2)}\n"
-                purge_str += f"G2 F{print_speed} X{round((radius_1 - 3) * .707,2)} Y{round((radius_1 - 3) * .707,2)} I{round((radius_1 - 3) * .707,2)} J-{round((radius_1 - 3) * .707,2)} E{purge_volume * 2}\n"
-                purge_str += f"G1 X{round((radius_1 - 3) * .707 - 25,2)} E{round(purge_volume * 2 + 1,5)}\n"
-                purge_str += f"G1 F{int(retract_speed)} E{round((purge_volume * 2 + 1) - retract_dist,5)}\n"
-                purge_str += "G0 F600 Z5\nG4 S1\n"
-                purge_str += f"G0 F{print_speed} X{round((radius_1 - 3) * .707 - 15,2)} Z0.3\n"
-                purge_str += f"G0 F{print_speed} X{round((radius_1 - 3) * .707,2)}\n"
-                self.purge_end_loc = "RR"
-        # Common ending for purge_str
-        purge_str += "G0 F600 Z1 ; Move Z\n;---------------------End of Purge"
-        # Find the insertion location in data[1]
-        purge_str = self.format_string(purge_str)
-        startup_section = data[1].split("\n")
-        for num in range(len(startup_section) - 1, 0, -1):
-            # In Absolute Extrusion mode - use the last G92 E0 line
-            if "G92 E0" in startup_section[num]:
-                insert_index = num
-                break
-            # In Relative Extrusion mode - use the M83 line
-            elif "M83" in startup_section[num]:
-                insert_index = num
-                break
-        startup_section.insert(insert_index, purge_str)
-        data[1] = "\n".join(startup_section)
-        return
-
-    # Keep the print head from crossing the print area prior to the print start---------
-    def _move_to_start(self, data: str) -> str:
-        layer = data[2].split("\n")
-        for line in layer:
-            if line.startswith("G0") and " X" in line and " Y" in line:
-                start_x = self.getValue(line, "X")
-                start_y = self.getValue(line, "Y")
-                break
-        if start_x == None: start_x = 0
-        if start_y == None: start_y = 0
-        if self._purge_end_loc == None:
-            purge_end_loc = "LF"
-        else:
-            purge_end_loc = self._purge_end_loc
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
-        bed_shape = str(curaApp.getProperty("machine_shape", "value"))
-        origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
-        machine_width = curaApp.getProperty("machine_width", "value")
-        machine_depth = curaApp.getProperty("machine_width", "value")
-        travel_speed = round(extruder[0].getProperty("speed_travel", "value") * 60)
-        move_str = f";MESH:NONMESH---------[Little Utilities] Travel to layer start\nG0 F600 Z1 ; Move up\n"
-        midpoint_x = machine_width / 2
-        midpoint_y = machine_depth / 2
-        if not origin_at_center:
-            if float(start_x) <= float(midpoint_x):
-                goto_str = "Lt"
-            else:
-                goto_str = "Rt"
-            if float(start_y) <= float(midpoint_y):
-                goto_str += "Frt"
-            else:
-                goto_str += "Bk"
-        else:
-            if float(start_x) <= 0:
-                goto_str = "Lt"
-            else:
-                goto_str = "Rt"
-            if float(start_y) <= 0:
-                goto_str += "Frt"
-            else:
-                goto_str += "Bk"
-        # Depending on which quadrant the XY layer start is, move around the periphery before coming in to the start position
-        if bed_shape == "rectangular" and not origin_at_center:
-            if purge_end_loc == "LF":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X5 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} Y5 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X5 Z1; Ortho Move\n"                    
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Ortho Move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} X{start_x} ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X5 ; Ortho Move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
-                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                         
-                    move_str += f"G0 F{travel_speed} Y{start_y} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X5 ; Move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
-                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} X{machine_width - 5} Z1 ; Ortho move\n"                    
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} Y{start_y} Z1 ; Ortho move\n"                  
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-            elif purge_end_loc == "RR":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X5 Z1 ; Ortho move\n"                                      
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Ortho move\n"                              
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{start_x} Z1 ; Ortho move\n"                           
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
-                    move_str += f"G0 F{travel_speed} Y5 Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X5 Z1 ; Move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{machine_width - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} Y{start_y} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-        elif bed_shape == "rectangular" and origin_at_center:
-            if purge_end_loc == "LF":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"                    
-                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"         
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
-                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
-                elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
-                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"        
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"
-                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-            elif purge_end_loc == "RR":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                    move_str += f"G0 F{travel_speed} Y-{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{machine_width / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-                    move_str += f"G0 F{travel_speed} Y{machine_depth / 2 - 5} Z1 ; Ortho move\n"
-                    move_str += f"G0 F600 Z0 ; Nail down the string\nG0 Z1 ; Move up\n"       
-
-        elif bed_shape == "elliptic" and origin_at_center:
-            radius = machine_width / 2
-            offset_sin = round(2**.5 / 2 * radius, 2)
-            if purge_end_loc == "LR":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Move\nG0 Y-{offset_sin} Z1 ; Move to start\n"
-                elif goto_str == "LtBk":
-                    move_str += f"G2 X0 Y{offset_sin} I{offset_sin} J{offset_sin} ; Move around to start\n"
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
-            elif purge_end_loc == "RR":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Move\nG0 Y-{offset_sin} Z1 ; Move to start\n"
-                elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
-            elif purge_end_loc == "LF":
-                if goto_str == "LtFrt":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Move\nG0 Y-{offset_sin} Z1 ; Move to start\n"
-                elif goto_str == "LtBk":
-                    move_str += f"G0 F{travel_speed} X-{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
-                elif goto_str == "RtFrt":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"
-                elif goto_str == "RtBk":
-                    move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
-        move_str += ";---------------------End of layer start travels"
-        startup = data[2].split("\n")
-        move_str = self.format_string(move_str)
-        startup.insert(2, move_str)
-        data[2] = "\n".join(startup)
-        return
-
     # Comment out the Wiping movement line after Infill, Outer Wall, or Both
     def _kill_wipes(self, data: str) -> str:
         curaApp = Application.getInstance().getGlobalContainerStack()
@@ -2137,31 +1668,7 @@ class LittleUtilities_v24(Script):
                 data[num] = "\n".join(lines)
         return
 
-    def _unload_filament(self, data: str) -> str:
-        # Unloading a large amount of filament in a single command can trip the 'Overlong Extrusion' warning in some firmware
-        # This script breaks it into chunks of 150mm each if that is necessary.
-        extrude_speed = 3000
-        unload_distance = self.getSettingValueByKey("unload_distance")
-        lines = data[len(data) - 1].split("\n")
-        for index, line in enumerate(lines):
-            # Unload the filament just before the hot end turns off.
-            if "M104 S0" in line:
-                filament_str = "M83 ; [Little Utilities] Unload Relative extrusion\nM400 ; Complete all moves\n"
-                if unload_distance > 150:
-                    temp_unload = unload_distance
-                    while temp_unload > 150:
-                        filament_str += "G1 F" + str(int(extrude_speed)) + " E-150 ; Unload some\n"
-                        temp_unload -= 150
-                    if 0 < temp_unload <= 150:
-                        filament_str += "G1 F" + str(int(extrude_speed)) + " E-" + str(temp_unload) + " ; Unload the remainder\nM82; Absolute Extrusion\n"
-                else:
-                    filament_str += "G1 F" + str(int(extrude_speed)) + " E-" + str(unload_distance) + " ; Unload\nM82 ; Absolute Extrusion\n"
-                break
-        lines[index] = filament_str + lines[index]
-        data[len(data) - 1] = "\n".join(lines)
-        data[len(data) - 1] = self.format_string(data[len(data) - 1])
-        return
-
+    # Format the startup and ending gcodes so they look nice.  This will move any comments so they line up
     def format_string(self, any_gcode_str: str):
         # Format the purge or travel-to-start strings.  No reason they shouldn't look nice.
         temp_lines = any_gcode_str.split("\n")
@@ -2275,9 +1782,8 @@ class LittleUtilities_v24(Script):
         alt_data[1] = ";  [Little Utilities] The print temperatures for Tool 'T" + tool_num + "' have been doubled.  The new print temperatures are as high as " + str(max_temp) + "°.\n" + alt_data[1]
         msg_text = "The post processor 'Little Utilities | Max Temperature Override' is enabled. All the temperatures in the Cura settings for Tool 'T" + tool_num + "' have been doubled in the Gcode.  The new print temperatures are as high as " + str(max_temp) + "°.  Your printer and the material must be capable of handling the high temperatures.  It is up to the user to determine the suitablility of High Temperature Overrides."
         Message(title = "HIGH TEMP PRINT WARNING", text = msg_text).show()
-        return alt_data
-        
-    
+        return
+
     def _move_tool_changes(self, alt_data: str) -> str:
         curaApp = Application.getInstance().getGlobalContainerStack()
         if not bool(curaApp.getProperty("prime_tower_enable", "value")):
@@ -2286,7 +1792,6 @@ class LittleUtilities_v24(Script):
         machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
         if machine_extruder_count < 2:
             return alt_data
-            
         start_index = 2
         for num in range(2, len(alt_data) - 1):
             if ";LAYER:0" in alt_data[num]:
@@ -2332,7 +1837,7 @@ class LittleUtilities_v24(Script):
                 modified_data += lines[index] + "\n"
             alt_data[num] = modified_data[:-1]
         return alt_data
-        
+
     def _dual_ext_to_single(self, data: str) -> str:
         convert_m109 = self.getSettingValueByKey("dual_convert_M109")
         for num in range(2, len(data)-1):

@@ -501,7 +501,7 @@ class SuptIntMaterialChange(Script):
         # Feed lines
         feed_rate = str(self.getSettingValueByKey("interface_feed"))
         feed_rate_str = f"M220 S{feed_rate}        ; Set interface feed rate\n"
-        feed_rate_reset = "M220 S100; Reset flow rate\n"
+        feed_rate_reset = "M220 S100; Reset feed rate\n"
 
         # Load and Unload lines
         if self.getSettingValueByKey("unload_dist") != 0:
