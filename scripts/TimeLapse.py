@@ -7,6 +7,7 @@
 #    Changed Retract to a boolean and when true use the regular Cura retract settings.
 #    Use the regular Cura settings for Travel Speed and Speed_Z instead of asking.
 #    Added code to check the E location to prevent retracts if the filament was already retracted.
+#    Added 'Pause before image' per LemanRus
 
 from ..Script import Script
 from UM.Application import Application
@@ -26,7 +27,7 @@ class TimeLapse(Script):
                 "trigger_command":
                 {
                     "label": "Camera Trigger Command",
-                    "description": "G-code command used to trigger the camera.",
+                    "description": "G-code command used to trigger the camera.  The setting box will take any command and parameters.",
                     "type": "str",
                     "default_value": "M240"
                 },
@@ -46,14 +47,23 @@ class TimeLapse(Script):
                         "every_100th": "Every 100th"},
                     "default_value": "every_layer"
                 },
+                "anti_shake_length":
+                {
+                    "label": "Pause before image",
+                    "description": "How long to wait (in ms) before capturing the image.  This is to allow the printer to 'settle down' after movement.  To disable set this to '0'.",
+                    "type": "int",
+                    "default_value": 0,
+                    "minimum_value": 0,
+                    "unit": "ms  "
+                },
                 "pause_length":
                 {
-                    "label": "Pause length",
+                    "label": "Pause after image",
                     "description": "How long to wait (in ms) after camera was triggered.",
                     "type": "int",
-                    "default_value": 700,
+                    "default_value": 500,
                     "minimum_value": 0,
-                    "unit": "ms"
+                    "unit": "ms  "
                 },
                 "park_print_head":
                 {
@@ -75,7 +85,7 @@ class TimeLapse(Script):
                 {
                     "label": "Park Print Head Y",
                     "description": "What Y location does the head move to for photo.",
-                    "unit": "mm",
+                    "unit": "mm  ",
                     "type": "float",
                     "default_value": 0,
                     "enabled": "park_print_head"
@@ -91,7 +101,7 @@ class TimeLapse(Script):
                 {
                     "label": "Z-Hop Height When Parking",
                     "description": "The height to lift the nozzle off the print before parking.",
-                    "unit": "mm",
+                    "unit": "mm  ",
                     "type": "float",
                     "default_value": 2.0,
                     "minimum_value": 0.0
@@ -138,8 +148,11 @@ class TimeLapse(Script):
         if park_print_head:
             gcode_to_append += f"G0 F{travel_speed} X{x_park} Y{y_park} ;Park print head\n"
         gcode_to_append += "M400 ;Wait for moves to finish\n"
+        anti_shake_length = self.getSettingValueByKey("anti_shake_length")
+        if anti_shake_length > 0:
+            gcode_to_append += f"G4 P{anti_shake_length} ;Wait for printer to settle down\n"
         gcode_to_append += trigger_command + " ;Snap the Image\n"
-        gcode_to_append += f"G4 P{pause_length} ;Wait for camera\n"
+        gcode_to_append += f"G4 P{pause_length} ;Wait for camera to finish\n"
         match when_to_insert:
             case "every_layer":
                 step_freq = 1

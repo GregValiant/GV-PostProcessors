@@ -73,11 +73,11 @@ PauseAtLayer:
 	My re-work of PauseAtHeight.  Allows for unloading, purging, and re-loading and other new options.  There is an option to add pauses to all the models in a "One at a Time" project.
 
 PurgeLinesAndUnload:
-	Adds purge lines to the gcode.  The lines can be at the top, bottom, left, or right and either full length or half length.  Rectangular, elliptical and Origin at Center are supported.  If you have purge lines in your startup gcode you need to remove them as this post processor makes them redundant.
+	'Adds purge lines' to the gcode.  The lines can be at the top, bottom, left, or right and either full length or half length.  Rectangular, elliptical and Origin at Center are supported.  If you have purge lines in your startup gcode you need to remove them as this post processor makes them redundant.
 	Other settings are:
-	Adjust the E location prior to the start of the print.  The filament start of the skirt/brim can be dialed in.
-	Circle around to start.  Adds orthogonal travel moves around the build plate periphery to the layer start point to keep strings from crossing where the print will be.
-	Unload will unload the filament from the extruder at the end of a print.	
+	'Adjust the E location' prior to the start of the print.  The filament start of the skirt/brim can be dialed in.
+	'Circle around to start'.  Adds orthogonal travel moves around the build plate periphery to the layer start point to keep strings from crossing where the print will be.
+	'Unload FIlament' will unload the filament from the extruder at the end of a print.	
 
 Raise3DIDEX:
 	Does for the Raise3D IDEX machines what the other post does for the Flash Forge IDEX machines.
@@ -89,7 +89,7 @@ SearchAndReplace:
 	Another re-write with new options including "First Instance Only" and ranges of layers.
 
 SuptIntMaterialChange:
-	This one is really cool.  With the air-gap over the support-interface (or raft) at "0" the user can select the layers to insert filament changes just for the Support-Interface.  After the interface is printed there is another pause to change back to the original material.  (Using PETG for the interface of a PLA print, or vice-versa, works well.)  This allows for excellent release of the support from the model and excellent finishes on the support side of the "first layer over support".  The downside is that as good as it is with large flats, it's value decreases as the number of pauses required grows which makes it annoying for things like the support in large horizontal holes.  But if you have a box top and it needs to be printed riht-side-up, this is really good.
+	This one is really cool.  With the air-gap over the support-interface (or raft) at "0" the user can select the layers to insert filament changes just for the Support-Interface.  After the interface is printed there is another pause to change back to the original material.  (Using PETG for the interface of a PLA print, or vice-versa, works well.)  This allows for excellent release of the support from the model and excellent finishes on the support side of the "first layer over support".  The downside is that as good as it is with large flats, it's value decreases as the number of pauses required grows which makes it annoying for things like the support in large horizontal holes.  But if you have a box top and it needs to be printed right-side-up, this is really good.
 
 TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
