@@ -1,7 +1,5 @@
-# Copyright (c) 2020 Ultimaker B.V.
-# Cura is released under the terms of the LGPLv3 or higher.
-# Created by Wayne Porter
 # Modified 5/15/2023 - Greg Valiant (Greg Foresi)
+#    Created by Wayne Porter
 #    Added insertion frequency
 #    Adjusted for use with Relative Extrusion
 #    Changed Retract to a boolean and when true use the regular Cura retract settings.
@@ -11,6 +9,7 @@
 
 from ..Script import Script
 from UM.Application import Application
+from UM.Logger import Logger
 
 class TimeLapse(Script):
     def __init__(self):
@@ -121,8 +120,9 @@ class TimeLapse(Script):
         relative_extrusion = bool(mycura.getProperty("relative_extrusion", "value"))
         extruder = mycura.extruderList
         retract_speed = int(extruder[0].getProperty("retraction_speed", "value"))*60
-        retract_dist = int(extruder[0].getProperty("retraction_amount", "value"))
+        retract_dist = round(float(extruder[0].getProperty("retraction_amount", "value")), 2)
         retract_enabled = bool(extruder[0].getProperty("retraction_enable", "value"))
+        firmware_retract = bool(mycura.getProperty("machine_firmware_retract", "value"))
         speed_z = int(extruder[0].getProperty("speed_z_hop", "value"))*60
         if relative_extrusion:
             rel_cmd = 83
@@ -199,6 +199,14 @@ class TimeLapse(Script):
                                 else:
                                     is_retracted = False
                                 prev_e = last_e
+                    if firmware_retract and self.getValue(line, "G") in {10, 11}:
+                        if self.getValue(line, "G") == 10:
+                            is_retracted = True
+                            last_e = float(prev_e) - float(retract_dist)
+                        if self.getValue(line, "G") == 11:
+                            is_retracted = False
+                            last_e = float(prev_e) + float(retract_dist)
+                        prev_e = last_e
                 lines = layer.split("\n")
                 # Insert the code----------------------------------------------------
                 camera_code = ""
@@ -207,7 +215,10 @@ class TimeLapse(Script):
                         if retract and not is_retracted and retract_enabled: # Retract unless already retracted
                             camera_code += ";TYPE:CUSTOM-----------------TimeLapse Begin\n"
                             camera_code += "M83 ;Extrude Relative\n"
-                            camera_code += f"G1 F{retract_speed} E-{retract_dist} ;Retract filament\n"
+                            if not firmware_retract:
+                                camera_code += f"G1 F{retract_speed} E-{retract_dist} ;Retract filament\n"
+                            else:
+                                camera_code += "G10 ;Retract filament\n"
                         else:
                             camera_code += ";TYPE:CUSTOM-----------------TimeLapse Begin\n"
                         if zhop != 0:
@@ -217,7 +228,10 @@ class TimeLapse(Script):
                         if zhop != 0:
                             camera_code += f"G0 F{speed_z} Z{last_z} ;Restore Z position\n"
                         if retract and not is_retracted and retract_enabled:
-                            camera_code += f"G1 F{retract_speed} E{retract_dist} ;Un-Retract filament\n"
+                            if not firmware_retract:
+                                camera_code += f"G1 F{retract_speed} E{retract_dist} ;Un-Retract filament\n"
+                            else:
+                                camera_code += "G11 ;Un-Retract filament\n"
                             camera_code += f"M{rel_cmd} ;Extrude Mode\n"
                         camera_code += f";{'-' * 28}TimeLapse End"
                         # Format the camera code to be inserted
@@ -229,8 +243,8 @@ class TimeLapse(Script):
                         lines.insert(len(lines) - 2, temp_lines)
                         data[num] = "\n".join(lines)
                         break
-            except:
-                pass
+            except Exception as e:
+                Logger.log("w", "TimeLapse Error: " + repr(e))
         # Take a final image if there was no camera shot at the end of the last layer.
         if "TimeLapse Begin" not in data[len(data) - (3 if retract_enabled else 2)] and ensure_final_image:
             data[len(data)-1] = "M400    ; Wait for all moves to finish\n" + trigger_command + "    ;Snap the final Image\n" + f"G4 P{pause_length} ;Wait for camera\n" + data[len(data)-1]

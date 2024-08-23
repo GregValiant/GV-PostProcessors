@@ -1,9 +1,9 @@
 # GregValiant (Greg Foresi) July of 2024
-# Enable Z-hops for travel moves regardless of retraction.
+# Insert Z-hops for travel moves regardless of retraction.
 # This script is compatible with Z-hops enabled in Cura.
 # Not compatible with "One at a Time" mode.
 # NOTE: For multi-extruder machines the same settings are used for all extruders.
-# NOTE: This is not a fast post processor
+# NOTE: This is a slow running post processor
 
 
 from UM.Application import Application
@@ -30,7 +30,7 @@ class ZhopOnTravel(Script):
                 "start_layer": {
                     "label": "Start Layer",
                     "description": "Layer number to start the changes at.  Use the Cura preview layer numbers.  The changes will start at the start of the layer.",
-                    "unit": "",
+                    "unit": "Lay# ",
                     "type": "int",
                     "default_value": 1,
                     "minimum_value": "1",
@@ -38,8 +38,8 @@ class ZhopOnTravel(Script):
                 },
                 "end_layer": {
                     "label": "End Layer",
-                    "description": "Enter '-1' for the entire file or enter a Layer number from the Cura preview.  The changes will end at the end of this layer.",
-                    "unit": "",
+                    "description": "Enter '-1' to indicate the top layer, or enter a specific Layer number from the Cura preview.  The changes will end at the end of this layer.",
+                    "unit": "Lay# ",
                     "type": "int",
                     "default_value": -1,
                     "minimum_value": "-1",
@@ -47,9 +47,9 @@ class ZhopOnTravel(Script):
                 },
                 "hop_height": {
                     "label": "Z-Hop Height",
-                    "description": "Layer number to start the changes at.  Use the Cura preview layer numbers.  The change will be made at the start of the layer.",
-                    "unit": "",
-                    "type": "int",
+                    "description": "I refuse to provide a description for this.",
+                    "unit": "mm  ",
+                    "type": "float",
                     "default_value": 0.5,
                     "minimum_value": "0",
                     "maximum_value_warning": 5,
@@ -83,7 +83,7 @@ class ZhopOnTravel(Script):
         retraction_enabled = extruder[0].getProperty("retraction_enable", "value")
         init_layer_height = float(mycura.getProperty("layer_height_0", "value"))
         min_travel_dist = self.getSettingValueByKey("min_travel_dist")
-        hop_height = self.getSettingValueByKey("hop_height")
+        hop_height = round(self.getSettingValueByKey("hop_height"),2)
         start_layer = self.getSettingValueByKey("start_layer")
         end_layer = self.getSettingValueByKey("end_layer")
         # Get the indexes for the start and end layers
@@ -138,7 +138,7 @@ class ZhopOnTravel(Script):
                     if hop_start > 0:
                         # For any lines that are XYZ moves right before layer change
                         if lines[index] .startswith("G0") and " Z" in line:
-                            lines[index] = lines[index].replace("Z" + str(cur_z), "Z" + str(cur_z + hop_height))                        
+                            lines[index] = lines[index].replace("Z" + str(cur_z), "Z" + str(cur_z + hop_height))
                         # Format the line
                         zhop_line = f"G0 F{speed_zhop} Z{cur_z + hop_height}"
                         zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop\n"
