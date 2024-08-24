@@ -94,22 +94,22 @@ SuptIntMaterialChange:
 
 TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
+	
+Zhop On Travel:  
+	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode
 
 -----------------------------------------------------------------------------
 Plugin Extensions for Cura:
 
-SovolSV04_IDEX
+SovolSV04_IDEX: 
 	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" settings of Cura.
 	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
 	
-FlashForge_IDEX_Plugin
+FlashForge_IDEX_Plugin: 
 	Same as the post-processor but as a plugin/extension
 
-Support Interface Material Change
+Support Interface Material Change: 
 	This is the same as the post-processor.  It is available in the normal Cura settings under 'Enable Support Interface'
 	
-Zhop On Travel
-	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode.
-
 -----------------------------------------------------------------------------
 
