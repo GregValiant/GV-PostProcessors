@@ -21,8 +21,11 @@ class PurgeLinesAndUnload(Script):
         # Get the StartUp Gcode from Cura and attempt to catch if it contains purge lines.  Message the user if an extrusion is in the startup.
         curaApp = Application.getInstance().getGlobalContainerStack()
         startup_gcode = curaApp.getProperty("machine_start_gcode", "value")
-        if re.search("G1 X(\d.*) Y(\d.*) E(\d.*)", startup_gcode) is not None:
-            Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  They should be removed before using the 'Add Purge Lines' function of this script.").show()
+        start_lines = startup_gcode.splitlines()
+        for line in start_lines:
+            if line.startswith("G1") and " X" in line and " Y" in line and " E" in line:
+                Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  They should be removed, or commented out, before using the 'Add Purge Lines' function of this script.").show()
+                break
         self._instance.setProperty("is_rectangular", "value", True if curaApp.getProperty("machine_shape", "value") == "rectangular" else False)
         extruder = curaApp.extruderList
         #This is set in 'Add Purge Lines' and is used by 'Move to Start' to indicate which corner the nozzle is in after the purge lines
