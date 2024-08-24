@@ -23,7 +23,7 @@ class PurgeLinesAndUnload(Script):
         startup_gcode = curaApp.getProperty("machine_start_gcode", "value")
         start_lines = startup_gcode.splitlines()
         for line in start_lines:
-            if line.startswith("G1") and " X" in line and " Y" in line and " E" in line:
+            if line.startswith("G1") and " E" in line and (" X" in line or " Y" in line):
                 Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  They should be removed, or commented out, before using the 'Add Purge Lines' function of this script.").show()
                 break
         self._instance.setProperty("is_rectangular", "value", True if curaApp.getProperty("machine_shape", "value") == "rectangular" else False)
