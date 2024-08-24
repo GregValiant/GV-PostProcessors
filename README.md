@@ -16,6 +16,7 @@ Flash Forge IDEX Tool Temps:
 
 -----------------------------------------------------------------------------
 Here is a list of the post-processors and a brief description of what they do.
+Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
 
 AAA Post Process ReadMe.py:
 	When loaded into Cura it will immedeately open the PDF file of the same name.  The PDF has descriptions of all the Cura post processors.  Maintaining it is difficult but I do update it from time to time.  There doesn't seem to be mistakes in it, but there might be new post-processors missing.
@@ -63,8 +64,8 @@ InsertAtLayerChange:
 LimitXYAccelJerk:
 	For bed slinger printers, the accel can be changed at a layer, or gradually changed across a range of layers.  It can keep jerky motion of tall prints from breaking the print loose from the bed.
 
-LittleUtilities_v20
-	A collection of about 20 post processors ranging from "Remove Comments" (usefull for UM2 printers) to unloading filament at the end of a print.  There are some script debugging tools as well.
+LittleUtilities_v15
+	A collection of about 15 post processors ranging from "Remove Comments" (usefull for UM2 printers) to creating debugging gcode files with no extrusions.  There are some script debugging tools as well.  'Add Purge Lines' and a couple of others have been split out into their own file.  The 'v' number indicates how many scripts are included rather than the version number.
 
 MultiExtruderColorMix:
 	A work in process.  This is intended to allow graduated mixing for printers with mixing hot ends.  The Marlin side is well along.  The RepRap side is just started.
@@ -94,7 +95,8 @@ SuptIntMaterialChange:
 TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
 
-Plugin Extensions for Cura
+-----------------------------------------------------------------------------
+Plugin Extensions for Cura:
 SovolSV04_IDEX
 	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" settings of Cura.
 	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
