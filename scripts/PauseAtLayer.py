@@ -2,6 +2,7 @@
 #  "Pause at Height" is obsolete.  It didn't work with Z-hops enabled or with adaptive Layers.
 #  Added 'Unload', 'Reload', and 'Purge' options and removed the 'Retraction' option.  Retractions will occur if there is no retraction prior to the pause.
 #  Added 'Reason for Pause' option.  When 'Filament Change' is chosen then Unload, Reload, and Purge become available.  If 'All Others' reasons is chosen then those options aren't required.
+#  Added 'One at a Time' option.
 
 from ..Script import Script
 import re
@@ -86,6 +87,14 @@ class PauseAtLayer(Script):
                     "default_value": "reason_filament",
                     "enabled": "enable_pause_at_layer"
                 },
+                "one_at_a_time_renum":
+                {
+                    "label": "One-at-a-Time mode: Add pauses to all models",
+                    "description": "When using 'One_at_a_Time' mode you can add pauses to each model.  Use the Cura preview layer numbers from the bottom through to the top.  Your model may be 150 layers tall and the pauses may be at '100,200,300' per the preview layer numbers.  Check the gcode to insure you get what you intended.  It is possible to give each model a pause at a different height (layer) or don't pause for some models.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "enable_pause_at_layer and pause_method != 'griffin'"
+                },
                 "unload_amount":
                 {
                     "label": "     Unload Amount",
@@ -129,10 +138,10 @@ class PauseAtLayer(Script):
                 "extra_prime_amount":
                 {
                     "label": "Extra Prime Amount",
-                    "description": "Sometimes a little more is needed to account for oozing during a pause.  At .2 layer height and .4 line width - 0.10mm of 1.75 filament of 'Extra Prime' is equal to 3mm of extrusion.  0.10mm of 2.85 filament of 'Extra Prime' would be equal to 8mm of extrusion.  Plan accordingly.",
-                    "unit": "mm    ",
+                    "description": "Sometimes a little more is needed to account for oozing during a pause.  At .2 layer height and .4 line width - 0.10mm of 1.75 filament of 'Extra Prime' is 3mm of extrusion.  0.10mm of 2.85 filament of 'Extra Prime' would be 8mm of extrusion.  Plan accordingly.",
+                    "unit": "mm   ",
                     "type": "str",
-                    "value": "0.0",
+                    "value": "0.30",
                     "default_value": "0.30",
                     "enabled": "enable_pause_at_layer and pause_method != 'griffin' and reason_for_pause == 'reason_other'"
                 },
@@ -374,10 +383,17 @@ class PauseAtLayer(Script):
     def execute(self, data):
         if not self.getSettingValueByKey("enable_pause_at_layer"):
             return data
+        mycura = Application.getInstance().getGlobalContainerStack()
+        one_at_a_time = mycura.getProperty("print_sequence", "value")
+        one_at_a_time_renum = bool(self.getSettingValueByKey("one_at_a_time_renum"))
+        if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
+            data = self._renumber_layers(data, "renum")
         pause_layer_setting = str(self.getSettingValueByKey("pause_layer"))
         pause_layer_list = pause_layer_setting.split(",")
         for pause_layer in pause_layer_list:
             data = self._find_pause(data, int(pause_layer.strip()))
+        if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
+            data = self._renumber_layers(data, "un_renum")
         return data
 
     ##  Get the X and Y values for a layer (will be used to get X and Y of the layer after the pause and of the 'redo' layer if that option is used).
@@ -480,6 +496,8 @@ class PauseAtLayer(Script):
         current_layer = 0
         current_extrusion_f = 0
         got_first_g_cmd_on_layer_0 = False
+        current_t = 0 ## Tracks the current extruder for tracking the target temperature.
+        target_temperature = {} ## Tracks the current target temperature for each extruder.
 
         nbr_negative_layers = 0
 
@@ -570,7 +588,7 @@ class PauseAtLayer(Script):
                             break
 
                 ## Start putting together the pause string 'prepend_gcode'
-                prepend_gcode = f";TYPE:CUSTOM---------------;current layer: {current_layer} (end of Gcode LAYER:{int(current_layer) - 1})\n"
+                prepend_gcode = f";current layer: {current_layer}\n;TYPE:CUSTOM---------------; Pause at end of preview layer {current_layer} (end of Gcode LAYER:{int(current_layer) - 1})\n"
 
                 if pause_method == "repetier":
                     ## Retraction
@@ -763,7 +781,7 @@ class PauseAtLayer(Script):
                     elif redo_layer and reason_for_pause == "reason_other":
                         prepend_gcode += self.putValue(M = extrusion_mode_numeric) + "; Switch back to " + extrusion_mode_string + " E values\n"
                 ## Format prepend_gcode
-                prepend_gcode += f";{'-' * 26}End of the Pause code"
+                prepend_gcode += f";{'-' * 26}; End of the Pause code"
                 temp_lines = prepend_gcode.split("\n")
                 for temp_index, temp_line in enumerate(temp_lines):
                     if ";" in temp_line and not temp_line.startswith(";"):
@@ -775,3 +793,81 @@ class PauseAtLayer(Script):
                 new_data[index -1 ] = "\n".join(layer_lines)
                 return new_data
         return new_data
+
+    # Renumber Layers----------------------------------------------------------
+    def _renumber_layers(self, one_data:str, renum:str)->str:
+        renum_layers = str(renum)
+
+        # Count the layers because "LAYER_COUNT" can be theoretical
+        layer0_index = 2
+        for num in range(1,len(one_data)-1,1):
+            layer = one_data[num]
+            if ";LAYER:0" in layer:
+                layer0_index = num
+                break
+
+        # Concantenate the one_data list items that were added to the beginning of each separate model
+        for num in range(layer0_index,len(one_data) - 2,1):
+            if num + 1 == len(one_data) - 2: break # Avoid concantenating the Ending Gcode
+            try:
+                while not ";LAYER:" in one_data[num + 1]:
+                    one_data[num] += str(one_data[num + 1]) + "\n"
+                    one_data.pop(num + 1)
+            except:
+                continue
+
+        # Renumber the layers
+        if renum_layers == "renum":
+            lay_num = 0
+            for num in range(layer0_index,len(one_data),1):
+                layer = one_data[num]
+                if layer.startswith(";LAYER:") and not layer.startswith(";LAYER:-"):
+                    temp = layer.split("\n")
+                    one_data[num] = layer.replace(temp[0],";LAYER:" + str(lay_num))
+                    lay_num += 1
+            layer = one_data[layer0_index - 1]
+
+        # Revert the numbering to OneAtATime if enabled
+        elif renum_layers == "un_renum":
+            lay_num = 0
+            for num in range(layer0_index,len(one_data),1):
+                layer = one_data[num]
+                if layer.startswith(";LAYER:") and not layer.startswith(";LAYER:-"):
+                    temp = layer.split("\n")
+                    one_data[num] = layer.replace(temp[0],";LAYER:" + str(lay_num))
+                    lay_num += 1
+                if ";LAYER_COUNT:" in layer:
+                    lay_num = 0
+            layer = one_data[layer0_index - 1]
+
+        # Move the 'Time_elapsed' and 'Layer_Count' lines to the end of their one_data sections in case of a following PauseAtHeight
+        modified_data = ""
+        for num in range(2,len(one_data)-2,1):
+            layer = one_data[num]
+            lines = layer.split("\n")
+            modified_data = ""
+            time_line = ""
+            for line in lines:
+                if line.startswith(";TIME_ELAPSED:") or line.startswith(";LAYER_COUNT:"):
+                    time_line += line + "\n"
+                    line = ""
+                if line != "":
+                    modified_data += line + "\n"
+            one_data[num] = modified_data + time_line
+
+        # If re-numbering then change each LAYER_COUNT line to reflect the new total layers
+        if renum_layers == "renum":
+            for num in range(1,len(one_data)-1,1):
+                layer = one_data[num]
+                one_data[num] = re.sub(";LAYER_COUNT:(\d*)",";LAYER_COUNT:" + str(len(one_data) - 3),layer)
+
+        # If reverting to one-at-a-time then change the LAYER_COUNT back to per model
+        elif renum_layers == "un_renum":
+            model_lay_count = 0
+            for num in range(len(one_data)-1,1,-1):
+                if ";LAYER:" in one_data[num]:
+                    model_lay_count += 1
+                if ";LAYER:0" in one_data[num]:
+                    one_data[num-1] = re.sub(";LAYER_COUNT:(\d*)",";LAYER_COUNT:" + str(model_lay_count), one_data[num-1])
+                    model_lay_count = 0
+        return one_data
