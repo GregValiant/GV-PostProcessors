@@ -109,14 +109,14 @@ class LittleUtilities_v15(Script):
                 },
                 "bug_fixes":
                 {
-                    "label": "Show the Cura bug fix scripts",
+                    "label": "Cura bug fix scripts",
                     "description": "These are scripts that fix noticed problems with Cura.",
                     "type": "bool",
                     "default_value": false
                 },
                 "add_extruder_end":
                 {
-                    "label": "    Add Last Extruder Ending Gcode",
+                    "label": "    Add 'Ending Gcode' for final extruder",
                     "description": "Adds the Ending Gcode of the last extruder used in the print prior to the regular Ending Gcode.",
                     "type": "bool",
                     "default_value": false,
@@ -125,7 +125,7 @@ class LittleUtilities_v15(Script):
                 "final_z":
                 {
                     "label": "    One-at-a-Time Final Z",
-                    "description": "Adds a Z-lift move to the 'Transit' height right after the last model finishes printing.  Prevents the nozzle crashing into taller prints.",
+                    "description": "Adds a Z-lift move up to the 'Transit Height' right after the last model finishes printing.  Prevents the nozzle crashing into taller prints.",
                     "type": "bool",
                     "default_value": false,
                     "enabled": "bug_fixes"

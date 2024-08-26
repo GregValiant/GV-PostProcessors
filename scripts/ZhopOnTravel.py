@@ -1,9 +1,11 @@
 # GregValiant (Greg Foresi) July of 2024
-# Insert Z-hops for travel moves regardless of retraction.
+# Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range', 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
 # This script is compatible with Z-hops enabled in Cura.
-# Not compatible with "One at a Time" mode.
-# NOTE: For multi-extruder machines the same settings are used for all extruders.
-# NOTE: This is a slow running post processor
+#
+# Note:
+#   This script is NOT compatible with "One at a Time" mode.
+#   For multi-extruder machines the same settings (Extruder #1) are used for all extruders.
+#   This is a slow running post processor as it must check the total distances of all travel moves in the range of layers.
 
 
 from UM.Application import Application
@@ -57,7 +59,7 @@ class ZhopOnTravel(Script):
                 },
                 "min_travel_dist": {
                     "label": "Minimum Travel Distance",
-                    "description": "Travel distances longer than this will cause a Z-Hop to occur.",
+                    "description": "Travel distances longer than this will cause a Z-Hop to occur.  This distance should be at least a bit longer than your 'Retraction Minimum Travel' to insure that there is a retraction before the travel move and subsequent Z-hop.",
                     "unit": "mm  ",
                     "type": "int",
                     "default_value": 10,
@@ -72,13 +74,14 @@ class ZhopOnTravel(Script):
         # Exit if the script isn't enabled
         if not bool(self.getSettingValueByKey("zhop_travel_enabled")):
             return data
-        # Define some variables
         mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
+        # Exit if the Print Sequence is One-at-a-Time
         if mycura.getProperty("print_sequence", "value") == "one_at_a_time":
-            Message(title = "[ZHop On Travel]", text = "Is not compatible with One at a Time print sequence.").show()
+            Message(title = "[ZHop On Travel]", text = "Is not compatible with 'One at a Time' print sequence.").show()
             data[0] += ":  [ZHop On Travel] did not run because One at a Time is enabled"
             return data
+        # Define some variables
+        extruder = mycura.extruderList
         speed_zhop = extruder[0].getProperty("speed_z_hop", "value") * 60
         retraction_enabled = extruder[0].getProperty("retraction_enable", "value")
         init_layer_height = float(mycura.getProperty("layer_height_0", "value"))
@@ -120,7 +123,7 @@ class ZhopOnTravel(Script):
         for num in range(start_index, end_index + 1):
             lines = data[num].splitlines()
             for index, line in enumerate(lines):
-                # Only get the values from movement commands
+                # Get the XYZ values from movement commands
                 if line[0:3] in cmd_list:
                     if " X" in line and self.getValue(line, "X") is not None:
                         prev_x = cur_x
