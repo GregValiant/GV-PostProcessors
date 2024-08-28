@@ -2,7 +2,7 @@
 #  "Pause at Height" is obsolete.  It didn't work with Z-hops enabled or with adaptive Layers.
 #  Added 'Unload', 'Reload', and 'Purge' options and removed the 'Retraction' option.  Retractions will occur if there is no retraction prior to the pause.
 #  Added 'Reason for Pause' option.  When 'Filament Change' is chosen then Unload, Reload, and Purge become available.  If 'All Others' reasons is chosen then those options aren't required.
-#  Added 'One at a Time' option.
+#  Added option for pauses in a 'One at a Time' print.  Pauses can be at different layers in different parts.  All pause layers must be listed (use the Cura Preview layer numbers).  Simply telling it to pause at 'Layer:5' will only result in a pause at the first layer:5 encountered.  Models can be skipped, or have pauses at different layers than other models, and some models could be entirely different colors or material.
 
 from ..Script import Script
 import re
@@ -72,8 +72,8 @@ class PauseAtLayer(Script):
                 },
                 "custom_pause_command":
                 {
-                    "label": "    Enter your pause command",
-                    "description": "If none of the the stock options work with your printer you can enter a custom command here.",
+                    "label": "    Custom Pause Command",
+                    "description": "If none of the the stock options work with your printer you can enter a custom command here.  If you use 'M600' for the filament change you must include any other parameters.  Check the gcode carefully.",
                     "type": "str",
                     "default_value": "",
                     "enabled": "enable_pause_at_layer and pause_method == 'custom'"
@@ -382,6 +382,7 @@ class PauseAtLayer(Script):
 
     def execute(self, data):
         if not self.getSettingValueByKey("enable_pause_at_layer"):
+            data[0] += ";    [Pause At Layer]  Is in the active list but is not enabled\n"
             return data
         mycura = Application.getInstance().getGlobalContainerStack()
         one_at_a_time = mycura.getProperty("print_sequence", "value")

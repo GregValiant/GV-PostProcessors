@@ -7,11 +7,11 @@
 #   For multi-extruder machines the same settings (Extruder #1) are used for all extruders.
 #   This is a slow running post processor as it must check the total distances of all travel moves in the range of layers.
 
-
 from UM.Application import Application
 from ..Script import Script
 import re
 from UM.Message import Message
+import math
 
 class ZhopOnTravel(Script):
 
@@ -176,7 +176,7 @@ class ZhopOnTravel(Script):
 
     def _get_distance(self, cur_x: float, cur_y: float, prev_x: float, prev_y: float) -> float:
         try:
-            dist = ((prev_x - cur_x)**2 + (prev_y - cur_y)**2)**.5
+            dist = math.sqrt((prev_x - cur_x)**2 + (prev_y - cur_y)**2)
         except:
             return 0
         return dist
