@@ -202,7 +202,7 @@ class SuptIntMaterialChange(Script):
                     "type": "int",
                     "unit": "deg  ",
                     "value": 190,
-                    "maximum_value": interface_temp",
+                    "maximum_value": "interface_temp",
                     "default_value": "interface_temp - 15",
                     "enabled": "enable_supt_int_matl_change"
                 },
