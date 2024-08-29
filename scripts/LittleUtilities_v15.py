@@ -60,20 +60,30 @@ class LittleUtilities_v15(Script):
             "version": 2,
             "settings":
             {
+                
+                "enable_little_utilities":
+                {
+                    "label": "Enable the scripts",
+                    "description": "Check the box to enable the scripts.",
+                    "type": "bool",
+                    "default_value": true,
+                    "enabled": true
+                },
                 "move_tool_changes":
                 {
                     "label": "Move IDEX Tool Changes",
                     "description": "Move the tool changes from above the 'travel-to-Prime-Tower' moves to below those moves so the tool change occurs over the Prime Tower.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": true
+                    "enabled": "enable_little_utilities"
                 },
                 "remove_comments":
                 {
                     "label": "Remove Comments",
                     "description": "Removes all semi-colons and any text to the right of the semi-colon.  It isn't possible to anticipate the order these scripts should run.  In particular if you find that 'Remove Comments' should run last then add another instance of 'Little Utilities' and enable 'Remove Comments' in that instance to ensure it runs last.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
                 },
                 "remove_comments_inc_opening":
                 {
@@ -81,7 +91,7 @@ class LittleUtilities_v15(Script):
                     "description": "The opening generally consists of comments only and includes from 'Flavor' to 'MAXZ'.  (The 'POSTPROCESSED' line is added after the scripts have all run.)",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "remove_comments"
+                    "enabled": "remove_comments and enable_little_utilities"
                 },
                 "remove_comments_inc_startup":
                 {
@@ -89,7 +99,7 @@ class LittleUtilities_v15(Script):
                     "description": "The StartUp section is from 'generated with...' to ';LAYER_COUNT:'.",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "remove_comments"
+                    "enabled": "remove_comments and enable_little_utilities"
                 },
                 "remove_comments_leave_layer_lines":
                 {
@@ -97,7 +107,7 @@ class LittleUtilities_v15(Script):
                     "description": "If unchecked then the ';LAYER:' lines will be left in.  That makes searching the gcode easier.  Post processors that run after this one may require the Layer lines.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "remove_comments"
+                    "enabled": "remove_comments and enable_little_utilities"
                 },
                 "remove_comments_inc_ending":
                 {
@@ -105,14 +115,15 @@ class LittleUtilities_v15(Script):
                     "description": "The Ending Gcode may have comments.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "remove_comments"
+                    "enabled": "remove_comments and enable_little_utilities"
                 },
                 "bug_fixes":
                 {
                     "label": "Cura bug fix scripts",
                     "description": "These are scripts that fix noticed problems with Cura.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled":  "enable_little_utilities"
                 },
                 "add_extruder_end":
                 {
@@ -120,7 +131,7 @@ class LittleUtilities_v15(Script):
                     "description": "Adds the Ending Gcode of the last extruder used in the print prior to the regular Ending Gcode.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "bug_fixes"
+                    "enabled": "bug_fixes and enable_little_utilities"
                 },
                 "final_z":
                 {
@@ -128,21 +139,23 @@ class LittleUtilities_v15(Script):
                     "description": "Adds a Z-lift move up to the 'Transit Height' right after the last model finishes printing.  Prevents the nozzle crashing into taller prints.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "bug_fixes"
+                    "enabled": "bug_fixes and enable_little_utilities"
                 },
                 "lift_head_park":
                 {
                     "label": "Lift Head Parking",
                     "description": "For small layers - this adds a move off the print (to the skirt/brim area) so the nozzle doesn't ooze on the print.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled":  "enable_little_utilities"
                 },
                 "very_cool":
                 {
                     "label": "Very Cool Fanpath",
                     "description": "Creates a fanpath that runs up and back 1mm above the print with the fan running to give extra cooling.  Helps lower the amount of sticking to support-interfaces.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
                 },
                 "very_cool_layer":
                 {
@@ -151,7 +164,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "1-227",
                     "unit": "Lay num  ",
-                    "enabled": "very_cool"
+                    "enabled": "very_cool and enable_little_utilities"
                 },
                 "very_cool_feed":
                 {
@@ -163,7 +176,7 @@ class LittleUtilities_v15(Script):
                     "minimum_value_warning": 10,
                     "maximum_value": 400,
                     "unit": "mm/sec  ",
-                    "enabled": "very_cool"
+                    "enabled": "very_cool and enable_little_utilities"
                 },
                 "very_cool_fan":
                 {
@@ -174,7 +187,7 @@ class LittleUtilities_v15(Script):
                     "minimum_value": 25,
                     "maximum_value": 100,
                     "unit": "%  ",
-                    "enabled": "very_cool"
+                    "enabled": "very_cool and enable_little_utilities"
                 },
                 "very_cool_index_dist":
                 {
@@ -185,7 +198,7 @@ class LittleUtilities_v15(Script):
                     "minimum_value": 5,
                     "maximum_value": 50,
                     "unit": "mm  ",
-                    "enabled": "very_cool"
+                    "enabled": "very_cool and enable_little_utilities"
                 },
                 "very_cool_y_index":
                 {
@@ -193,14 +206,15 @@ class LittleUtilities_v15(Script):
                     "description": "The toolpath is an X zigzag. Enabling the Y will create a grid toolpath. That doubles the cooling effect and takes twice as long.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "very_cool"
+                    "enabled": "very_cool and enable_little_utilities"
                 },
                 "renum_or_revert":
                 {
                     "label": "Renumber Layers",
                     "description": "Renumbers a One-at-a-Time file to All-at-Once numbering.  This allows different uses for Pause at Height and Filament Change.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
                 },
                 "renum_layers":
                 {
@@ -211,14 +225,15 @@ class LittleUtilities_v15(Script):
                         "renum": "Renumber>AllAtOnce",
                         "un_renum": "Revert>OneAtATime"},
                     "default_value": "renum",
-                    "enabled": "renum_or_revert"
+                    "enabled": "renum_or_revert and enable_little_utilities"
                 },
                 "change_printer_settings":
                 {
                     "label": "Change Printer Settings",
                     "description": "Add gcode commands to a file to change the internal printer settings.  NOTE: Changes remain in effect until printer power-off (they do not reset at the end of the print).  The changes will become the new printer defaults if you elect to save with M500 (firmware dependent).",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
                 },
                 "change_feedrate":
                 {
@@ -226,7 +241,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the max feedrate for any axes. Blank entries mean No Change.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "change_printer_settings"
+                    "enabled": "change_printer_settings and enable_little_utilities"
                 },
                 "change_feedrate_x":
                 {
@@ -235,7 +250,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "mm/sec  ",
-                    "enabled": "change_printer_settings and change_feedrate"
+                    "enabled": "change_printer_settings and change_feedrate and enable_little_utilities"
                 },
                 "change_feedrate_y":
                 {
@@ -244,7 +259,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "mm/sec  ",
-                    "enabled": "change_printer_settings and change_feedrate"
+                    "enabled": "change_printer_settings and change_feedrate and enable_little_utilities"
                 },
                 "change_feedrate_z":
                 {
@@ -253,7 +268,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "mm/sec  ",
-                    "enabled": "change_printer_settings and change_feedrate"
+                    "enabled": "change_printer_settings and change_feedrate and enable_little_utilities"
                 },
                 "change_feedrate_e":
                 {
@@ -262,7 +277,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "mm/sec  ",
-                    "enabled": "change_printer_settings and change_feedrate"
+                    "enabled": "change_printer_settings and change_feedrate and enable_little_utilities"
                 },
                 "change_xYaccel":
                 {
@@ -270,7 +285,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the Max Accel for the X and/or Y axes. They can be unequal.  Blank entries mean No Change.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "change_printer_settings"
+                    "enabled": "change_printer_settings and enable_little_utilities"
                 },
                 "change_accel_x":
                 {
@@ -279,7 +294,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "mm/sec²  ",
-                    "enabled": "change_printer_settings and change_xYaccel"
+                    "enabled": "change_printer_settings and change_xYaccel and enable_little_utilities"
                 },
                 "change_accel_y":
                 {
@@ -288,7 +303,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "mm/sec²  ",
-                    "enabled": "change_printer_settings and change_xYaccel"
+                    "enabled": "change_printer_settings and change_xYaccel and enable_little_utilities"
                 },
                 "change_home_offset":
                 {
@@ -296,7 +311,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the Home Offsets. Blank entries mean No Change.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "change_printer_settings"
+                    "enabled": "change_printer_settings and enable_little_utilities"
                 },
                 "change_home_x":
                 {
@@ -304,7 +319,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the X home offset.",
                     "type": "str",
                     "default_value": "",
-                    "enabled": "change_printer_settings and change_home_offset"
+                    "enabled": "change_printer_settings and change_home_offset and enable_little_utilities"
                 },
                 "change_home_y":
                 {
@@ -312,7 +327,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the Y home offset.",
                     "type": "str",
                     "default_value": "",
-                    "enabled": "change_printer_settings and change_home_offset"
+                    "enabled": "change_printer_settings and change_home_offset and enable_little_utilities"
                 },
                 "change_home_z":
                 {
@@ -320,7 +335,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the Z home offset.",
                     "type": "str",
                     "default_value": "",
-                    "enabled": "change_printer_settings and change_home_offset"
+                    "enabled": "change_printer_settings and change_home_offset and enable_little_utilities"
                 },
                 "change_steps":
                 {
@@ -328,7 +343,7 @@ class LittleUtilities_v15(Script):
                     "description": "Change the Steps/MM for the XYZE axes. Blank entries mean No Change.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "change_printer_settings"
+                    "enabled": "change_printer_settings and enable_little_utilities"
                 },
                 "change_steps_x":
                 {
@@ -337,7 +352,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "steps/mm  ",
-                    "enabled": "change_printer_settings and change_steps"
+                    "enabled": "change_printer_settings and change_steps and enable_little_utilities"
                 },
                 "change_steps_y":
                 {
@@ -346,7 +361,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "steps/mm  ",
-                    "enabled": "change_printer_settings and change_steps"
+                    "enabled": "change_printer_settings and change_steps and enable_little_utilities"
                 },
                 "change_steps_z":
                 {
@@ -355,7 +370,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "steps/mm  ",
-                    "enabled": "change_printer_settings and change_steps"
+                    "enabled": "change_printer_settings and change_steps and enable_little_utilities"
                 },
                 "change_steps_e":
                 {
@@ -364,7 +379,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "default_value": "",
                     "unit": "steps/mm  ",
-                    "enabled": "change_printer_settings and change_steps"
+                    "enabled": "change_printer_settings and change_steps and enable_little_utilities"
                 },
                 "change_save_changes":
                 {
@@ -372,7 +387,7 @@ class LittleUtilities_v15(Script):
                     "description": "Save the changes to the printer EEPROM or memory. If you don't save then any changes will expire when the printer is turned off.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "change_printer_settings and (change_home_offset or change_xYaccel or change_feedrate or change_steps)"
+                    "enabled": "change_printer_settings and (change_home_offset or change_xYaccel or change_feedrate or change_steps) and enable_little_utilities"
                 },
                 "debugging_tools":
                 {
@@ -380,7 +395,7 @@ class LittleUtilities_v15(Script):
                     "description": "Debug specific scripts.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": true
+                    "enabled":  "enable_little_utilities"
                 },
                 "add_data_headers":
                 {
@@ -388,7 +403,7 @@ class LittleUtilities_v15(Script):
                     "description": "A debugging tool.  Adds comment lines '>>>End of Data[xxx]<<<' to the end of each item in the Data List.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "debugging_tools"
+                    "enabled": "debugging_tools and enable_little_utilities"
                 },
                 "add_data_headers_at_start":
                 {
@@ -396,7 +411,7 @@ class LittleUtilities_v15(Script):
                     "description": "When checked the lines will be added to the beginning of a data section.  When un-checked they will be at the end.",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "add_data_headers and debugging_tools"
+                    "enabled": "add_data_headers and debugging_tools and enable_little_utilities"
                 },
                 "dual_ext_to_single":
                 {
@@ -404,7 +419,7 @@ class LittleUtilities_v15(Script):
                     "description": "Turns a dual extruder project into a single extruder file by commenting out the tool changes and adding beeps instead.  At tool change there is a single beep for T0 and a double beep for T1.  Tool numbers in heating commands are moved to the end as a comment.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "debugging_tools"
+                    "enabled": "debugging_tools and enable_little_utilities"
                 },
                 "dual_convert_M109":
                 {
@@ -412,7 +427,7 @@ class LittleUtilities_v15(Script):
                     "description": "Checking this will convert all temperature lines from 'M109' to 'M104'.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "debugging_tools and dual_ext_to_single"
+                    "enabled": "debugging_tools and dual_ext_to_single and enable_little_utilities"
                 },
                 "debug_file":
                 {
@@ -420,7 +435,7 @@ class LittleUtilities_v15(Script):
                     "description": "Removes all M commands and extrusions from the layer range specified.  All other layers are deleted.  This allows you to air-print parts of a file to check the motion.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "debugging_tools"
+                    "enabled": "debugging_tools and enable_little_utilities"
                 },
                 "debug_autohome_cmd":
                 {
@@ -428,7 +443,7 @@ class LittleUtilities_v15(Script):
                     "description": "Usually G28 but can be different.  Add parameters if required.",
                     "type": "str",
                     "default_value": "G28",
-                    "enabled": "debug_file and debugging_tools"
+                    "enabled": "debug_file and debugging_tools and enable_little_utilities"
                 },
                 "debug_start_layer":
                 {
@@ -436,7 +451,7 @@ class LittleUtilities_v15(Script):
                     "description": "The first layer to remove the extrusions from.  Prior Layers will be deleted",
                     "type": "int",
                     "default_value": "1",
-                    "enabled": "debug_file and debugging_tools"
+                    "enabled": "debug_file and debugging_tools and enable_little_utilities"
                 },
                 "debug_end_layer":
                 {
@@ -444,7 +459,7 @@ class LittleUtilities_v15(Script):
                     "description": "The last layer to have extrusions removed.  Layers after this one will be deleted.  Enter '-1' for the top layer.",
                     "type": "int",
                     "default_value": 25,
-                    "enabled": "debug_file and debugging_tools"
+                    "enabled": "debug_file and debugging_tools and enable_little_utilities"
                 },
                 "debug_leave_temperature_lines":
                 {
@@ -452,7 +467,7 @@ class LittleUtilities_v15(Script):
                     "description": "All temperature lines are commented out by default.  Checking this will leave the Hot End temperature lines active and the hot end will heat.  Any M140 and M190 bed temperature lines will still be commented out.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "debugging_tools and debug_file"
+                    "enabled": "debugging_tools and debug_file and enable_little_utilities"
                 },
                 "data_num_and_line_nums":
                 {
@@ -460,14 +475,15 @@ class LittleUtilities_v15(Script):
                     "description": "Another debug utility that will add ' ;Data: num, Line: lnum' to each line in the file",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "debugging_tools"
+                    "enabled": "debugging_tools and enable_little_utilities"
                 },
                 "line_numbers":
                 {
                     "label": "Add line numbers to the gcode",
                     "description": "Numbers the lines.  Some firmware requires line numbers.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
                 },
                 "add_line_nr_sentence_number_prefix":
                 {
@@ -475,7 +491,7 @@ class LittleUtilities_v15(Script):
                     "description": "This will appear before the line number in the g-code",
                     "type": "str",
                     "default_value": "",
-                    "enabled": "line_numbers"
+                    "enabled": "line_numbers and enable_little_utilities"
                 },
                 "add_line_nr_starting_number":
                 {
@@ -483,7 +499,7 @@ class LittleUtilities_v15(Script):
                     "description": "The number used for the first line.",
                     "type": "int",
                     "default_value": "1",
-                    "enabled": "line_numbers"
+                    "enabled": "line_numbers and enable_little_utilities"
                 },
                 "add_line_nr_skip_comments":
                 {
@@ -491,14 +507,15 @@ class LittleUtilities_v15(Script):
                     "description": "When 'True' any line that starts with a semi-colon will be ignored during the numbering.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "line_numbers"
+                    "enabled": "line_numbers and enable_little_utilities"
                 },
                 "disable_abl":
                 {
                     "label": "Disable ABL for Small Models",
                     "description": "When a model takes up less space, or is shorter time than entered below, any G29 and M420 lines in the startup will be disabled.",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
                 },
                 "disable_abl_footprint":
                 {
@@ -506,7 +523,7 @@ class LittleUtilities_v15(Script):
                     "description": "When a model takes up less space than entered below, any G29 and M420 lines in the startup will be disabled.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "disable_abl"
+                    "enabled": "disable_abl and enable_little_utilities"
                 },
                 "disable_abl_min_footprint":
                 {
@@ -516,7 +533,7 @@ class LittleUtilities_v15(Script):
                     "default_value": 900,
                     "minimum_value": 4,
                     "unit": "mm²    ",
-                    "enabled": "disable_abl and disable_abl_footprint"
+                    "enabled": "disable_abl and disable_abl_footprint and enable_little_utilities"
                 },
                 "disable_abl_time":
                 {
@@ -524,7 +541,7 @@ class LittleUtilities_v15(Script):
                     "description": "When a model takes less time to print than entered below, any G29 and M420 lines in the startup will be disabled.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "disable_abl"
+                    "enabled": "disable_abl and enable_little_utilities"
                 },
                 "disable_abl_min_time":
                 {
@@ -534,7 +551,7 @@ class LittleUtilities_v15(Script):
                     "default_value": 20,
                     "minimum_value": 4,
                     "unit": "minutes    ",
-                    "enabled": "disable_abl and disable_abl_time"
+                    "enabled": "disable_abl and disable_abl_time and enable_little_utilities"
                 },
                 "adjust_temps":
                 {
@@ -542,7 +559,7 @@ class LittleUtilities_v15(Script):
                     "description": "Adjust the temperatures for each model in a 'One-at-a-Time' project.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": true
+                    "enabled":  "enable_little_utilities"
                 },
                 "temperature_list":
                 {
@@ -551,7 +568,7 @@ class LittleUtilities_v15(Script):
                     "type": "str",
                     "unit": "°C  ",
                     "default_value": "210,215,220",
-                    "enabled": "adjust_temps"
+                    "enabled": "adjust_temps and enable_little_utilities"
                 },
                 "speed_limit_enable":
                 {
@@ -559,7 +576,7 @@ class LittleUtilities_v15(Script):
                     "description": "Whether to enforce the speeds in Cura if they have been effected by 'Flow Compensation'.  Speeds that are above the Cura settings will be adjusted down to the setting value.  Speeds that are slower than the setting are not affected.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": true
+                    "enabled": "enable_little_utilities"
                 },
                 "speeds_to_check":
                 {
@@ -571,7 +588,7 @@ class LittleUtilities_v15(Script):
                         "travel_speeds": "Travel Speeds",
                         "all_speeds": "Both"},
                     "default_value": "all_speeds",
-                    "enabled": "speed_limit_enable"
+                    "enabled": "speed_limit_enable and enable_little_utilities"
                 },
                 "kill_wipe":
                 {
@@ -591,7 +608,7 @@ class LittleUtilities_v15(Script):
                         "infill_wipe": "Infill",
                         "both_wipe": "Both"},
                     "default_value": "outer_wall_wipe",
-                    "enabled": "kill_wipe"
+                    "enabled": "kill_wipe and enable_little_utilities"
                 },
                 "kill_wipe_from":
                 {
@@ -600,7 +617,7 @@ class LittleUtilities_v15(Script):
                     "type": "int",
                     "default_value": 25,
                     "minimum_value": 1,
-                    "enabled": "kill_wipe"
+                    "enabled": "kill_wipe and enable_little_utilities"
                 },
                 "kill_wipe_to":
                 {
@@ -608,7 +625,7 @@ class LittleUtilities_v15(Script):
                     "description": "The last layer to end wiping.  Use the Cura preview numbers or '-1' for the end layer.",
                     "type": "int",
                     "default_value": -1,
-                    "enabled": "kill_wipe"
+                    "enabled": "kill_wipe and enable_little_utilities"
                 },
                 "temp_override_enable":
                 {
@@ -629,7 +646,7 @@ class LittleUtilities_v15(Script):
                         "both_extruders": "Both T0 and T1"
                         },
                     "default_value": "t0_only",
-                    "enabled": "temp_override_enable and temp_override_extruder_check"
+                    "enabled": "temp_override_enable and temp_override_extruder_check and enable_little_utilities"
                 },
                 "temp_override_extruder_check":
                 {
