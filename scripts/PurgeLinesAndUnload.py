@@ -149,8 +149,8 @@ class PurgeLinesAndUnload(Script):
         if self.getSettingValueByKey("enable_unload"):
             self._unload_filament(data)
         # Format the startup and ending gcodes
-        data[1] = self.format_string(data[1])
-        data[len(data) - 1] = self.format_string(data[len(data) - 1])
+        data[1] = self._format_string(data[1])
+        data[len(data) - 1] = self._format_string(data[len(data) - 1])
         return data
 
     # Add Purge Lines to the user defined position on the build plate
@@ -355,7 +355,7 @@ class PurgeLinesAndUnload(Script):
         # Common ending for purge_str
         purge_str += "G0 F600 Z1 ; Move Z\n;---------------------End of Purge"
         # Find the insertion location in data[1]
-        purge_str = self.format_string(purge_str)
+        purge_str = self._format_string(purge_str)
         startup_section = data[1].split("\n")
         for num in range(len(startup_section) - 1, 0, -1):
             # In Absolute Extrusion mode - insert above the last G92 E0 line
@@ -538,7 +538,7 @@ class PurgeLinesAndUnload(Script):
                     move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
         move_str += ";---------------------End of layer start travels"
         startup = data[2].split("\n")
-        move_str = self.format_string(move_str)
+        move_str = self._format_string(move_str)
         startup.insert(2, move_str)
         data[2] = "\n".join(startup)
         return
@@ -585,7 +585,7 @@ class PurgeLinesAndUnload(Script):
         return
 
     # Format the purge or travel-to-start strings.  No reason they shouldn't look nice.
-    def format_string(self, any_gcode_str: str):
+    def _format_string(self, any_gcode_str: str):
         temp_lines = any_gcode_str.split("\n")
         gap_len = 0
         for temp_line in temp_lines:

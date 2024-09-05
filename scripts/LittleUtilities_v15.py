@@ -59,8 +59,7 @@ class LittleUtilities_v15(Script):
             "metadata": {},
             "version": 2,
             "settings":
-            {
-                
+            {                
                 "enable_little_utilities":
                 {
                     "label": "Enable the scripts",
@@ -1697,7 +1696,7 @@ class LittleUtilities_v15(Script):
         if gap_len < 30: gap_len = 30
         for temp_index, temp_line in enumerate(temp_lines):
             if ";" in temp_line and not temp_line.startswith(";"):
-                temp_lines[temp_index] = temp_line.replace(temp_line.split(";")[0], temp_line.split(";")[0] + str(" " * (gap_len - len(temp_line.split(";")[0]))),1)
+                temp_lines[temp_index] = temp_line.replace(temp_line.split(";")[0], temp_line.split(";")[0] + str(" " * (gap_len - 1 - len(temp_line.split(";")[0]))),1)
         any_gcode_str = "\n".join(temp_lines)
         return any_gcode_str
 
