@@ -353,7 +353,7 @@ class PurgeLinesAndUnload(Script):
                 purge_str += f"G0 F{print_speed} Y{round((radius_1 - 3) * .707,2)}\n"
                 self.purge_end_loc = "RR"
         # Common ending for purge_str
-        purge_str += "G0 F600 Z1 ; Move Z\n;---------------------End of Purge"
+        purge_str += "G0 F600 Z1 ; Move Z\n;---------------------[End of Purge]"
         # Find the insertion location in data[1]
         purge_str = self._format_string(purge_str)
         startup_section = data[1].split("\n")
@@ -536,7 +536,7 @@ class PurgeLinesAndUnload(Script):
                     move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y-{offset_sin} Z1 ; Ortho move\n"
                 elif goto_str == "RtBk":
                     move_str += f"G0 F{travel_speed} X{offset_sin} Z1 ; Ortho move\nG0 Y{offset_sin} Z1 ; Ortho move\n"
-        move_str += ";---------------------End of layer start travels"
+        move_str += ";---------------------[End of layer start travels]"
         startup = data[2].split("\n")
         move_str = self._format_string(move_str)
         startup.insert(2, move_str)

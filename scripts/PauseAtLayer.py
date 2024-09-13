@@ -382,7 +382,7 @@ class PauseAtLayer(Script):
 
     def execute(self, data):
         if not self.getSettingValueByKey("enable_pause_at_layer"):
-            data[0] += ";    [Pause At Layer]  Is in the active list but is not enabled\n"
+            data[0] += ";    [Pause At Layer] Not enabled\n"
             return data
         mycura = Application.getInstance().getGlobalContainerStack()
         one_at_a_time = mycura.getProperty("print_sequence", "value")

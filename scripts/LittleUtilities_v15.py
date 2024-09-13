@@ -659,6 +659,9 @@ class LittleUtilities_v15(Script):
         }"""
 
     def execute(self, data):
+        if not self.getSettingValueByKey("enable_little_utilities"):
+            data[0] += ";    [Little Utilities] Not enabled\n"
+            return data
         if  self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("add_extruder_end"):
             self._add_extruder_end(data)
         if self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("final_z"):
