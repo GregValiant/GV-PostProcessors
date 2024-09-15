@@ -1,7 +1,7 @@
 # GV-PostProcessors and Plugins
  PostProcessing Scripts for Cura
 
-As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
+As I work on these I update the Git page.  The versions here should work as intended and they are not version specific.  My own Cura installations go from UM 4.13.1 to current and Smart Avionics 4.20.x fork and I test on those.  They are likely to be acceptable to Creality and other Cura forks but I don't try them with those.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
 
 Known Issues:
 
@@ -102,14 +102,14 @@ Zhop On Travel:
 Plugin Extensions for Cura:
 
 SovolSV04_IDEX: 
-	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" settings of Cura.
+	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" section of the Cura settings.
 	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
 	
 FlashForge_IDEX_Plugin: 
 	Same as the post-processor but as a plugin/extension
 
 Support Interface Material Change: 
-	This is the same as the post-processor.  It is available in the normal Cura settings under 'Enable Support Interface'
+	This is the same as the post-processor.  It is available in the normal Cura 'Support' settings under 'Enable Support Interface'
 	
 -----------------------------------------------------------------------------
 
