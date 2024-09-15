@@ -32,6 +32,7 @@ class DiscoverSettings(Script):
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
+                        "v5_9a": "5.9 alpha",
                         "v5_80": "5.8.0",
                         "v5_8beta": "5.8beta",
                         "v5_72": "5.7.2",
@@ -52,6 +53,7 @@ class DiscoverSettings(Script):
                     "type": "enum",
                     "options": {
                         "no_compare": "No Compare",
+                        "v5_80": "5.8.0",
                         "v5_8beta": "5.8beta",
                         "v5_72": "5.7.2",
                         "v5_71": "5.7.1",
@@ -69,6 +71,8 @@ class DiscoverSettings(Script):
 
     def execute(self, data): #Application.getInstance().getPrintInformation().
         init_version = self.getSettingValueByKey("cura_version")
+        if init_version == "v5_9a":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.9.0-alpha.0+b514f5\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_80":
             init_path = r"C:\Program Files\UltiMaker Cura 5.8.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_8beta":
@@ -95,6 +99,8 @@ class DiscoverSettings(Script):
         compare_to_version = self.getSettingValueByKey("compare_to_version")
         if compare_to_version == "no_compare":
             ct_init_path = ""
+        elif compare_to_version == "v5_80":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_8beta":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_72":
