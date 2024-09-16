@@ -25,7 +25,7 @@ AddCoolingProfile.py:
 	This one is now included with Cura.  If gives fine control over the layer cooling fan(s) either "By Layer" or "By Feature".
 
 AddCuraSettings:
-	Adds a list of over 600 Cura settings to the end of the gcode file.  The exact number depends on the number of extruders, whether certain settings are checked, etc.  It was turned down by the Cura team as being too difficult to maintain.  I see their point, but it is useful to have sometimes none the less.  The current version has been updtated to Cura 5.8-beta.
+	Adds a list of over 600 Cura settings to the end of the gcode file.  The exact number depends on the number of extruders, whether certain settings are checked, etc.  It was turned down by the Cura team as being too difficult to maintain.  I see their point, but it is useful to have sometimes none the less.  The current version has been updtated to Cura 5.9-alpha.
 
 AlterZHops:
 	This allows the Z-hop height to be altered for ranges of layers.  Setting the new hop height to "0" effectively turns it off although the lines are not removed from the gcode.
@@ -43,8 +43,8 @@ DiscoverSettings:
     NOTE:  This does not generate a gcode file.
 	Goes through "fdmprinter.def.json" and retrieves all the settings and pastes them into the gcode file.  If a comparison between two Cura versions is being made then it lists all the settings in each version and reports the differences between the two versions.  This is what I use to update "AddCuraSettings".
 
-DisplayInfoOnLCD
-	Now included in Cura, it adds some info to the LCD and can bounce that information back to a print server like OctoPrint or PrintRun.
+DisplayInfoOnLCD and DisplayInfoOnLCD_GV
+	Now included in Cura, it adds some info to the LCD and can bounce that information back to a print server like OctoPrint or PrintRun.  The version with the GV extension has some minor changes in it that differ from the Cura version.
 
 EmulateMultiExtruder:
 	This allows a user to slice a file with a dual extruder printer active and then exchange the Tool Changes for PauseAtLayer and print the gcode on a single extruder printer.  The user becomes the tool changer.  This can get very old very fast but occasionally it's handy to have.
