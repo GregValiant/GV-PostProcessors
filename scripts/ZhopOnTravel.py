@@ -1,11 +1,13 @@
 # GregValiant (Greg Foresi) July of 2024
 # Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range', 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
 # This script is compatible with Z-hops enabled in Cura.
+# It is not necessary to have "retractions" enabled.
+# This script does NOT add any retractions.
 #
 # Note:
 #   This script is NOT compatible with "One at a Time" mode.
 #   For multi-extruder machines the same settings (Extruder #1) are used for all extruders.
-#   This is a slow running post processor as it must check the total distances of all travel moves in the range of layers.
+#   This is a slow running post processor as it must check the cummulative distances of all travel moves (G0 moves) in the range of layers.
 
 from UM.Application import Application
 from ..Script import Script
@@ -17,7 +19,7 @@ class ZhopOnTravel(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Z-Hops for Travel Moves",
+            "name": "Z-Hops for Travel (No Retract)",
             "key": "ZhopOnTravel",
             "metadata": {},
             "version": 2,
@@ -83,6 +85,7 @@ class ZhopOnTravel(Script):
         # Define some variables
         extruder = mycura.extruderList
         speed_zhop = extruder[0].getProperty("speed_z_hop", "value") * 60
+        speed_travel = extruder[0].getProperty("speed_travel", "value") * 60
         retraction_enabled = extruder[0].getProperty("retraction_enable", "value")
         init_layer_height = float(mycura.getProperty("layer_height_0", "value"))
         min_travel_dist = self.getSettingValueByKey("min_travel_dist")
@@ -144,12 +147,18 @@ class ZhopOnTravel(Script):
                             lines[index] = lines[index].replace("Z" + str(cur_z), "Z" + str(cur_z + hop_height))
                         # Format the line
                         zhop_line = f"G0 F{speed_zhop} Z{cur_z + hop_height}"
-                        zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop\n"
+                        zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop Up\n"
+                        # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
+                        if not " F" in lines[index] and lines[index].startswith("G0"):
+                            lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")                            
                         lines[index] = zhop_line + lines[index]
                 # Make the Zhop down insertion at the correct index location (or as soon as practicable after it) and format it
                 if hop_end > 0 and index >= hop_end:
                     zhop_line = f"G0 F{speed_zhop} Z{cur_z}"
-                    zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop\n"
+                    zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop Down\n"
+                    # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
+                    if not " F" in lines[index] and lines[index].startswith("G0"):
+                        lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")             
                     lines[index] = zhop_line + lines[index]
                     hop_end = 0
                     hop_start = 0
