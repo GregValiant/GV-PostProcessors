@@ -26,7 +26,7 @@ class ZhopOnTravel(Script):
             "settings": {
                 "zhop_travel_enabled": {
                     "label": "Enable script",
-                    "description": "Enables the script so it will run",
+                    "description": "Enables the script so it will run.  NOTE:  This script is slow running because it must check the length of all travel moves in your layer range.  Large prints may take more than 45 seconds to process.",
                     "type": "bool",
                     "default_value": true,
                     "enabled": true
@@ -80,7 +80,7 @@ class ZhopOnTravel(Script):
         # Exit if the Print Sequence is One-at-a-Time
         if mycura.getProperty("print_sequence", "value") == "one_at_a_time":
             Message(title = "[ZHop On Travel]", text = "Is not compatible with 'One at a Time' print sequence.").show()
-            data[0] += ":  [ZHop On Travel] did not run because One at a Time is enabled"
+            data[0] += ";  [ZHop On Travel] did not run because One at a Time is enabled"
             return data
         # Define some variables
         extruder = mycura.extruderList
@@ -152,17 +152,25 @@ class ZhopOnTravel(Script):
                         if not " F" in lines[index] and lines[index].startswith("G0"):
                             lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")                            
                         lines[index] = zhop_line + lines[index]
-                # Make the Zhop down insertion at the correct index location (or as soon as practicable after it) and format it
+                # Make the 'Zhop down' insertion at the correct index location (or as soon as practicable after it) and format it
                 if hop_end > 0 and index >= hop_end:
                     zhop_line = f"G0 F{speed_zhop} Z{cur_z}"
                     zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop Down\n"
-                    # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
+                    # If there is no 'F' in the next line then add one to reinstate the Travel Speed (so the z-hop speed doesn't carry over through the travel moves)
                     if not " F" in lines[index] and lines[index].startswith("G0"):
                         lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")             
                     lines[index] = zhop_line + lines[index]
                     hop_end = 0
                     hop_start = 0
             data[num] = "\n".join(lines) + "\n"
+        # Message to the user informing them of the number of Z-hops added
+        hop_cnt = 0
+        try:
+            for num in range(start_index, end_index + 1):
+                hop_cnt += data[num].count("Hop Up")
+            Message(title = "[Z-hop On Travel]", text = str(hop_cnt) + " Z-Hops were added to the file").show()
+        except:
+            pass
         return data
 
     def _total_travel_length(self, index: int, lines: str, cur_x: float, cur_y: float, prev_x: float, prev_y: float) -> float:
