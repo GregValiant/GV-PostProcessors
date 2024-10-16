@@ -138,11 +138,11 @@ class TimeLapse(Script):
         zhop = self.getSettingValueByKey("zhop")
         ensure_final_image = bool(self.getSettingValueByKey("ensure_final_image"))
         when_to_insert = self.getSettingValueByKey("insert_frequency")
-        last_x = 0
-        last_y = 0
-        last_z = 0
-        last_e = 0
-        prev_e = 0
+        last_x = 0.0
+        last_y = 0.0
+        last_z = 0.0
+        last_e = 0.0
+        prev_e = 0.0
         is_retracted = False
         gcode_to_append = ""
         if park_print_head:
@@ -185,7 +185,7 @@ class TimeLapse(Script):
                 #Track the E location so that if there is already a retraction we don't double dip.
                         if rel_cmd == 82:
                             if " E" in line:
-                                last_e = line.split("E")[1]
+                                last_e = float(get.value(line("E")))
                                 if float(last_e) < float(prev_e):
                                     is_retracted = True
                                 else:

@@ -24,7 +24,7 @@ class PurgeLinesAndUnload(Script):
         start_lines = startup_gcode.splitlines()
         for line in start_lines:
             if line.startswith("G1") and " E" in line and (" X" in line or " Y" in line):
-                Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  They should be removed, or commented out, before using the 'Add Purge Lines' function of this script.").show()
+                Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  They should either be removed, or commented out, before using the 'Add Purge Lines' function of this script.").show()
                 break
         self._instance.setProperty("is_rectangular", "value", True if curaApp.getProperty("machine_shape", "value") == "rectangular" else False)
         extruder = curaApp.extruderList
@@ -41,7 +41,7 @@ class PurgeLinesAndUnload(Script):
             adjust_e_loc_to
         enable_unload
             unload_distance
-        is_rectangular (hidden - enables 'purge_line_length' for rectangular beds only)"""
+        is_rectangular (hidden - disables 'purge_line_length' for elliptical beds only)"""
 
     def getSettingDataString(self):
         return """{
