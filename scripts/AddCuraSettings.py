@@ -3,6 +3,7 @@
 #   The "Full Set" contains all the settings.  The "Simple Set" has been filtered.
 
 from UM.Application import Application
+from cura.CuraApplication import CuraApplication
 import UM.Util
 from ..Script import Script
 import time
@@ -18,7 +19,7 @@ class AddCuraSettings(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Add Cura Settings 5.8",
+            "name": "Add Cura Settings 5.9",
             "key": "AddCuraSettings",
             "metadata": {},
             "version": 2,
@@ -194,6 +195,7 @@ class AddCuraSettings(Script):
 
     def execute(self, data): # Application.getInstance().getPrintInformation().
         mycura = Application.getInstance().getGlobalContainerStack()
+        cura_version = CuraApplication.getInstance().getVersion()
         currency_symbol = Application.getInstance().getPreferences().getValue("cura/currency")
         extruderMgr = Application.getInstance().getExtruderManager()
         extruder = Application.getInstance().getGlobalContainerStack().extruderList
@@ -243,6 +245,7 @@ class AddCuraSettings(Script):
         #General Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("general_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [General]\n"
+            setting_data += str(cura_version) + "\n"
             setting_data += ";Job Name: " + str(Application.getInstance().getPrintInformation().jobName) + "\n"
             setting_data += ";Print Time: " + str(Application.getInstance().getPrintInformation().currentPrintTime.getDisplayString(DurationFormat.Format.ISO8601)) + "\n"
             setting_data += ";Slice Start Time: " + str(time.strftime("%H:%M:%S")) + " (24hr)\n"
@@ -273,6 +276,7 @@ class AddCuraSettings(Script):
             setting_data += ";Machine Width: " + str(mycura.getProperty("machine_width", "value")) + " mm\n"
             setting_data += ";Machine Depth: " +	str(mycura.getProperty("machine_depth", "value")) + " mm\n"
             setting_data += ";Machine Height: " + str(mycura.getProperty("machine_height", "value")) + " mm\n"
+            setting_data += ";Platform: " + str(mycura.getMetaDataEntry("platform", "value")) + "\n"
             if complete_set: setting_data += ";Machine Bed Shape: " + str(mycura.getProperty("machine_shape", "value")) + "\n"
             if complete_set: setting_data += ";Machine Bed Heated: " + str(mycura.getProperty("machine_heated_bed", "value")) + "\n"
             if complete_set: setting_data += ";Machine Heated Build Volume: " + str(mycura.getProperty("machine_heated_build_volume", "value")) + "\n"
@@ -330,7 +334,10 @@ class AddCuraSettings(Script):
                 setting_data += ";Default Z Jerk: " + str(mycura.getProperty("machine_max_jerk_z", "value")) + " mm/sec\n"
                 setting_data += ";Default E Jerk: " + str(mycura.getProperty("machine_max_jerk_e", "value")) + " mm/sec\n"
                 setting_data += ";RepRap 0-1 Fan Scale: " + str(bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value"))) + "\n"
-                setting_data += ";Reset Flow Duration: " + str(round(extruder[0].getProperty("reset_flow_duration", "value"),2)) + "\n"
+                try:
+                    setting_data += ";Reset Flow Duration: " + str(round(extruder[0].getProperty("reset_flow_duration", "value"),2)) + "\n"
+                except:
+                    pass
 
         #Quality Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("quality_set")) or all_or_some == "all_settings":
@@ -1051,6 +1058,19 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";Small Feature Speed: " + str(extruder[0].getProperty("small_feature_speed_factor", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";Small Feature Speed Initial Layer: " + str(extruder[0].getProperty("small_feature_speed_factor_0", "value")) + " mm/sec\n"
                 setting_data += ";Group Outer Walls: " + str(mycura.getProperty("group_outer_walls", "value")) + "\n"
+                if cura_version.startswith("5.9"):
+                    setting_data += ";Scarf Seam Length: " + str(extruder[wall_0_extruder_nr].getProperty("scarf_joint_seam_length", "value")) + " mm\n"
+                    if extruder[wall_0_extruder_nr].getProperty("scarf_joint_seam_length", "value") != 0:
+                        setting_data += ";  Scarf Seam Start Height: " + str(extruder[wall_0_extruder_nr].getProperty("scarf_joint_seam_start_height_ratio", "value")) + " %\n"
+                        setting_data += ";  Scarf Seam Step Length: " + str(extruder[wall_0_extruder_nr].getProperty("scarf_split_distance", "value")) + " mm\n"
+                    if complete_set:
+                        for num in range(0, machine_extruder_count):
+                            setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
+                            setting_data += ";  Outer Wall Start Speed Ratio: " + str(extruder[num].getProperty("wall_0_start_speed_ratio", "value")) + " %\n"
+                            setting_data += ";  Outer Wall Acceleration: " + str(extruder[num].getProperty("wall_0_acceleration", "value")) + " mm/sec\u00b2\n"
+                            setting_data += ";  Outer Wall End Speed Ratio: " + str(extruder[num].getProperty("wall_0_end_speed_ratio", "value")) + " %\n"
+                            setting_data += ";  Outer Wall Deceleration: " + str(extruder[num].getProperty("wall_0_deceleration", "value")) + " mm/sec\u00b2\n"
+                            setting_data += ";  Outer Wall Speed Split Distance: " + str(extruder[num].getProperty("wall_0_speed_split_distance", "value")) + " mm\n"
             except:
                 pass
 
