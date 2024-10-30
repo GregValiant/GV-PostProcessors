@@ -1,6 +1,6 @@
 # GregValiant (Greg Foresi) July of 2024
 # Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range', 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
-# This script is compatible with Z-hops enabled in Cura.
+# This script is compatible with Z-hops enabled in Cura.  If Z-hops are enabled: There will occasionally be a hop on top of a hop, but the 'resume Z height' will be correct.
 # It is not necessary to have "retractions" enabled.
 # This script does NOT add any retractions.
 #
@@ -26,7 +26,7 @@ class ZhopOnTravel(Script):
             "settings": {
                 "zhop_travel_enabled": {
                     "label": "Enable script",
-                    "description": "Enables the script so it will run.  NOTE:  This script is slow running because it must check the length of all travel moves in your layer range.  Large prints may take more than 45 seconds to process.",
+                    "description": "Enables the script so it will run.  NOTE:  This script is slow running because it must check the length of all travel moves in your layer range.  Large prints may take more than 45 seconds to process.  NOTE: If running 'Purge Lines and Unload' that script should run after this one.",
                     "type": "bool",
                     "default_value": true,
                     "enabled": true
@@ -93,6 +93,7 @@ class ZhopOnTravel(Script):
         start_layer = self.getSettingValueByKey("start_layer")
         end_layer = self.getSettingValueByKey("end_layer")
         # Get the indexes for the start and end layers
+        start_index = 2
         for num in range(1, len(data) - 1):
             if ";LAYER:" + str(start_layer - 1) + "\n" in data[num]:
                 start_index = num
@@ -147,7 +148,7 @@ class ZhopOnTravel(Script):
                             lines[index] = lines[index].replace("Z" + str(cur_z), "Z" + str(cur_z + hop_height))
                         # Format the line
                         zhop_line = f"G0 F{speed_zhop} Z{cur_z + hop_height}"
-                        zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop Up\n"
+                        zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; ZhopOnTravel Up\n"
                         # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
                         if not " F" in lines[index] and lines[index].startswith("G0"):
                             lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")                            
@@ -155,7 +156,7 @@ class ZhopOnTravel(Script):
                 # Make the 'Zhop down' insertion at the correct index location (or as soon as practicable after it) and format it
                 if hop_end > 0 and index >= hop_end:
                     zhop_line = f"G0 F{speed_zhop} Z{cur_z}"
-                    zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; Travel Hop Down\n"
+                    zhop_line = zhop_line + str(" " * (30 - len(zhop_line))) + " ; ZhopOnTravel Down\n"
                     # If there is no 'F' in the next line then add one to reinstate the Travel Speed (so the z-hop speed doesn't carry over through the travel moves)
                     if not " F" in lines[index] and lines[index].startswith("G0"):
                         lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")             
@@ -167,27 +168,29 @@ class ZhopOnTravel(Script):
         hop_cnt = 0
         try:
             for num in range(start_index, end_index + 1):
-                hop_cnt += data[num].count("Hop Up")
+                hop_cnt += data[num].count("ZhopOnTravel Up")
             Message(title = "[Z-hop On Travel]", text = str(hop_cnt) + " Z-Hops were added to the file").show()
         except:
             pass
         return data
 
-    def _total_travel_length(self, index: int, lines: str, cur_x: float, cur_y: float, prev_x: float, prev_y: float) -> float:
-        g_num = index
+    def _total_travel_length(self, l_index: int, lines: str, cur_x: float, cur_y: float, prev_x: float, prev_y: float) -> float:
+        g_num = l_index
         travel_total = 0.0
         # Total the lengths of each move and compare them to the Minimum Distance for a Z-hop to occur
         while lines[g_num].startswith("G0 "):
             travel_total += self._get_distance(cur_x, cur_y, prev_x, prev_y)
             prev_x = cur_x
-            cur_x = self.getValue(lines[g_num], "X")
+            if self.getValue(lines[g_num], "X") is not None:
+                cur_x = self.getValue(lines[g_num], "X")
             prev_y = cur_y
-            cur_x = self.getValue(lines[g_num], "X")
+            if self.getValue(lines[g_num], "Y") is not None:
+                cur_y = self.getValue(lines[g_num], "Y")
             g_num += 1
             if g_num == len(lines):
                 break
         if travel_total > self.getSettingValueByKey("min_travel_dist"):
-            return index, g_num
+            return l_index, g_num
         else:
             return 0, 0
 
