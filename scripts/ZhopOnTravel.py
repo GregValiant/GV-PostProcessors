@@ -181,7 +181,7 @@ class ZhopOnTravel(Script):
                     if " Z" in line and self.getValue(line, "Z") is not None:
                         self._cur_z = self.getValue(line, "Z")
 
-                # Check wheter retractions have occured
+                # Check whether retractions have occured
                 if re.search("G1 X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None or re.search("G1 F(\d*\d.*) X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None: # G1 X117.3 Y134.268 E1633.06469
                     self._is_retracted = False
                     self._cur_e = self.getValue(line, "E")
