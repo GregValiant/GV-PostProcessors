@@ -15,23 +15,34 @@ Flash Forge IDEX Tool Temps:
     This started out as a simple attempt to change the syntax of the Cura Gcode to be acceptable to the Flash Forge IDEX printers.  It ended up being a pretty full-fledged translator and allows the user to select the mode "Normal, Duplicate, or Mirror" in the post processor settings and when the file is saved the gcode is translated and some lines added so the Flash Forge printer will print it as it should.  Just because the Cura gcode opened in FlashPrint seems to be correct doesn't mean that it will print correctly.  This is another one that I need feedback on.
 
 -----------------------------------------------------------------------------
+#Latest Changes:
+
+AnnealingCoolDown now has a "Filament Drying" function.  It will create a gcode file with just the commands needed to Auto-Home, park the head, heat the build plate to a temperature of your choice.  The bed will stay at that temperature for the specified period of time and then shut off.
+
+AddCuraSettings is updated to the settings in 5.9.0-beta1
+
+ZhopOnTravel can now add retractions when they are necessary.
+
+-----------------------------------------------------------------------------
 Here is a list of the post-processors and a brief description of what they do.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
 
 AAA Post Process ReadMe.py:
+----
 	When loaded into Cura it will immedeately open the PDF file of the same name.  The PDF has descriptions of all the Cura post processors.  Maintaining it is difficult but I do update it from time to time.  There doesn't seem to be mistakes in it, but there might be new post-processors missing.
 
 AddCoolingProfile.py:
 	This one is now included with Cura.  If gives fine control over the layer cooling fan(s) either "By Layer" or "By Feature".
 
 AddCuraSettings:
-	Adds a list of over 600 Cura settings to the end of the gcode file.  The exact number depends on the number of extruders, whether certain settings are checked, etc.  It was turned down by the Cura team as being too difficult to maintain.  I see their point, but it is useful to have sometimes none the less.  The current version has been updtated to Cura 5.9-alpha.
+	Adds a list of over 600 Cura settings to the end of the gcode file.  The exact number depends on the number of extruders, whether certain settings are checked, etc.  It was turned down by the Cura team as being too difficult to maintain.  I see their point, but it is useful to have sometimes none the less.  The current version has been updtated to Cura 5.9-beta1.
 
 AlterZHops:
 	This allows the Z-hop height to be altered for ranges of layers.  Setting the new hop height to "0" effectively turns it off although the lines are not removed from the gcode.
 
 AnnealingCoolDown:
 	Allows "End-of-print" control of the bed (and chamber) temperatures.  The bed temperature can be adjusted and the "cool down" can be stretched out to "anneal" a print.  The print head can be parked out of the way so a cover can be placed over the print.
+	A second option allows you to use the build plate heater to dry filament.  You need to slice a model but there won't be a print in the gcode file.  Just a short script to move the print head up out of the way, and heat the bed for however long you need.
 
 BridgeTemperatureAdjustment:
 	Allows a temperature change for bridging and then returns the temperature to the normal print temperature when the bridge is finished.
@@ -96,7 +107,9 @@ TimeLapse:
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
 	
 Zhop On Travel:  
-	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode
+	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode.
+	Retractions have been added and occur if there isn't already one in place when the new Zhop's are added.
+	This is compatible with firmware retraction, relative extrusion, and extra prime amount.
 
 -----------------------------------------------------------------------------
 Plugin Extensions for Cura:
