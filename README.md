@@ -15,7 +15,7 @@ Flash Forge IDEX Tool Temps:
     This started out as a simple attempt to change the syntax of the Cura Gcode to be acceptable to the Flash Forge IDEX printers.  It ended up being a pretty full-fledged translator and allows the user to select the mode "Normal, Duplicate, or Mirror" in the post processor settings and when the file is saved the gcode is translated and some lines added so the Flash Forge printer will print it as it should.  Just because the Cura gcode opened in FlashPrint seems to be correct doesn't mean that it will print correctly.  This is another one that I need feedback on.
 
 -----------------------------------------------------------------------------
-#Latest Changes:
+Latest Changes:
 
 AnnealingCoolDown now has a "Filament Drying" function.  It will create a gcode file with just the commands needed to Auto-Home, park the head, heat the build plate to a temperature of your choice.  The bed will stay at that temperature for the specified period of time and then shut off.
 
@@ -28,7 +28,6 @@ Here is a list of the post-processors and a brief description of what they do.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
 
 AAA Post Process ReadMe.py:
-----
 	When loaded into Cura it will immedeately open the PDF file of the same name.  The PDF has descriptions of all the Cura post processors.  Maintaining it is difficult but I do update it from time to time.  There doesn't seem to be mistakes in it, but there might be new post-processors missing.
 
 AddCoolingProfile.py:
