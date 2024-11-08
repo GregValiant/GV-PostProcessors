@@ -12,7 +12,7 @@ from UM.Application import Application
 from ..Script import Script
 from UM.Message import Message
 
-class AnnealingCoolDown(Script):
+class AnnealingOrDrying(Script):
 
     def initialize(self) -> None:
         super().initialize()
@@ -29,7 +29,7 @@ class AnnealingCoolDown(Script):
     def getSettingDataString(self):
         return """{
             "name": "Annealing CoolDown or Filament Drying",
-            "key": "AnnealingCoolDown",
+            "key": "AnnealingOrDrying",
             "metadata": {},
             "version": 2,
             "settings":
@@ -72,14 +72,23 @@ class AnnealingCoolDown(Script):
                     "label": "Hold Time at Temp(s)",
                     "description": "Hold the bed temp at the 'Bed Start Out Temperature' for this amount of time (in decimal hours).  When this time expires then the Annealing cool down will start.  This is also the 'Drying Time used when 'Drying Filament'.",
                     "type": "float",
-                    "default_value": 0,
+                    "default_value": 0.0,
                     "unit": "Decimal Hrs ",
-                    "enabled": "enable_annealing"
+                    "enabled": "enable_annealing and cycle_type == 'anneal_cycle'"
+                },
+                "dry_time":
+                {
+                    "label": "Drying Time",
+                    "description": "Hold the bed temp at the 'Bed Start Out Temperature' for this amount of time (in decimal hours).  When this time expires the bed will shut off.",
+                    "type": "float",
+                    "default_value": 4.0,
+                    "unit": "Decimal Hrs ",
+                    "enabled": "enable_annealing and cycle_type == 'dry_cycle'"
                 },
                 "pause_cmd":
                 {
                     "label": "Pause Command for Drying",
-                    "description": "Enter the pause command to use prior to the Auto-Home command.  The pause insures that the user is paying attention and clears the build plate for Auto-Home.  If you leave the box empty then there won't be a pause.",
+                    "description": "Not required when you are paying attention and the bed is empty; ELSE; Enter the pause command to use prior to the Auto-Home command.  The pause insures that the user IS paying attention and clears the build plate for Auto-Home.  If you leave the box empty then there won't be a pause.",
                     "type": "str",
                     "default_value": "",
                     "enabled": "enable_annealing and cycle_type == 'dry_cycle'"
@@ -116,7 +125,7 @@ class AnnealingCoolDown(Script):
                     "minimum_value": 0,
                     "maximum_value": 90,
                     "maximum_value_warning": 75,
-                    "enabled": "enable_annealing and has_build_volume_heater"
+                    "enabled": "enable_annealing and has_build_volume_heater and bed_and_chamber == 'bed_chamber'"
                 },
                 "time_span":
                 {
@@ -246,7 +255,10 @@ class AnnealingCoolDown(Script):
             deg_per_step = int(hysteresis / num_steps)
             time_per_step = int(time_span / num_steps)
             step_down = bed_temperature - deg_per_step
-            wait_time = int(float(self.getSettingValueByKey("wait_time")) * 3600)
+            if cycle_type == "anneal_cycle":
+                wait_time = int(float(self.getSettingValueByKey("wait_time")) * 3600)
+            else:
+                wait_time = int(float(self.getSettingValueByKey("dry_time")) * 3600)                
 
             # Put the first lines of the anneal string together
             anneal_string = ";TYPE:CUSTOM: Anneal or Dry Filament\n"
@@ -338,7 +350,7 @@ class AnnealingCoolDown(Script):
         drydata[0] = drydata[0].split("\n")[0] + "\n"
         add_messages = bool(self.getSettingValueByKey("add_messages"))
         pause_cmd = self.getSettingValueByKey("pause_cmd").upper()
-        dry_time = self.getSettingValueByKey("wait_time") * 3600
+        dry_time = self.getSettingValueByKey("dry_time") * 3600
         extruder = Application.getInstance().getGlobalContainerStack().extruderList
         speed_travel = str(extruder[0].getProperty("speed_travel", "value") * 60)
         lines = drydata[1].split("\n")
@@ -346,6 +358,7 @@ class AnnealingCoolDown(Script):
         if add_messages:
             drying_string += f"M117 Cool Down for {round(dry_time/3600,2)} hr ; Message\n"
             drying_string += f"M118 Cool Down for {round(dry_time/3600,2)} hr ; Message\n"
+        # M113 sends messages to a print server as a 'Keep Alive' and can generate a lot of traffic over the USB
         drying_string += "M113 S0 ; No echo\n"
         drying_string += f"M84 S{round(dry_time)} ; Set stepper timeout\n"
         drying_string += f"M140 S{bed_temperature} ; Heat bed\n"
@@ -396,7 +409,7 @@ class AnnealingCoolDown(Script):
                 back_txt = lines[index].split(";")[1]
                 lines[index] = front_txt + str(" " * (30 - len(front_txt))) +";" +  back_txt
         drydata[1] = "\n".join(lines)
-        dry_txt = "Drying time: " + str(self.getSettingValueByKey("wait_time")) + " hrs\n"
+        dry_txt = "Drying time: " + str(self.getSettingValueByKey("dry_time")) + " hrs\n"
         dry_txt += "Drying temperature: " + str(bed_temperature)
         Message(title = "[Dry Filament]", text = dry_txt).show()
         return drydata
