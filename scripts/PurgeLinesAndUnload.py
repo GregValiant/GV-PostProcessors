@@ -24,13 +24,14 @@ class PurgeLinesAndUnload(Script):
         start_lines = startup_gcode.splitlines()
         for line in start_lines:
             if line.startswith("G1") and " E" in line and (" X" in line or " Y" in line):
-                Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  They should either be removed, or commented out, before using the 'Add Purge Lines' function of this script.").show()
+                Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  Using the 'Add Purge Lines' function of this script will comment them out.").show()
                 break
         self._instance.setProperty("is_rectangular", "value", True if curaApp.getProperty("machine_shape", "value") == "rectangular" else False)
         extruder = curaApp.extruderList
         #This is set in 'Add Purge Lines' and is used by 'Move to Start' to indicate which corner the nozzle is in after the purge lines
         self._purge_end_loc = None
-        self._instance.setProperty("adjust_e_loc_to", "value", round(float(extruder[0].getProperty("retraction_amount", "value")) * -1), 1)
+        # Set the default E adjustment
+        self._instance.setProperty("adjust_e_loc_to", "value", round(float(extruder[0].getProperty("retraction_amount", "value") * -1), 1))
 
     """ Procedures and Settings:
         add_purge_lines
@@ -352,8 +353,23 @@ class PurgeLinesAndUnload(Script):
                 purge_str += f"G0 F{print_speed} Y{round((radius_1 - 3) * .707 - 15,2)} Z0.3 ; Slide Over\n"
                 purge_str += f"G0 F{print_speed} Y{round((radius_1 - 3) * .707,2)}\n"
                 self.purge_end_loc = "RR"
+        
         # Common ending for purge_str
         purge_str += "G0 F600 Z1 ; Move Z\n;---------------------[End of Purge]"
+        
+        # Comment out any existing purge lines in Data[1]
+        startup = data[1].split("\n")
+        for index, line in enumerate(startup):
+            if line.startswith("G1") and " E" in line and (" X" in line or " Y" in line):
+                next_line = index
+                try:
+                    while not startup[next_line].startswith ("G92 E0"):
+                        startup[next_line] = ";" + startup[next_line]
+                        next_line += 1
+                except:
+                    break
+        data[1] = "\n".join(startup)
+        
         # Find the insertion location in data[1]
         purge_str = self._format_string(purge_str)
         startup_section = data[1].split("\n")
