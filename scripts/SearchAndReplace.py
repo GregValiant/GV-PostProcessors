@@ -30,7 +30,7 @@ class SearchAndReplace(Script):
                 "replace":
                 {
                     "label": "Replace with:",
-                    "description": "The 'Search For' text will get replaced by this text.  For Multi-Line insertions use the newline character 'backslash plus n' as the delimiter. Also for multi-line insertions the last character must be 'backslash plus n'",
+                    "description": "The 'Search For' text will get replaced by this text.  For Multi-Line insertions use the newline character 'backslash plus n' as the delimiter. If your Search term ends with a '\n' remember to add '\n' to the end of the Replace term.",
                     "type": "str",
                     "default_value": ""
                 },
