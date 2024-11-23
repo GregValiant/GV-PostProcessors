@@ -158,8 +158,12 @@ class ZhopOnTravel(Script):
         self._cur_e = 0.0
         self._prev_e = 0.0
         cmd_list = ["G0 ", "G1 ", "G2 ", "G3 "]
-        self.reset_type = 0
-
+        self.reset_type = 0        
+        
+        # Keep track of the axes locations if the start layer > layer:0
+        if start_index > 2:
+            self._track_all_axes(data, cmd_list, start_index, relative_extrusion)
+        
         # Make the insertions
         for num in range(start_index, end_index + 1):
             lines = data[num].splitlines()
@@ -374,3 +378,34 @@ class ZhopOnTravel(Script):
             dn_lines = front_txt + str(" " * (40 - len(front_txt))) +";" +  back_txt + "\n"
         self._is_retracted = False
         return dn_lines
+        
+    def _track_all_axes(self, data: str, cmd_list: int, start_index: int, relative_extrusion: bool) -> str:
+        for num in range(2, start_index - 1):
+            lines = data[num].split("\n")
+            for line in lines:
+                # Get the XYZ values from movement commands
+                if line[0:3] in cmd_list:
+                    if " X" in line and self.getValue(line, "X") is not None:
+                        self._prev_x = self._cur_x
+                        self._cur_x = self.getValue(line, "X")
+                    if " Y" in line and self.getValue(line, "Y") is not None:
+                        self._prev_y = self._cur_y
+                        self._cur_y = self.getValue(line, "Y")
+                    if " Z" in line and self.getValue(line, "Z") is not None:
+                        self._cur_z = self.getValue(line, "Z")
+
+                # Check whether retractions have occured
+                if re.search("G1 X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None or re.search("G1 F(\d*\d.*) X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None: # G1 X117.3 Y134.268 E1633.06469
+                    self._is_retracted = False
+                    self._cur_e = self.getValue(line, "E")
+                elif re.search("F(\d*\d.*) E(\d*\d.*)", line) is not None or "G10" in line or re.search("F(\d*\d.*) E-(\d*\d.*)", line) is not None:
+                    if self.getValue(line, "E") is not None:
+                        self._cur_e = self.getValue(line, "E")
+                    if not relative_extrusion:
+                        if self._cur_e < self._prev_e or "G10" in line:
+                            self._is_retracted = True
+                    elif relative_extrusion:
+                        if self._cur_e < 0 or "G10" in line:
+                            self._is_retracted = True
+        self._prev_e = self._cur_e
+        return
