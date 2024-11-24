@@ -23,6 +23,8 @@ AddCuraSettings is updated to the settings in 5.9.0-beta1
 
 ZhopOnTravel can now add retractions when they are necessary.
 
+Added MaxVolumetricSpeed (Max E Speed by Flow Rate)  
+
 -----------------------------------------------------------------------------
 Here is a list of the post-processors and a brief description of what they do.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
@@ -109,6 +111,9 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode.
 	Retractions have been added and occur if there isn't already one in place when the new Zhop's are added.
 	This is compatible with firmware retraction, relative extrusion, and extra prime amount.
+	
+**Max E Speed by Flow Rate**
+	Goes through the Gcode and at every retraction/prime it changes the Max E Speed with M203.  Before the retraction/prime the speed is increased so retraction/prime is at the set speed.  After the retract/prime event the speed is reduced so that flow increases in the gcode will not under-extrude.  The script works with Absolute Extrusion, Relative Extrusion, Firmware Retraction, Marlin and RepRap.
 
 -----------------------------------------------------------------------------
 Plugin Extensions for Cura:
