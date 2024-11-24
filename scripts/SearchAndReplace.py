@@ -22,15 +22,15 @@ class SearchAndReplace(Script):
             {
                 "search":
                 {
-                    "label": "Search for:",
+                    "label": "Search for",
                     "description": "All occurrences of this text (within the search range) will be replaced by the 'Replace with' text.  The search string is CASE SPECIFIC so 'LAYER' is not the same as 'layer'.",
                     "type": "str",
                     "default_value": ""
                 },
                 "replace":
                 {
-                    "label": "Replace with:",
-                    "description": "The 'Search For' text will get replaced by this text.  For Multi-Line insertions use the newline character 'backslash plus n' as the delimiter. If your Search term ends with a '\n' remember to add '\n' to the end of the Replace term.",
+                    "label": "Replace with",
+                    "description": "The 'Search For' text will get replaced by this text.  For Multi-Line insertions use the newline character 'backslash plus n' as the delimiter. If your Search term ends with a 'newline' remember to add 'newline' to the end of the Replace term.",
                     "type": "str",
                     "default_value": ""
                 },

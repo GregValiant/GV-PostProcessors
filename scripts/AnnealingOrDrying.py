@@ -1,11 +1,10 @@
 # Copyright (c) 2023 GregValiant
-# The user can elect to hold the bed temperature and/or chamber temperature for a period of time after the print completes.
 #
 # When Annealing:
 #    The user may elect to hold the build plate at a temperature for a period of time.  When the hold expires, the 'Timed Cooldown' will begin.
 #    If there is no Hold Time then the Timed Cooldown will begin when the print ends.
 # When drying filament:
-#    The bed must be empty because the printer will auto-home before raising the Z to machine_height - 20 and then parking the head.
+#    The bed must be empty because the printer will auto-home before raising the Z to 'machine_height - 20' and then park the head.
 #    The bed will heat up.  G4 commands are used to keep the machine from turning the bed off until the Drying Time has expired.
 
 from UM.Application import Application
@@ -87,7 +86,7 @@ class AnnealingOrDrying(Script):
                 },
                 "pause_cmd":
                 {
-                    "label": "Pause Command for Drying",
+                    "label": "Pause Cmd for Auto-Home",
                     "description": "Not required when you are paying attention and the bed is empty; ELSE; Enter the pause command to use prior to the Auto-Home command.  The pause insures that the user IS paying attention and clears the build plate for Auto-Home.  If you leave the box empty then there won't be a pause.",
                     "type": "str",
                     "default_value": "",
@@ -196,7 +195,7 @@ class AnnealingOrDrying(Script):
             return data
         # Enter a message in the gcode if the script is not enabled.
         if not bool(self.getSettingValueByKey("enable_annealing")):
-            data[0] += ";    [Anneal or Dry Filament] was not enabled"
+            data[0] += ";    [Anneal or Dry Filament] was not enabled\n"
             return data
         lowest_temp = int(self.getSettingValueByKey("lowest_temp"))
 
@@ -223,7 +222,7 @@ class AnnealingOrDrying(Script):
         # Max_z is limited to machine_height - 20 just so the print head doesn't smack into anything.
         max_z = str(int(curaApp.getProperty("machine_height", "value")) - 20)
         extruder = curaApp.extruderList
-        travel_speed = str(extruder[0].getProperty("speed_travel", "value")*60)
+        travel_speed = str(round(extruder[0].getProperty("speed_travel", "value")*60, 2))
         park_xy = bool(self.getSettingValueByKey("park_head"))
         park_z = bool(self.getSettingValueByKey("park_max_z"))
         cycle_type = self.getSettingValueByKey("cycle_type")
@@ -350,6 +349,8 @@ class AnnealingOrDrying(Script):
         drydata[0] = drydata[0].split("\n")[0] + "\n"
         add_messages = bool(self.getSettingValueByKey("add_messages"))
         pause_cmd = self.getSettingValueByKey("pause_cmd").upper()
+        if pause_cmd != "":
+            pause_cmd = "M300\n" + pause_cmd
         dry_time = self.getSettingValueByKey("dry_time") * 3600
         extruder = Application.getInstance().getGlobalContainerStack().extruderList
         speed_travel = str(extruder[0].getProperty("speed_travel", "value") * 60)
@@ -408,8 +409,10 @@ class AnnealingOrDrying(Script):
                 front_txt = lines[index].split(";")[0]
                 back_txt = lines[index].split(";")[1]
                 lines[index] = front_txt + str(" " * (30 - len(front_txt))) +";" +  back_txt
-        drydata[1] = "\n".join(lines)
-        dry_txt = "Drying time: " + str(self.getSettingValueByKey("dry_time")) + " hrs\n"
-        dry_txt += "Drying temperature: " + str(bed_temperature)
+        drydata[1] = "\n".join(lines) + "\n"
+        dry_txt = "Drying time ...................... " + str(self.getSettingValueByKey("dry_time")) + " hrs\n"
+        dry_txt += "Drying temperature ........ " + str(bed_temperature) + "°\n"
+        if heated_chamber and anneal_type == "bed_chamber":
+            dry_txt += "Chamber temperature ... " + str(chamber_temp) + "°"
         Message(title = "[Dry Filament]", text = dry_txt).show()
         return drydata
