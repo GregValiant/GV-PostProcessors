@@ -1,5 +1,5 @@
 # GregValiant (Greg Foresi) July of 2024
-# Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range', 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
+# Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range' (or Layer List), 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
 # This script is compatible with Z-hops enabled in Cura.  If Z-hops are enabled: There will occasionally be a hop on top of a hop, but the 'resume Z height' will be correct.
 # It is not necessary to have "retractions" enabled.  If retractions are disabled in Cura you may elect to have this script add retractions.  The Cura retraction distance and speeds are used.
 # The retraction settings for a multi-extruder printer are always taken from Extruder 1.
@@ -30,10 +30,28 @@ class ZhopOnTravel(Script):
             "settings": {
                 "zhop_travel_enabled": {
                     "label": "Enable script",
-                    "description": "Enables the script so it will run.  NOTE:  This script is slow running because it must check the length of all travel moves in your layer range.  Large prints may take more than 45 seconds to process.",
+                    "description": "Enables the script so it will run.  NOTE:  This script is slow running because it must check the length of all travel moves in your layer range.  Large prints may take more than 45 seconds to process.  You can search the Gcode for 'Hop up' to locate lines that were added.",
                     "type": "bool",
                     "default_value": true,
                     "enabled": true
+                },
+                "list_or_range":
+                {
+                    "label": "Layer List or Range",
+                    "description": "Using a list allows you to call out one or more individual layers delimited by commas (Ex: 23,29,35).  A layer range has a start layer and an end layer.",
+                    "type": "enum",
+                    "options": {
+                        "range_of_layers": "Range of Layers",
+                        "list_of_layers": "Layer List" },
+                    "default_value": "range_of_layers"
+                },
+                "layers_of_interest":
+                {
+                    "label": "List of Layers",
+                    "description": "Use the Cura preview layer numbers.  Enter 'individual layer' numbers delimited by commas.  Spaces are not allowed.",
+                    "type": "str",
+                    "default_value": "10,28,31,54",
+                    "enabled": "zhop_travel_enabled and list_or_range == 'list_of_layers'"
                 },
                 "start_layer": {
                     "label": "Start Layer",
@@ -42,7 +60,7 @@ class ZhopOnTravel(Script):
                     "type": "int",
                     "default_value": 1,
                     "minimum_value": "1",
-                    "enabled": "zhop_travel_enabled"
+                    "enabled": "zhop_travel_enabled and list_or_range == 'range_of_layers'"
                 },
                 "end_layer": {
                     "label": "End Layer",
@@ -51,7 +69,7 @@ class ZhopOnTravel(Script):
                     "type": "int",
                     "default_value": -1,
                     "minimum_value": "-1",
-                    "enabled": "zhop_travel_enabled"
+                    "enabled": "zhop_travel_enabled and list_or_range == 'range_of_layers'"
                 },
                 "hop_height": {
                     "label": "Z-Hop Height",
@@ -111,26 +129,43 @@ class ZhopOnTravel(Script):
         self._add_retract = self.getSettingValueByKey("add_retract")
         min_travel_dist = self.getSettingValueByKey("min_travel_dist")
         hop_height = round(self.getSettingValueByKey("hop_height"),2)
-        start_layer = self.getSettingValueByKey("start_layer")
-        end_layer = self.getSettingValueByKey("end_layer")
+        list_or_range = self.getSettingValueByKey("list_or_range")
+        layer_list = []
+        index_list = []
 
-        # Get the indexes for the start and end layers
-        start_index = 2
-        for num in range(1, len(data) - 1):
-            if ";LAYER:" + str(start_layer - 1) + "\n" in data[num]:
-                start_index = num
-                break
-        if end_layer == -1:
-            if retraction_enabled:
-                end_index = len(data) - 3
-            else:
-                end_index = len(data) - 2
-        elif end_layer != -1:
+        if list_or_range == "list_of_layers":
+            layer_string = self.getSettingValueByKey("layers_of_interest")
+            layer_list = layer_string.split(",")
+            for layer in layer_list:
+                for num in range(2, len(data) - 1):
+                    if ";LAYER:" + str(int(layer) - 1) + "\n" in data[num]:
+                        index_list.append(num)
+            start_index = index_list[0]
+            end_index = index_list[len(index_list) - 1]
+
+        elif list_or_range == "range_of_layers":
+            start_layer = self.getSettingValueByKey("start_layer")
+            end_layer = self.getSettingValueByKey("end_layer")
+
+            # Get the indexes for the start and end layers
+            start_index = 2
             for num in range(1, len(data) - 1):
-                if ";LAYER:" + str(end_layer - 1) + "\n" in data[num]:
-                    end_layer = data[num].splitlines()[0].split(":")[1]
-                    end_index = num
+                if ";LAYER:" + str(start_layer - 1) + "\n" in data[num]:
+                    start_index = num
                     break
+            if end_layer == -1:
+                if retraction_enabled:
+                    end_index = len(data) - 3
+                else:
+                    end_index = len(data) - 2
+            elif end_layer != -1:
+                for num in range(1, len(data) - 1):
+                    if ";LAYER:" + str(end_layer) + "\n" in data[num]:
+                        end_layer = data[num].splitlines()[0].split(":")[1]
+                        end_index = num
+                        break
+            for num in range(start_index, end_index):
+                index_list.append(num)
 
         # Track the Z up to the starting point
         for num in range(1, start_index):
@@ -158,14 +193,14 @@ class ZhopOnTravel(Script):
         self._cur_e = 0.0
         self._prev_e = 0.0
         cmd_list = ["G0 ", "G1 ", "G2 ", "G3 "]
-        self.reset_type = 0        
-        
+        self.reset_type = 0
+
         # Keep track of the axes locations if the start layer > layer:0
         if start_index > 2:
             self._track_all_axes(data, cmd_list, start_index, relative_extrusion)
-        
+
         # Make the insertions
-        for num in range(start_index, end_index + 1):
+        for num in index_list: #for num in range(start_index, end_index + 1):
             lines = data[num].splitlines()
             for index, line in enumerate(lines):
                 if num == 2:
@@ -186,10 +221,10 @@ class ZhopOnTravel(Script):
                         self._cur_z = self.getValue(line, "Z")
 
                 # Check whether retractions have occured
-                if re.search("G1 X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None or re.search("G1 F(\d*\d.*) X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None: # G1 X117.3 Y134.268 E1633.06469
+                if re.search("G1 X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None or re.search("G1 F(\d+\.\d+|\d+) X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None:
                     self._is_retracted = False
                     self._cur_e = self.getValue(line, "E")
-                elif re.search("F(\d*\d.*) E(\d*\d.*)", line) is not None or "G10" in line or re.search("F(\d*\d.*) E-(\d*\d.*)", line) is not None:
+                elif re.search("F(\d+\.\d+|\d+) E(-?\d+\.\d+|-?\d+)", line) is not None or "G10" in line:
                     if self.getValue(line, "E") is not None:
                         self._cur_e = self.getValue(line, "E")
                     if not relative_extrusion:
@@ -215,7 +250,7 @@ class ZhopOnTravel(Script):
                         # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
                         if not " F" in lines[index] and lines[index].startswith("G0"):
                             lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")
-                        if re.search("G1 X(\d*\d.*) Y(\d*\d.*) E", lines[index - 1]) is not None:
+                        if re.search("G1 X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", lines[index - 1]) is not None:
                             self._is_retracted = False
                         hop_up_lines = self.get_hop_up_lines(retraction_amount, speed_zhop, retract_speed, prime_speed, extra_prime_dist, firmware_retract, relative_extrusion, hop_height)
                         lines[index] = hop_up_lines + lines[index]
@@ -277,7 +312,7 @@ class ZhopOnTravel(Script):
             return 0
         return dist
 
-    # The Zhop up additions may or may not require a retraction.
+    # The retraction figure outer.
     def get_hop_up_lines(self, retraction_amount: float, speed_zhop: str, retract_speed: str, prime_speed: str, extra_prime_dist: float, firmware_retract: bool, relative_extrusion: bool, hop_height: str) -> str:
         hop_retraction = not self._is_retracted
         if not self._add_retract:
@@ -317,55 +352,64 @@ class ZhopOnTravel(Script):
             up_lines = front_txt + str(" " * (40 - len(front_txt))) +";" +  back_txt + "\n"
         return up_lines
 
-    # The Xhop down may require different kinds of primes depending on the Cura settings.
+    # The Zhop down may require different kinds of primes depending on the Cura settings.
     def get_hop_down_lines(self, retraction_amount: float, speed_zhop: str, retract_speed: str, prime_speed: str, extra_prime_dist: str, firmware_retract: bool, relative_extrusion: bool, hop_height: str, next_line: str) -> str:
         hop_retraction = not self._is_retracted
         if not self._add_retract:
             hop_retraction = False
-        reset_type = 0 # no other options
+        # Base the prime on the combination of Cura settings
+        reset_type = 0
         if hop_retraction:
             reset_type += 1
         if firmware_retract and hop_retraction:
             reset_type += 2
         if relative_extrusion and hop_retraction:
             reset_type += 4
-        if extra_prime_dist > 0 and hop_retraction:
+        if extra_prime_dist > 0.0 and hop_retraction:
             reset_type += 8
         dn_lines = f"G0 F{speed_zhop} Z{self._cur_z} ; Hop Down"
-        if "G11" in next_line or re.search("G1 F(\d*\d.*) E", next_line) is not None and reset_type == 0:
+        # Format the line and return if the retraction option is unchecked
+        if "G11" in next_line or re.search("G1 F(\d+\.\d+|\d+) E(-?\d+\.\d+|-?\d+)", next_line) is not None and reset_type == 0:
             front_txt = dn_lines.split(";")[0]
             back_txt = dn_lines.split(";")[1]
             dn_lines = front_txt + str(" " * (40 - len(front_txt))) +";" +  back_txt + "\n"
             self._is_retracted = False
             return dn_lines
-        if reset_type == 1 and hop_retraction: # add retract only when necessary
-            dn_lines += f"\nG1 F{prime_speed} E{self._prev_e} ; Unretract"
-        if reset_type == 3 and hop_retraction: # add retract and firmware retract
+        # If the retraction option is checked then determine the required unretract code for the particular combination of Cura settings.
+        # Add retract 1
+        if reset_type == 1 and hop_retraction:
+            dn_lines += f"\nG1 F{prime_speed} E{self._prev_e + retraction_amount} ; Unretract"
+        # Add retract 1 + firmware retract 2
+        if reset_type == 3 and hop_retraction:
             dn_lines += "\nG11 ; UnRetract"
-        if reset_type == 5 and hop_retraction: # add retract and relative extrusion
-            dn_lines += f"\nG1 F{prime_speed} E{extra_prime_dist} ; Extra prime"
-            dn_lines += "\nG11 ; UnRetract"
-        if reset_type == 7 and hop_retraction: # add retract and relative extrusion and extra prime
+        # Add retract 1 + relative extrusion 4
+        if reset_type == 5 and hop_retraction:
+            dn_lines += f"\nG1 F{prime_speed} E{retraction_amount} ; UnRetract"
+        # Add retract 1 + firmware retraction 2 + relative extrusion 4
+        if reset_type == 7 and hop_retraction:
             dn_lines += f"\nG11 ; Unretract"
-        if reset_type == 9 and hop_retraction: # add retract, and extra prime
+        # Add retract 1 + extra prime 8
+        if reset_type == 9 and hop_retraction:
             dn_lines += f"\nG92 E{round(self._prev_e - extra_prime_dist,5)} ; Extra prime adjustment"
             dn_lines += f"\nG1 F{prime_speed} E{round(self._prev_e + retraction_amount, 5)} ; UnRetract"
             self._cur_e = round(self._prev_e + retraction_amount, 5)
-        if reset_type == 11 and hop_retraction: # add retract, firmware retraction, extra prime
-            dn_lines += f"\nG92 E{round(self._prev_e - extra_prime_dist, 5)} ; Reset for extra prime"
+        # Add retract 1 + firmware retraction 2 + extra prime 8
+        if reset_type == 11 and hop_retraction:
+            dn_lines += "\nG11 ; UnRetract"
             dn_lines += "\nM83 ; Relative extrusion"
             dn_lines += f"\nG1 F{prime_speed} E{round(extra_prime_dist, 5)} ; Extra prime"
             if not relative_extrusion:
                 dn_lines += "\nM82 ; Absolute extrusion"
-            dn_lines += "\nG11 ; UnRetract"
-        if reset_type == 13 and hop_retraction: # add retract, relative extrusion, extra prime
+        # Add retract 1 + relative extrusion 4 + extra prime 8
+        if reset_type == 13 and hop_retraction:
             dn_lines += f"\nG1 F{prime_speed} E{round(retraction_amount + extra_prime_dist, 5)} ; Unretract with extra prime"
-        if reset_type == 15 and hop_retraction: # add retract, firmware, extra prime
+        # Add retract 1 + firmware retraction 2 + relative extrusion 4 + extra prime 8
+        if reset_type == 15 and hop_retraction:
             dn_lines += "\nG11 ; UnRetract"
             dn_lines += f"\nG1 F{prime_speed} E{round(extra_prime_dist, 5)} ; Extra prime"
 
         # Format the added lines for readability
-        if "\n" in dn_lines: # for lines that include a prime
+        if "\n" in dn_lines: # for lines with primes
             lines = dn_lines.split("\n")
             for index, line in enumerate(lines):
                 front_txt = lines[index].split(";")[0]
@@ -378,7 +422,7 @@ class ZhopOnTravel(Script):
             dn_lines = front_txt + str(" " * (40 - len(front_txt))) +";" +  back_txt + "\n"
         self._is_retracted = False
         return dn_lines
-        
+
     def _track_all_axes(self, data: str, cmd_list: int, start_index: int, relative_extrusion: bool) -> str:
         for num in range(2, start_index - 1):
             lines = data[num].split("\n")
@@ -395,10 +439,10 @@ class ZhopOnTravel(Script):
                         self._cur_z = self.getValue(line, "Z")
 
                 # Check whether retractions have occured
-                if re.search("G1 X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None or re.search("G1 F(\d*\d.*) X(\d*\d.*) Y(\d*\d.*) E(\d*\d.*)", line) is not None: # G1 X117.3 Y134.268 E1633.06469
+                if re.search("G1 X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None or re.search("G1 F(\d+\.\d+|\d+) X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None: # G1 X117.3 Y134.268 E1633.06469
                     self._is_retracted = False
                     self._cur_e = self.getValue(line, "E")
-                elif re.search("F(\d*\d.*) E(\d*\d.*)", line) is not None or "G10" in line or re.search("F(\d*\d.*) E-(\d*\d.*)", line) is not None:
+                elif re.search("F(\d*\d.*) E(-?\d*\d.*)", line) is not None or "G10" in line:
                     if self.getValue(line, "E") is not None:
                         self._cur_e = self.getValue(line, "E")
                     if not relative_extrusion:
