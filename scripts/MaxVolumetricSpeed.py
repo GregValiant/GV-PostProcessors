@@ -77,7 +77,7 @@ class MaxVolumetricSpeed(Script):
         max_e_flow_rate = self.getSettingValueByKey("max_E_flow_rate")
         # Adjust the search parameter depending on Firmware Retraction
         if not firmware_retraction:
-            search_string = "G1 F(\d*\d.?) E(-?\d.*)"
+            search_string = "G1 F(\d+\.\d+|\d+) E(-?\d+\.\d+|-?\d+)"
         else:
             search_string = "G1[0-1]"
         # Calculate the E Speed Maximum for the print

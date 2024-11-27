@@ -208,7 +208,10 @@ class ZhopOnTravel(Script):
                         start_here = True
                     if not start_here:
                         continue
-
+                if line.startswith("G92") and " E" in line:
+                    self._cur_e = self.getValue(line, "E")
+                    self._prev_e = self._cur_e
+                    continue
                 # Get the XYZ values from movement commands
                 if line[0:3] in cmd_list:
                     if " X" in line and self.getValue(line, "X") is not None:
@@ -221,10 +224,10 @@ class ZhopOnTravel(Script):
                         self._cur_z = self.getValue(line, "Z")
 
                 # Check whether retractions have occured
-                if re.search("G1 X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None or re.search("G1 F(\d+\.\d+|\d+) X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None:
+                if line[0:3] in ["G1 ", "G2 ", "G3 "] and "X" in line and "Y" in line and "E" in line:
                     self._is_retracted = False
                     self._cur_e = self.getValue(line, "E")
-                elif re.search("F(\d+\.\d+|\d+) E(-?\d+\.\d+|-?\d+)", line) is not None or "G10" in line:
+                elif (line.startswith("G1") and "F" in line and "E" in line and not "X" in line or not "Y" in line) or "G10" in line:
                     if self.getValue(line, "E") is not None:
                         self._cur_e = self.getValue(line, "E")
                     if not relative_extrusion:
@@ -250,7 +253,7 @@ class ZhopOnTravel(Script):
                         # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
                         if not " F" in lines[index] and lines[index].startswith("G0"):
                             lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")
-                        if re.search("G1 X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", lines[index - 1]) is not None:
+                        if "X" in lines[index - 1] and "Y" in lines[index - 1] and "E" in lines[index - 1]:
                             self._is_retracted = False
                         hop_up_lines = self.get_hop_up_lines(retraction_amount, speed_zhop, retract_speed, prime_speed, extra_prime_dist, firmware_retract, relative_extrusion, hop_height)
                         lines[index] = hop_up_lines + lines[index]
@@ -266,6 +269,8 @@ class ZhopOnTravel(Script):
                     hop_end = 0
                     hop_start = 0
                     hop_down = ""
+                if line.startswith(";"):
+                    continue
                 self._prev_e = self._cur_e
             data[num] = "\n".join(lines) + "\n"
 
