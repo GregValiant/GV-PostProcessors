@@ -1,7 +1,7 @@
-# Copyright (c) 2023 GregValiant (Greg Foresi)
-#   This post processor adds most of the Cura settings (~400) to the end of the Gcode file.  Which settings are added depends on things like the Extruder Count, Cura setup, etc.
-# My thanks to Aldo Hoeben who pointed out how to get the 'currency symbol' from Cura.  It was the icing on the cake.
+# Copyright (c) May of 2024 GregValiant (Greg Foresi)
+#   This post processor opens the relevant fddmprinter.def.json files and goes through the settings.  The print is thrown out and the setting name and 'settable_per_extruder" are pulled out and added to the gcode file.  Two versions can be compared and the differences are noted.
 
+# Some of these may no longer be required.  I'm to lazy to figure out which.
 from UM.Application import Application
 import UM.Util
 from ..Script import Script
@@ -15,12 +15,12 @@ from UM.Platform import Platform
 import os
 
 class DiscoverSettings(Script):
-    """Add the Cura settings as a post-script to the g-code.
+    """ Remove all printing and then add all the Cura settings to the g-code.
     """
 
     def getSettingDataString(self):
         return """{
-            "name": "Discover Cura Settings",
+            "name": "Discover Settings 5.9.0",
             "key": "DiscoverSettings",
             "metadata": {},
             "version": 2,
@@ -32,9 +32,8 @@ class DiscoverSettings(Script):
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
-                        "v5_9a": "5.9 alpha",
-                        "v5_80": "5.8.0",
-                        "v5_8beta": "5.8beta",
+                        "v5_90": "5.9.0",
+                        "v5_81": "5.8.1",
                         "v5_72": "5.7.2",
                         "v5_71": "5.7.1",
                         "v5_70": "5.7.0",
@@ -53,8 +52,7 @@ class DiscoverSettings(Script):
                     "type": "enum",
                     "options": {
                         "no_compare": "No Compare",
-                        "v5_80": "5.8.0",
-                        "v5_8beta": "5.8beta",
+                        "v5_81": "5.8.1",
                         "v5_72": "5.7.2",
                         "v5_71": "5.7.1",
                         "v5_70": "5.7.0",
@@ -71,12 +69,10 @@ class DiscoverSettings(Script):
 
     def execute(self, data): #Application.getInstance().getPrintInformation().
         init_version = self.getSettingValueByKey("cura_version")
-        if init_version == "v5_9a":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.9.0-alpha.0+b514f5\share\cura\resources\definitions\fdmprinter.def.json"
-        if init_version == "v5_80":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.8.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_8beta":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.8.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_90":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_81":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_72":
             init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_71":
@@ -99,10 +95,8 @@ class DiscoverSettings(Script):
         compare_to_version = self.getSettingValueByKey("compare_to_version")
         if compare_to_version == "no_compare":
             ct_init_path = ""
-        elif compare_to_version == "v5_80":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_8beta":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
+        elif compare_to_version == "v5_81":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_72":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_71":
@@ -369,8 +363,8 @@ class DiscoverSettings(Script):
         for setting in ct_setting_list:
             if setting not in init_setting_list:
                 del_setting_list.append(setting)
-        add_setting_list[0] += " " + str(len(add_setting_list) - 1)
-        del_setting_list[0] += " " + str(len(del_setting_list) - 1)
+        add_setting_list[0] += " (" + str(len(add_setting_list) - 1) + ")"
+        del_setting_list[0] += " (" + str(len(del_setting_list) - 1) + ")"
         data[0] = "\n".join(add_setting_list) + "\n\n" + "\n".join(del_setting_list) + "\n\n" + data[0]
         return data
 

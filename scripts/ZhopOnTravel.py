@@ -43,7 +43,8 @@ class ZhopOnTravel(Script):
                     "options": {
                         "range_of_layers": "Range of Layers",
                         "list_of_layers": "Layer List" },
-                    "default_value": "range_of_layers"
+                    "default_value": "range_of_layers",
+                    "enabled": "zhop_travel_enabled"
                 },
                 "layers_of_interest":
                 {
@@ -206,8 +207,6 @@ class ZhopOnTravel(Script):
                 if num == 2:
                     if line.startswith(";TYPE"):
                         start_here = True
-                    if not start_here:
-                        continue
                 if line.startswith("G92") and " E" in line:
                     self._cur_e = self.getValue(line, "E")
                     self._prev_e = self._cur_e
@@ -383,7 +382,7 @@ class ZhopOnTravel(Script):
         # If the retraction option is checked then determine the required unretract code for the particular combination of Cura settings.
         # Add retract 1
         if reset_type == 1 and hop_retraction:
-            dn_lines += f"\nG1 F{prime_speed} E{self._prev_e + retraction_amount} ; Unretract"
+            dn_lines += f"\nG1 F{prime_speed} E{round(self._prev_e + retraction_amount, 5)} ; Unretract"
         # Add retract 1 + firmware retract 2
         if reset_type == 3 and hop_retraction:
             dn_lines += "\nG11 ; UnRetract"
@@ -444,10 +443,10 @@ class ZhopOnTravel(Script):
                         self._cur_z = self.getValue(line, "Z")
 
                 # Check whether retractions have occured
-                if re.search("G1 X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None or re.search("G1 F(\d+\.\d+|\d+) X(-?\d+\.\d+|-?\d+) Y(-?\d+\.\d+|-?\d+) E(-?\d+\.\d+|-?\d+)", line) is not None: # G1 X117.3 Y134.268 E1633.06469
+                if line.startswith("G1 ") and "X " in line and "Y " in line and "E " in line:
                     self._is_retracted = False
                     self._cur_e = self.getValue(line, "E")
-                elif re.search("F(\d*\d.*) E(-?\d*\d.*)", line) is not None or "G10" in line:
+                elif line.startswith("G1 ") and "F " in line and "E " in line and not "X " in line and not "Y " in line or line.startswith("G10"):
                     if self.getValue(line, "E") is not None:
                         self._cur_e = self.getValue(line, "E")
                     if not relative_extrusion:
@@ -456,5 +455,8 @@ class ZhopOnTravel(Script):
                     elif relative_extrusion:
                         if self._cur_e < 0 or "G10" in line:
                             self._is_retracted = True
+                if line.startswith("G11"):
+                    self._is_retracted = False
+                    self._cur_e = 0
         self._prev_e = self._cur_e
         return

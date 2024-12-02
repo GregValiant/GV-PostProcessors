@@ -95,4 +95,6 @@ class MaxVolumetricSpeed(Script):
                 if re.search(search_regex, line) is not None:
                     lines[index] = f"M203 E{speed_e_reset}\n" + line + f"\nM203 E{speed_e_max}"
             data[num] = "\n".join(lines)
+        # Reset the E speed at the end of the print
+        data[len(data)-1] = "M203 E" + str(speed_e_reset) + " ; Reset max E speed\n" + data[len(data)-1]
         return data
