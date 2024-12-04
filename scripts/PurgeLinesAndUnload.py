@@ -6,7 +6,7 @@
 # 'Move to Start' takes an orthogonal path around the periphery before moving in to the print start location.  It eliminates strings across the print area.
 # 'Adjust Starting E' is a correction in the E location before the skirt/brim starts.  The user can make an adjustment so that the skirt / brim / raft starts where it should.
 # 'Unload' adds code to the ending gcode that will unload the filament from the machine.  The unlaod distance is broken into chunks to avoid overly long E distances.
-# Added extra moves to account for Cura adding a "Travel to Prime Tower" move that can cross the middle of the build surface.
+#  Added extra moves to account for Cura adding a "Travel to Prime Tower" move that can cross the middle of the build surface.
 
 
 from ..Script import Script
@@ -33,17 +33,6 @@ class PurgeLinesAndUnload(Script):
         self._purge_end_loc = None
         # Set the default E adjustment
         self._instance.setProperty("adjust_e_loc_to", "value", round(float(extruder[0].getProperty("retraction_amount", "value") * -1), 1))
-
-    """ Procedures and Settings:
-        add_purge_lines
-            purge_line_location
-            purge_line_length
-        move_to_start
-        adjust_starting_e
-            adjust_e_loc_to
-        enable_unload
-            unload_distance
-        is_rectangular (hidden - disables 'purge_line_length' for elliptical beds only)"""
 
     def getSettingDataString(self):
         return """{
@@ -141,7 +130,7 @@ class PurgeLinesAndUnload(Script):
         }"""
 
     def execute(self, data):
-        # Decide which procedures to run
+        # Run the selected procedures
         if self.getSettingValueByKey("add_purge_lines"):
             self._add_purge_lines(data)
         if self.getSettingValueByKey("move_to_start"):
@@ -164,7 +153,6 @@ class PurgeLinesAndUnload(Script):
         retract_speed = extruder[0].getProperty("retraction_retract_speed", "value") * 60
         bed_shape = str(curaApp.getProperty("machine_shape", "value"))
         origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
-        startup_gcode = curaApp.getProperty("machine_start_gcode", "value")
         machine_width = curaApp.getProperty("machine_width", "value")
         machine_depth = curaApp.getProperty("machine_depth", "value")
         material_diameter = extruder[0].getProperty("material_diameter", "value")
@@ -174,7 +162,8 @@ class PurgeLinesAndUnload(Script):
         travel_speed = extruder[0].getProperty("speed_travel", "value") * 60
         print_speed = round(extruder[0].getProperty("speed_print", "value") * 60 * .75)
         purge_extrusion_full = True if self.getSettingValueByKey("purge_line_length") == "purge_full" else False
-        purge_str = ";TYPE:CUSTOM----------[Purge Lines]\nG0 F600 Z2 ; Move up\nG92 E0 ; Reset extruder\n"
+        purge_str = ";TYPE:CUSTOM----------[Purge Lines]\nG0 F600 Z1 ; Move up\nG92 E0 ; Reset extruder\n"
+        
         # Normal cartesian printer with origin at the left front corner
         if bed_shape == "rectangular" and not origin_at_center:
             if where_at == "purge_left":
@@ -239,7 +228,8 @@ class PurgeLinesAndUnload(Script):
                 purge_str += f"G0 F{print_speed} X{machine_width - 20} Y{machine_depth - 3} Z0.3 ; Slide over and down\n"
                 purge_str += f"G0 X{machine_width - 35} Y{machine_depth - 3} ; Wipe\n"
                 self._purge_end_loc = "RR"
-        # Some cartesian printers are Origin at Center
+        
+        # Some cartesian printers (BIBO, Weedo, etc.) are Origin at Center
         elif bed_shape == "rectangular" and origin_at_center:
             if where_at == "purge_left":
                 purge_len = int(machine_depth - 20) if purge_extrusion_full else int(machine_depth / 2)
@@ -298,6 +288,7 @@ class PurgeLinesAndUnload(Script):
                 purge_str += f"G0 F{print_speed} X{machine_width / 2 - 20} Y{machine_depth / 2 - 3} Z0.3 ; Slide over and down\n"
                 purge_str += f"G0 F{print_speed} X{machine_width / 2 - 35} Y{machine_depth / 2 - 3} ; Wipe\n"
                 self._purge_end_loc = "RR"
+        
         # Elliptic printers with Origin at Center
         elif bed_shape == "elliptic":
             if where_at in ["purge_left","purge_right"]:
@@ -370,13 +361,12 @@ class PurgeLinesAndUnload(Script):
                     if ";LAYER_COUNT:" in line:
                         try:
                             if startup[index + 1].startswith("G0"):
-                                prime_move = startup[index + 1]
+                                prime_move = startup[index + 1] + " ; move to Prime Tower"
                                 adjustment_lines = self._get_adjustment_lines(prime_tower_loc, self._purge_end_loc, bed_shape, origin_at_center, machine_width, machine_depth, travel_speed)
                                 startup[index + 1] = adjustment_lines + prime_move
                                 data[1] = "\n".join(startup)
                         except:
                             pass
-
         # Comment out any existing purge lines in Data[1]
         startup = data[1].split("\n")
         for index, line in enumerate(startup):
@@ -425,13 +415,13 @@ class PurgeLinesAndUnload(Script):
                 start_y = self.getValue(line, "Y")
                 break
         if start_x == None: start_x = 0
-        if start_y == None: start_y = 0
+        if start_y == None: start_y = 0            
         if self._purge_end_loc == None:
             purge_end_loc = "LF"
         else:
             purge_end_loc = self._purge_end_loc
         travel_speed = round(extruder[0].getProperty("speed_travel", "value") * 60)
-        move_str = f";MESH:NONMESH---------[Travel to Layer Start]\nG0 F600 Z2 ; Move up\n"
+        move_str = f";MESH:NONMESH---------[Travel to Layer Start]\nG0 F600 Z1 ; Move up\n"
         midpoint_x = machine_width / 2
         midpoint_y = machine_depth / 2
         if not origin_at_center:
@@ -452,7 +442,25 @@ class PurgeLinesAndUnload(Script):
                 goto_str += "Frt"
             else:
                 goto_str += "Bk"
-
+        if not self.getSettingValueByKey("add_purge_lines"):
+            if curaApp.getProperty("machine_extruder_count", "value") > 1:
+                adjustment_lines = ""
+                prime_tower_x = curaApp.getProperty("prime_tower_position_x", "value")
+                prime_tower_y = curaApp.getProperty("prime_tower_position_y", "value")
+                prime_tower_loc = self._prime_tower_quadrant(prime_tower_x, prime_tower_y, bed_shape, origin_at_center, machine_width, machine_depth)
+                if prime_tower_loc != self._purge_end_loc:
+                    startup = data[1].split("\n")
+                    for index, line in enumerate(startup):
+                        if ";LAYER_COUNT:" in line:
+                            try:
+                                if startup[index + 1].startswith("G0"):
+                                    prime_move = startup[index + 1] + " ; move to Prime Tower"
+                                    adjustment_lines = self._get_adjustment_lines(prime_tower_loc, self._purge_end_loc, bed_shape, origin_at_center, machine_width, machine_depth, travel_speed)
+                                    startup[index + 1] = adjustment_lines + prime_move
+                                    data[1] = "\n".join(startup)
+                            except:
+                                pass
+        
         # Depending on which quadrant the XY layer start is, move around the periphery before coming in to the start position
         if bed_shape == "rectangular" and not origin_at_center:
             if purge_end_loc == "LF":
@@ -592,7 +600,7 @@ class PurgeLinesAndUnload(Script):
         lines = data[len(data) - 1].split("\n")
         for index, line in enumerate(lines):
             # Unload the filament just before the hot end turns off.
-            if "M104 S0" in line:
+            if line.startswith("M104") and "S0" in line:
                 filament_str = "M83 ; [Unload] Relative extrusion\nM400 ; Complete all moves\n"
                 if unload_distance > 150:
                     temp_unload = unload_distance
@@ -644,7 +652,7 @@ class PurgeLinesAndUnload(Script):
         any_gcode_str = "\n".join(temp_lines)
         return any_gcode_str
 
-    # Get that actual layer start point of the print before adding movements
+    # Get the actual layer start point of the print before adding movements
     def _get_real_start_point(self, first_section: str, bed_shape: str, origin_at_center: bool, machine_width: int, machine_depth: int):
         startup = first_section.split("\n")
         last_line = startup[len(startup) - 1]
@@ -669,6 +677,7 @@ class PurgeLinesAndUnload(Script):
                 return "RR"
             if last_x < midpoint_x and last_y > midpoint_y:
                 return "LR"
+
     # Multi-extruders may get a move to the prime tower just before layer 0 starts.  The adjusted lines move around the periphery instead of across the middle.
     def _get_adjustment_lines(self, prime_tower_loc: str, purge_end_loc: str, bed_shape: str, origin_at_center: bool, machine_width: int, machine_depth: int, travel_speed: int):
         adj_lines = ""
@@ -690,20 +699,20 @@ class PurgeLinesAndUnload(Script):
             if prime_tower_loc == "LF":
                 adj_lines = ""
             if prime_tower_loc == "RF":
-                adj_lines = f"G0 F{travel_speed} X{max_x}\nG0 F600 Z0\nG0 F600 Z1\n"
+                adj_lines = f"G0 F{travel_speed} X{max_x} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z1 ; move up\n"
             if prime_tower_loc == "RR":
-                adj_lines = f"G0 F{travel_speed} X{max_x}\nG0 F600 Z0\nG0 F600 Z1\n"
+                adj_lines = f"G0 F{travel_speed} X{max_x} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z1 ; move up\n"
             if prime_tower_loc == "LR":
-                adj_lines = f"G0 F{travel_speed} Y{max_y}\nG0 F600 Z0\nG0 F600 Z1\n"
+                adj_lines = f"G0 F{travel_speed} Y{max_y} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z1 ; move up\n"
         elif purge_end_loc == "RR":
             if prime_tower_loc == "LF":
-                adj_lines = f"G0 F{travel_speed} X{min_x}\nG0 F600 Z0\nG0 F600 Z1\n"
+                adj_lines = f"G0 F{travel_speed} X{min_x} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z1 ; move up\n"
             if prime_tower_loc == "RF":
-                adj_lines = f"G0 F{travel_speed} Y{min_y}\nG0 F600 Z0\nG0 F600 Z1\n"
+                adj_lines = f"G0 F{travel_speed} Y{min_y} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z1 ; move up\n"
             if prime_tower_loc == "RR":
                 adj_lines = ""
             if prime_tower_loc == "LR":
-                adj_lines = f"G0 F{travel_speed} X{min_x}\nG0 F600 Z0\nG0 F600 Z1\n"
+                adj_lines = f"G0 F{travel_speed} X{min_x} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z1 ; move up\n"
         return adj_lines
 
     # Determine that quadrant that the prime tower rests in so the adjustments can be calculated
@@ -731,5 +740,3 @@ class PurgeLinesAndUnload(Script):
         elif prime_tower_x < midpoint_x and prime_tower_y > midpoint_y:
             prime_tower_location = "LR"
         return prime_tower_location
-
-
