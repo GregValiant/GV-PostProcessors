@@ -29,11 +29,11 @@ class PurgeLinesAndUnload(Script):
                 Message(title = "[Purge Lines and Unload]", text = "It appears that there are 'purge lines' in the StartUp Gcode.  Using the 'Add Purge Lines' function of this script will comment them out.").show()
                 break
         self._instance.setProperty("is_rectangular", "value", True if curaApp.getProperty("machine_shape", "value") == "rectangular" else False)
-        extruder = curaApp.extruderList
+        self._extruder = curaApp.extruderList
         #This is set in 'Add Purge Lines' and is used by 'Move to Start' to indicate which corner the nozzle is in after the purge lines
         self._purge_end_loc = None
         # Set the default E adjustment
-        self._instance.setProperty("adjust_e_loc_to", "value", round(float(extruder[0].getProperty("retraction_amount", "value") * -1), 1))
+        self._instance.setProperty("adjust_e_loc_to", "value", round(float(self._extruder[0].getProperty("retraction_amount", "value") * -1), 1))
 
     def getSettingDataString(self):
         return """{
@@ -148,20 +148,19 @@ class PurgeLinesAndUnload(Script):
     # Add Purge Lines to the user defined position on the build plate
     def _add_purge_lines(self, data: str):
         curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
-        retract_dist = extruder[0].getProperty("retraction_amount", "value")
-        retract_enable = extruder[0].getProperty("retraction_enable", "value")
-        retract_speed = extruder[0].getProperty("retraction_retract_speed", "value") * 60
+        retract_dist = self._extruder[0].getProperty("retraction_amount", "value")
+        retract_enable = self._extruder[0].getProperty("retraction_enable", "value")
+        retract_speed = self._extruder[0].getProperty("retraction_retract_speed", "value") * 60
         bed_shape = str(curaApp.getProperty("machine_shape", "value"))
         origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
         machine_width = curaApp.getProperty("machine_width", "value")
         machine_depth = curaApp.getProperty("machine_depth", "value")
-        material_diameter = extruder[0].getProperty("material_diameter", "value")
+        material_diameter = self._extruder[0].getProperty("material_diameter", "value")
         mm3_per_mm = (material_diameter / 2)**2 * 3.14159
-        init_line_width = extruder[0].getProperty("skirt_brim_line_width", "value")
+        init_line_width = self._extruder[0].getProperty("skirt_brim_line_width", "value")
         where_at = self.getSettingValueByKey("purge_line_location")
-        travel_speed = extruder[0].getProperty("speed_travel", "value") * 60
-        print_speed = round(extruder[0].getProperty("speed_print", "value") * 60 * .75)
+        travel_speed = self._extruder[0].getProperty("speed_travel", "value") * 60
+        print_speed = round(self._extruder[0].getProperty("speed_print", "value") * 60 * .75)
         purge_extrusion_full = True if self.getSettingValueByKey("purge_line_length") == "purge_full" else False
         purge_str = ";TYPE:CUSTOM----------[Purge Lines]\nG0 F600 Z2 ; Move up\nG92 E0 ; Reset extruder\n"
 
@@ -386,7 +385,6 @@ class PurgeLinesAndUnload(Script):
     # Travel moves around the bed periphery to keep strings from crossing the footprint of the model.
     def _move_to_start(self, data: str) -> str:
         curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
         bed_shape = str(curaApp.getProperty("machine_shape", "value"))
         origin_at_center = bool(curaApp.getProperty("machine_center_is_zero", "value"))
         machine_width = curaApp.getProperty("machine_width", "value")
@@ -407,7 +405,7 @@ class PurgeLinesAndUnload(Script):
             purge_end_loc = "LF"
         else:
             purge_end_loc = self._purge_end_loc
-        travel_speed = round(extruder[0].getProperty("speed_travel", "value") * 60)
+        travel_speed = round(self._extruder[0].getProperty("speed_travel", "value") * 60)
         move_str = f";MESH:NONMESH---------[Travel to Layer Start]\nG0 F600 Z2 ; Move up\n"
         midpoint_x = machine_width / 2
         midpoint_y = machine_depth / 2
@@ -593,8 +591,7 @@ class PurgeLinesAndUnload(Script):
     # Make an adjustment to the starting E location so the skirt/brim/raft starts out when the nozzle starts out.
     def _adjust_starting_e(self, data: str) -> str:
         curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
-        retract_enabled = extruder[0].getProperty("retraction_enable", "value")
+        retract_enabled = self._extruder[0].getProperty("retraction_enable", "value")
         if not retract_enabled:
             return
         adjust_amt = self.getSettingValueByKey("adjust_e_loc_to")
