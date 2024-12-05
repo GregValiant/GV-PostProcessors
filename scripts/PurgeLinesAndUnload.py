@@ -122,7 +122,7 @@ class PurgeLinesAndUnload(Script):
                 "is_rectangular":
                 {
                     "label": "Bed is rectangular",
-                    "description": "Hidden setting that disnables 'purge line length' for elliptical beds.",
+                    "description": "Hidden setting that disables 'purge line length' for elliptical beds.",
                     "type": "bool",
                     "default_value": false,
                     "enabled": false
