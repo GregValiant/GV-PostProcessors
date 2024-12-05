@@ -559,10 +559,20 @@ class PurgeLinesAndUnload(Script):
                 elif goto_str == "RtBk":
                     move_str += f"G0 F{travel_speed} X{offset_sin} Z2 ; Ortho move\nG0 Y{offset_sin} Z2 ; Ortho move\n"
         move_str += ";---------------------[End of layer start travels]"
-        layer_0 = data[2].split("\n")
+        # Add the move_str to the end of the StartUp section and move 'LAYER_COUNT' to the end.
+        startup = data[1].split("\n")
+        for index, line in enumerate(startup):
+            if "LAYER_COUNT" in line:
+                lay_count = startup.pop(index) + "\n"
+                break
         move_str = self._format_string(move_str)
-        layer_0.insert(2, move_str)
-        data[2] = "\n".join(layer_0)
+        if move_str.startswith("\n"):
+            move_str = move_str[1:]
+        startup.append(move_str)
+        startup.append(lay_count)
+        data[1] = "\n".join(startup)
+        # Remove any double spaced lines
+        data[1] = data[1].replace("\n\n", "\n")
         return
 
     # Unloading a large amount of filament in a single command can trip the 'Overlong Extrusion' warning in some firmware.  Unloads longer than 150mm are split into chunks.
