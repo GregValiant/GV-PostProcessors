@@ -1,4 +1,4 @@
-# Copyright (c) 2023 GregValiant (Greg Foresi)
+# Copyright (c) 2023 GregValiant (Greg Foresi) - Last change: Oct. 15, 2024
 #   This is a collection of several small Post Processors that I have found useful or that have been requested here and there:
 #     1) Remove Comments - Remove semi-colons and everything to the right of a semi-colon.  There are options.  (Thanks to @Torgeir)
 #     2) Renumber Layers - For One-At-A-Time prints renumbering to "all at once" style can provide additional options for PauseAtHeight and Filament Change.
@@ -221,7 +221,7 @@ class LittleUtilities_v15(Script):
                     "description": "For use with One-At-A-Time prints.  Re-numbering the layer from 0 to Top Layer will cause Pause At Height or Filament Change to act differently.  After re-numbering you might wish to set it back to affect any additional following post-processors.",
                     "type": "enum",
                     "options": {
-                        "renum": "Renumber>AllAtOnce",
+                        "renum": "Renum>AllAtOnce",
                         "un_renum": "Revert>OneAtATime"},
                     "default_value": "renum",
                     "enabled": "renum_or_revert and enable_little_utilities"
@@ -662,6 +662,12 @@ class LittleUtilities_v15(Script):
         if not self.getSettingValueByKey("enable_little_utilities"):
             data[0] += ";    [Little Utilities] Not enabled\n"
             return data
+        # When retraction is enabled a final retraction goes in as a single line data item after the last layer.
+        extruder = extruder = Application.getInstance().getGlobalContainerStack().extruderList
+        if bool(extruder[0].getProperty("retraction_enable", "value")):
+            self._final_lay_adj = 3
+        else:
+            self._final_lay_adj = 2
         if  self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("add_extruder_end"):
             self._add_extruder_end(data)
         if self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("final_z"):
@@ -809,18 +815,17 @@ class LittleUtilities_v15(Script):
             Message(title = "[Little Utilities] Renumber Layers", text = "Did not run because the Print Sequence is All-At-Once.").show()
             return data
 
-        # Count the layers because "LAYER_COUNT" can be theoretical
-        #raft_lay_count = 0
-        #lay_count = 0
+        # Find the layer:0's
         layer0_index = 2
-        for num in range(1,len(data)-1,1):
+        for num in range(1,len(data) - 1):
             layer = data[num]
             if ";LAYER:0" in layer:
                 layer0_index = num
                 break
 
         # Concantenate the data list items that were added to the beginning of each separate model
-        for num in range(layer0_index,len(data) - 2,1):
+        
+        for num in range(layer0_index,len(data) - 2):
             if num + 1 == len(data) - 2: break # Avoid concantenating the Ending Gcode
             try:
                 while not ";LAYER:" in data[num + 1]:
@@ -870,9 +875,15 @@ class LittleUtilities_v15(Script):
 
         # If re-numbering then change each LAYER_COUNT line to reflect the new total layers
         if renum_layers == "renum":
-            for num in range(1,len(data)-1,1):
+            the_count = 0
+            for num in range(1,len(data) - 1):
+                if re.search(";LAYER:(\d*)\n", data[num]) is not None:
+                    the_count += 1
+                    
+        if renum_layers == "renum":
+            for num in range(1,len(data) - 1):
                 layer = data[num]
-                data[num] = re.sub(";LAYER_COUNT:(\d*)",";LAYER_COUNT:" + str(len(data) - 3),layer)
+                data[num] = re.sub(";LAYER_COUNT:(\d*)",";LAYER_COUNT:" + str(the_count), layer)
 
         # If reverting to one-at-a-time then change the LAYER_COUNT back to per model
         elif renum_layers == "un_renum":
@@ -939,17 +950,17 @@ class LittleUtilities_v15(Script):
                                 y_delta = y_max - y_loc
                             break
                     if float(x_delta) >= float(y_delta):
-                        park_line = f"G0 F{travel_speed} Y{y_park}"
+                        park_line = f"G0 F{travel_speed} Y{y_park} ; Move away"
                     else:
-                        park_line = f"G0 F{travel_speed} X{x_park}"
+                        park_line = f"G0 F{travel_speed} X{x_park} ; Move away"
 
                     # Insert the move and return lines
                     if self.getValue(lines[index+1], "E") is not None:
                         lines.insert(index + 3, park_line)
-                        lines.insert(index + 5, f"G0 F{travel_speed} X{x_loc} Y{y_loc}")
+                        lines.insert(index + 5, f"G0 F{travel_speed} X{x_loc} Y{y_loc} ; Return to print")
                     else:
                         lines.insert(index + 2, park_line)
-                        lines.insert(index + 4, f"G0 F{travel_speed} X{x_loc} Y{y_loc}")
+                        lines.insert(index + 4, f"G0 F{travel_speed} X{x_loc} Y{y_loc} ; Return to print")
                     break
             data[lay_num] = "\n".join(lines)
         return
@@ -1540,6 +1551,8 @@ class LittleUtilities_v15(Script):
             if not ";LAYER:0" in data[index]:
                 continue
         # Layers above layer:0
+        # all_speeds will average the print speeds.
+        all_speeds = []
         for num in range(start_at, len(data) - 1, 1):
             layer = data[num].split("\n")
             for l_index, line in enumerate(layer):
@@ -1559,6 +1572,8 @@ class LittleUtilities_v15(Script):
                     if self.getValue(line, "G") in (1,2,3):
                         if " F" in line:
                             cur_speed = self.getValue(line, "F")
+                            all_speeds.append(cur_speed)
+                            speed_average = sum(all_speeds) / len(all_speeds)
                             if cur_speed > new_speed:
                                 layer[l_index] = re.sub("F((\d+(\.\d*)?)|(\.\d+)$)", "F" + str(round(new_speed)), layer[l_index]) + " ; Speed was " + str(round(cur_speed)) + "/" + str(round(cur_speed / 60))
                 # Check the travel speeds
@@ -1569,6 +1584,7 @@ class LittleUtilities_v15(Script):
                             if cur_speed > travel_speed:
                                 layer[l_index] = re.sub("F((\d+(\.\d*)?)|(\.\d+)$)", "F" + str(round(travel_speed)), layer[l_index]) + " ; Speed was " + str(round(cur_speed)) + "/" + str(round(cur_speed / 60))
             data[num] = "\n".join(layer)
+        Message(title = "[Average Speed]", text = "The average print speed in the gcode is: " + str(round(speed_average / 60,1)) + " mm/sec").show()
         return
 
     # Debug - add data item and line number within each data item--------------
@@ -1599,11 +1615,11 @@ class LittleUtilities_v15(Script):
         end_layer = self.getSettingValueByKey("kill_wipe_to")
         # Get the indexes of the Start and End layers
         if end_layer == -1 or end_layer <= start_layer:
-            end_index = len(data) - 1
+            end_index = len(data) - self._final_lay_adj
         else:
             end_layer = end_layer - 1
         wipe_to_kill = self.getSettingValueByKey("wipe_to_kill")
-        for num in range(2, len(data) - 1):
+        for num in range(2, len(data) - self._final_lay_adj):
             layer = data[num]
             if ";LAYER:" + str(start_layer) + "\n" in layer:
                 start_index = num
@@ -1616,7 +1632,7 @@ class LittleUtilities_v15(Script):
                     end_index = num
                     break
         elif end_layer == -1:
-            end_index = len(data) - 1
+            end_index = len(data) - self._final_lay_adj
 
         # Message the user if they selected an option that isn't relevant
         if wipe_to_kill in ["infill_wipe", "both_wipe"] and not infill_wipe_enabled:
@@ -1859,7 +1875,7 @@ class LittleUtilities_v15(Script):
 
     def _dual_ext_to_single(self, data: str) -> str:
         convert_m109 = self.getSettingValueByKey("dual_convert_M109")
-        for num in range(2, len(data)-1):
+        for num in range(2, len(data) - self._final_lay_adj):
             lines = data[num].split("\n")
             for index, line in enumerate(lines):
                 if line.startswith("T0"):
