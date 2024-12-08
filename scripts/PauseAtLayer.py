@@ -3,6 +3,7 @@
 #  Added 'Unload', 'Reload', and 'Purge' options and removed the 'Retraction' option.  Retractions will occur if there is no retraction prior to the pause.
 #  Added 'Reason for Pause' option.  When 'Filament Change' is chosen then Unload, Reload, and Purge become available.  If 'All Others' reasons is chosen then those options aren't required.
 #  Added option for pauses in a 'One at a Time' print.  Pauses can be at different layers in different parts.  All pause layers must be listed (use the Cura Preview layer numbers).  Simply telling it to pause at 'Layer:5' will only result in a pause at the first layer:5 encountered.  Models can be skipped, or have pauses at different layers than other models, and some models could be entirely different colors or material.
+#  Added multiple messages if multiple pause layers are used in a single instance of the script. If pause layers are '23,31,45,110' then messages can be 'Blue,Red,Whte,Blue'.
 
 from ..Script import Script
 import re
@@ -265,7 +266,7 @@ class PauseAtLayer(Script):
                 "display_text":
                 {
                     "label": "Message to LCD",
-                    "description": "Text that should appear on the display while paused. If left empty, there will not be any message.  Please note:  It is possible that the message will be immediately overridden by another message sent by the firmware.  If 'M0 w/message' is chosen as the pause command then the message is added to the pause command.",
+                    "description": "Text that should appear on the display while paused. If left empty, there will not be any message.  Please note:  It is possible that the message will be immediately overridden by another message sent by the firmware.  If 'M0 w/message' is chosen as the pause command then the message is added to the pause command. You may have as many messages as pauses.  Delimit with a comma",
                     "type": "str",
                     "default_value": "",
                     "enabled": "enable_pause_at_layer and pause_method != 'repetier'"
@@ -359,7 +360,7 @@ class PauseAtLayer(Script):
         mycura = Application.getInstance().getGlobalContainerStack()
         if mycura is None or self._instance is None:
             return
-
+            
         for key in ["machine_name", "machine_gcode_flavor"]:
             self._instance.setProperty(key, "value", mycura.getProperty(key, "value"))
         extruder = mycura.extruderList
@@ -390,9 +391,15 @@ class PauseAtLayer(Script):
         if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
             data = self._renumber_layers(data, "renum")
         pause_layer_setting = str(self.getSettingValueByKey("pause_layer"))
+        display_text = str(self.getSettingValueByKey("display_text"))
         pause_layer_list = pause_layer_setting.split(",")
-        for pause_layer in pause_layer_list:
-            data = self._find_pause(data, int(pause_layer.strip()))
+        display_text_list = display_text.split(",")
+        for index, pause_layer in enumerate(pause_layer_list):
+            try:
+                txt_msg = display_text_list[index]
+            except:
+                txt_msg = display_text_list[len(display_text_list) - 1]                
+            data = self._find_pause(data, int(pause_layer.strip()), txt_msg.strip())
         if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
             data = self._renumber_layers(data, "un_renum")
         return data
@@ -408,7 +415,7 @@ class PauseAtLayer(Script):
                     return x, y
         return 0, 0
 
-    def _find_pause(self, new_data: [str], pause_layer: int) -> [str]:
+    def _find_pause(self, new_data: [str], pause_layer: int, txt_msg: str) -> [str]:
         mycura = Application.getInstance().getGlobalContainerStack()
         extruder = mycura.extruderList
         speed_z_hop = extruder[0].getProperty("speed_z_hop", "value") * 60
@@ -449,7 +456,7 @@ class PauseAtLayer(Script):
         firmware_retract = Application.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value")
         control_temperatures = Application.getInstance().getGlobalContainerStack().getProperty("machine_nozzle_temp_enabled", "value")
         initial_layer_height = Application.getInstance().getGlobalContainerStack().getProperty("layer_height_0", "value")
-        display_text = self.getSettingValueByKey("display_text")
+        display_text = txt_msg #self.getSettingValueByKey("display_text")
         ## Capitalize the command letter of any added commands.  Some firmware doesn't acknowledge lower case commands.
         gcode_before = self.getSettingValueByKey("custom_gcode_before_pause")
         if gcode_before != "":
@@ -478,7 +485,7 @@ class PauseAtLayer(Script):
         else:
             custom_pause_command = ""
         pause_command = {
-            "marlin": "M0 " + display_text + " Click to resume",
+            "marlin": "M0 " + txt_msg + " Click to resume",
             "marlin2": "M0",
             "griffin": self.putValue(M = 0),
             "bq": self.putValue(M = 25),
@@ -645,7 +652,7 @@ class PauseAtLayer(Script):
                         prepend_gcode += self.putValue(M = 104, S = standby_temperature) + "; Standby temperature\n"
 
                 if display_text:
-                    prepend_gcode += "M117 " + display_text + "; Message to LCD\n"
+                    prepend_gcode += "M117 " + txt_msg + "; Message to LCD\n"
 
                 ## Set the disarm timeout
                 if pause_method != "griffin":
@@ -659,7 +666,10 @@ class PauseAtLayer(Script):
                 ## Set a custom GCODE section before pause
                 if gcode_before:
                     prepend_gcode += gcode_before + "\n"
-
+                    
+                if txt_msg:
+                    prepend_gcode += "M118 " + str(txt_msg) + " ; Message to print server\n"
+                    
                 ## Wait till the user continues printing
                 prepend_gcode += pause_command + "; Do the actual pause\n"
 

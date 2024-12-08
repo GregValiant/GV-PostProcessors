@@ -6,7 +6,7 @@
 #    M203 E6.24
 # This script is compatible with both Absolute and Relative Extrusion and/or Firmware Retraction and both 1.75 and 2.85 diameter filament.
 # Settings retreived from Cura are always for Extruder 1 (T0).
-# Added Jerk adjustment
+# Added E Jerk adjustment
 
 import re
 from ..Script import Script
@@ -41,7 +41,7 @@ class MaxVolumetricSpeed(Script):
                 },
                 "max_E_flow_rate":
                 {
-                    "label": "Max E Flow Rate",
+                    "label": "    Max E Flow Rate",
                     "description": "The maximum flow rate that your printer works well at.  At every retraction or prime in the file the 'Max E Speed' will be adjusted upward for the retraction or prime and then back down for the printing extrusions.  The formula used is 'Max Flow Rate' divided by 'Filament Cross Section Area'.",
                     "type": "float",
                     "default_value": 12,
@@ -50,7 +50,7 @@ class MaxVolumetricSpeed(Script):
                 },
                 "use_units":
                 {
-                    "label": "The units to use in M203",
+                    "label": "    The units to use in M203",
                     "description": "Most firmwares (Ex: Marlin) use mm/second for the M203 Max Speeds.  RepRap might use mm/minute.",
                     "type": "enum",
                     "options": {
@@ -69,7 +69,7 @@ class MaxVolumetricSpeed(Script):
                 },
                 "max_e_jerk":
                 {
-                    "label": "Max E Jerk",
+                    "label": "    Max E Jerk",
                     "description": "This will adjust the Jerk before retract/prime and then reset it after.  The reset is 'Print Jerk' from Cura.",
                     "type": "int",
                     "unit": "mm/sec  ",
@@ -133,5 +133,6 @@ class MaxVolumetricSpeed(Script):
                     lines[index] = replacement_before + line + replacement_after
             data[num] = "\n".join(lines)
         # Reset the E speed at the end of the print
-        data[len(data)-1] = "M203 E" + str(speed_e_reset) + " ; Reset max E speed\n" + data[len(data)-1]
+        if enable_volumetric:
+            data[len(data)-1] = "M203 E" + str(speed_e_reset) + " ; Reset max E speed\n" + data[len(data)-1]
         return data

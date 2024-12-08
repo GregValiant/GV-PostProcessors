@@ -143,7 +143,7 @@ class AnnealingOrDrying(Script):
                 },
                 "park_head":
                 {
-                    "label": "Park at MaxY and MaxX",
+                    "label": "Park at MaxX and MaxY",
                     "description": "When unchecked, the park position is X0 Y0.  Enable this setting to move the nozzle to the Max X and Max Y to allow access to the print.",
                     "type": "bool",
                     "default_value": false,
@@ -223,10 +223,10 @@ class AnnealingOrDrying(Script):
         # Park Head
         max_y = str(curaApp.getProperty("machine_depth", "value"))
         max_x = str(curaApp.getProperty("machine_width", "value"))
-        # Max_z is limited to machine_height - 20 just so the print head doesn't smack into anything.
+        # Max_z is limited to 'machine_height - 20' just so the print head doesn't smack into anything.
         max_z = str(int(curaApp.getProperty("machine_height", "value")) - 20)
         extruder = curaApp.extruderList
-        speed_travel = str(round(extruder[0].getProperty("speed_travel", "value")*60, 2))
+        speed_travel = str(round(extruder[0].getProperty("speed_travel", "value")*60))
         park_xy = bool(self.getSettingValueByKey("park_head"))
         park_z = bool(self.getSettingValueByKey("park_max_z"))
         cycle_type = self.getSettingValueByKey("cycle_type")
@@ -243,11 +243,13 @@ class AnnealingOrDrying(Script):
         time_span = int(float(self.getSettingValueByKey("time_span")) * 3600)
         park_string = ""
         if park_xy and not park_z:
-            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} ;Park XY\nM18 X Y E ;Disable steppers except Z\n"
+            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} ; Park XY\nM84 X Y E ; Disable steppers except Z\n"
         elif park_xy and park_z:
-            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} ;Park XY\nG0 Z{max_z} ;Raise Z to max - 20\nM18 X Y E ;Disable steppers except Z\n"
+            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} ; Park XY\nG0 Z{max_z} ; Raise Z to 'ZMax - 20'\nM84 X Y E ; Disable steppers except Z\n"
         elif not park_xy and park_z:
-            park_string = f"G0 F{speed_travel} Z{max_z} ;Raise Z to max - 10\nM18 X Y E ;Disable steppers except Z\n"
+            park_string = f"G0 F{speed_travel} Z{max_z} ; Raise Z to 'ZMax - 20'\nM84 X Y E ; Disable steppers except Z\n"
+        elif not park_xy and not park_z:
+            park_string = f"G91 ; Relative movement\nG0 F{speed_travel} Z5 ; Raise Z\nG90 ; Absolute movement\nG0 X0 Y0 ; Park\nM84 X Y E ; Disable steppers except Z\n"
 
         # Calculate the temperature differential
         hysteresis = bed_temperature - lowest_temp
@@ -258,34 +260,40 @@ class AnnealingOrDrying(Script):
             Message(title = "Anneal or Dry Filament", text = "Did not run because the Bed Temp < Shutoff Temp.").show()
             return anneal_data
 
-        # Drop the bed temperature in 3° increments.  We only want integers.
+        # Drop the bed temperature in 3° increments.
         num_steps = int(hysteresis / 3)
         step_index = 2
         deg_per_step = int(hysteresis / num_steps)
         time_per_step = int(time_span / num_steps)
-        step_down = bed_temperature - deg_per_step
+        step_down = bed_temperature
         wait_time = int(float(self.getSettingValueByKey("wait_time")) * 3600)          
 
         # Put the first lines of the anneal string together
-        anneal_string = ";TYPE:CUSTOM: Anneal or Dry Filament\n"
+        anneal_string = ";\n;TYPE:CUSTOM Anneal Print\n"
         if add_messages:
             anneal_string += "M117 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
-            anneal_string += "M118 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n" + park_string
+            anneal_string += "M118 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
         if wait_time > 0:
+            # Move the head before the M190
+            anneal_string += park_string
             if anneal_type == "bed_only":
-                anneal_string += f"M190 S{bed_temperature}\n"
+                anneal_string += f"M190 S{bed_temperature} ; Set the bed temp\n"
             if anneal_type == "bed_chamber":
-                anneal_string += f"M190 S{bed_temperature}\nM141 S{chamber_temp}\n"
-            anneal_string += f"G4 S{wait_time}\n"
-        anneal_string += f"M140 S{step_down}\nG4 S{time_per_step}\n"
+                anneal_string += f"M190 S{bed_temperature} ; Set the bed temp\nM141 S{chamber_temp} ; Set the chamber temp\n"
+            anneal_string += f"G4 S{wait_time} ; Hold for {round(wait_time / 3600,2)} hrs\n"        
+        else:
+            # Move the head after the M140
+            anneal_string += f"M140 S{step_down} ; Set bed temp\n"
+            anneal_string += park_string
+            anneal_string += f"G4 S{time_per_step} ; wait time in seconds\n"
         step_down -= deg_per_step
 
-        # Step the bed/chamber temps down and add each step to the anneal string.  The chamber remains at temperature until the bed gets down to that temperature.
+        # Step the bed/chamber temps down and add each step to the anneal string.  The chamber remains at it's temperature until the bed gets down to that temperature.
         for num in range(bed_temperature, lowest_temp, -3):
-            anneal_string += f"M140 S{step_down}\n"
+            anneal_string += f"M140 S{step_down} ; Step down\n"
             if anneal_type == "bed_chamber" and int(step_down) < int(chamber_temp):
                 anneal_string += f"M141 S{step_down}\n"
-            anneal_string += f"G4 S{time_per_step}\n"
+            anneal_string += f"G4 S{time_per_step} ; Wait\n"
             time_remaining = round((time_span-(step_index*time_per_step))/3600,2)
             if time_remaining >= 1.00:
                 if add_messages:
@@ -301,20 +309,31 @@ class AnnealingOrDrying(Script):
             if step_down < lowest_temp:
                 break
 
-        # Maybe add the Beep line
+        # Beep line
         if bool(self.getSettingValueByKey("beep_when_done")):
             beep_string = "M300 S440 P" + str(self.getSettingValueByKey("beep_duration")) + " ; Beep\n"
         else:
             beep_string = ""
             
         # Close out the anneal string
-        anneal_string += "M140 S0 ;Shut off the bed heater" + "\n"
+        anneal_string += "M140 S0 ; Shut off the bed heater" + "\n"
         if anneal_type == "bed_chamber":
-            anneal_string += "M141 S0 ;Shut off the chamber heater\n"
+            anneal_string += "M141 S0 ; Shut off the chamber heater\n"
         anneal_string += beep_string
         if add_messages:
             anneal_string += "M117 CoolDown Complete\n"
             anneal_string += "M118 CoolDown Complete\n;TYPE:CUSTOM End of Cool Down\n"
+        anneal_string += "; Anneal End\n;"
+        
+        # Format
+        anneal_lines = anneal_string.split("\n")
+        for index, line in enumerate(anneal_lines):
+            if not line.startswith(";") and ";" in line:
+                front_txt = anneal_lines[index].split(";")[0]
+                back_txt = anneal_lines[index].split(";")[1]
+                anneal_lines[index] = front_txt + str(" " * (30 - len(front_txt))) +";" +  back_txt
+        anneal_string = "\n".join(anneal_lines) + "\n"        
+        
         layer = anneal_data[len(anneal_data)-1]
         lines = layer.split("\n")
 
@@ -333,21 +352,22 @@ class AnnealingOrDrying(Script):
 
         # If park head is enabled then dont let the steppers disable until the head is parked
         disable_string = ""
-        if bool(self.getSettingValueByKey("park_head")) or bool(self.getSettingValueByKey("park_max_z")):
-            for num in range(0,len(lines)-1,1):
-                if lines[num].startswith("M84") or lines[num].startswith("M18"):
-                    disable_string = lines[num] + "\n"
-                    stepper_timeout = int(wait_time + time_span)
-                    if stepper_timeout > 14400: stepper_timeout = 14400
-                    lines[num] = ";" + lines[num] + " ; Overide - Anneal or Dry Filament"
-                    lines.insert(num, "M84 S" + str(stepper_timeout) + " ; Increase stepper timeout - Anneal or Dry Filament")
-                    anneal_data[len(anneal_data)-1] = "\n".join(lines)
-                    break
-        # The Anneal string is the new end of the gcode so move the 'End of Gcode' comment line in case there are other posts running
-        anneal_data[len(anneal_data)-1] = anneal_data[len(anneal_data)-1].replace(";End of Gcode", anneal_string + disable_string + ";End of Gcode")
+        for num in range(0,len(lines)-1,1):
+            if lines[num][:3] in ("M84", "M18"):
+                disable_string = lines[num] + "\n"
+                stepper_timeout = int(wait_time + time_span)
+                if stepper_timeout > 14400: stepper_timeout = 14400
+                lines[num] = ";" + lines[num] + " ; Overide - Anneal or Dry Filament"
+                lines.insert(num, "M84 S" + str(stepper_timeout) + " ; Increase stepper timeout - Anneal or Dry Filament")
+                anneal_data[len(anneal_data)-1] = "\n".join(lines)
+                break
+                
+        # The Anneal string is the new end of the gcode so move the 'End of Gcode' comment line in case there are other scripts running
+        anneal_data[len(anneal_data)-1] = anneal_data[len(anneal_data)-1].replace(";End of Gcode", anneal_string + disable_string + ";End of Gcode")        
         return anneal_data
 
     def _dry_filament_only(self, drydata: str, anneal_type: str, heated_chamber: bool, chamber_temp: int, bed_temperature: int, max_z:str, max_y:str, speed_travel: str) -> str:
+        # This script turns the bed on, homes the printer, parks the head.  After the time period the bed is turned off.  There is no actual print in the generated gcode
         for num in range(2, len(drydata)):
             drydata[num] = ""
         drydata[0] = drydata[0].split("\n")[0] + "\n"
@@ -356,8 +376,6 @@ class AnnealingOrDrying(Script):
         if pause_cmd != "":
             pause_cmd = "M300 ; Beep\n" + pause_cmd
         dry_time = self.getSettingValueByKey("dry_time") * 3600
-        #extruder = Application.getInstance().getGlobalContainerStack().extruderList
-        #speed_travel = str(extruder[0].getProperty("speed_travel", "value") * 60)
         lines = drydata[1].split("\n")
         drying_string = lines[0] + "\n" + ";............TYPE:CUSTOM: Dry Filament\n"
         if add_messages:
@@ -374,7 +392,7 @@ class AnnealingOrDrying(Script):
         if pause_cmd != "":
             drying_string += pause_cmd + " ; Pause\n"
         drying_string += "G28 ; Auto-Home\n"
-        drying_string += f"G0 F{speed_travel} Z{max_z} ; Raise print head\n"
+        drying_string += f"G0 F{speed_travel} Z{max_z} ; Raise Z to 'ZMax - 20'\n"
         drying_string += f"G0 F{speed_travel} X0 Y{max_y} ; Park print head\n"
         if dry_time <= 3600:
             if add_messages:
@@ -406,6 +424,7 @@ class AnnealingOrDrying(Script):
             drying_string += "M118 End of drying cycle ; Message\n"
         drying_string += "M84 X Y E ; Disable steppers except Z\n"
         drying_string += ";End of Gcode"
+        
         # Format
         lines = drying_string.split("\n")
         for index, line in enumerate(lines):
@@ -414,9 +433,10 @@ class AnnealingOrDrying(Script):
                 back_txt = lines[index].split(";")[1]
                 lines[index] = front_txt + str(" " * (30 - len(front_txt))) +";" +  back_txt
         drydata[1] = "\n".join(lines) + "\n"
-        dry_txt = "Drying time ...................... " + str(self.getSettingValueByKey("dry_time")) + " hrs\n"
-        dry_txt += "Drying temperature ........ " + str(bed_temperature) + "°\n"
+        dry_txt = "; Drying time ...................... " + str(self.getSettingValueByKey("dry_time")) + " hrs\n"
+        dry_txt += "; Drying temperature ........ " + str(bed_temperature) + "°\n"
         if heated_chamber and anneal_type == "bed_chamber":
-            dry_txt += "Chamber temperature ... " + str(chamber_temp) + "°"
+            dry_txt += "; Chamber temperature ... " + str(chamber_temp) + "°\n"
         Message(title = "[Dry Filament]", text = dry_txt).show()
+        drydata[0] = "; <<< This is a filament drying file only. There is no actual print. >>>\n;\n" + dry_txt + ";\n"
         return drydata

@@ -723,7 +723,7 @@ class AddCuraSettings(Script):
                     setting_data += ";Minimum Height To Model: " + str(extruder[support_infill_extruder_nr].getProperty("support_tree_min_height_to_model", "value")) + "°\n"
                     setting_data += ";Initial Layer Diameter: " + str(extruder[support_infill_extruder_nr].getProperty("support_tree_bp_diameter", "value")) + " mm\n"
                     setting_data += ";Branch Density: " + str(extruder[support_infill_extruder_nr].getProperty("support_tree_top_rate", "value")) + " %\n"
-                    setting_data += ";Tip Diameter: " + str(extruder[support_infill_extruder_nr].getProperty("support_tree_tip_diameter", "value")) + " mm\n"
+                    setting_data += ";Tip Diameter: " + str(round(extruder[support_infill_extruder_nr].getProperty("support_tree_tip_diameter", "value"), 2)) + " mm\n"
                     setting_data += ";Limit Branch Reach: " + str(curaApp.getProperty("support_tree_limit_branch_reach", "value")) + " mm\n"
                     setting_data += ";Optimal Branch Range: " + str(curaApp.getProperty("support_tree_branch_reach_limit", "value")) + " mm\n"
                     setting_data += ";Rest Preference: " + str(curaApp.getProperty("support_tree_rest_preference", "value")) + " mm\n"
