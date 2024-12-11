@@ -1,13 +1,12 @@
 # August 2024 - GregValiant (Greg Foresi)
 #
-#  NOTE: You may have purge lines in your startup, or you may use this script, you should not do both.
-# 'Add Purge Lines to StartUp' Allows the user to determine where the purge lines are on the build plate, or to not use purge lines if a print extends to the limits of the build surface.  Any Purge lines currently in the StartUp should be removed before using this script.  There is a wipe move after the purge lines are extruded.
+#  NOTE: You may have purge lines in your startup, or you may use this script, you should not do both.  The script will attempt to comment out existing StartUp purge lines.
+# 'Add Purge Lines to StartUp' Allows the user to determine where the purge lines are on the build plate, or to not use purge lines if a print extends to the limits of the build surface.  Any Purge lines currently in the StartUp should be removed before using this script.
 # The setting 'Purge Line Length' is only avaialble for rectangular beds because I was too lazy to calculate the 45° arcs.
 # 'Move to Start' takes an orthogonal path around the periphery before moving in to the print start location.  It eliminates strings across the print area.
 # 'Adjust Starting E' is a correction in the E location before the skirt/brim starts.  The user can make an adjustment so that the skirt / brim / raft starts where it should.
-# 'Unload' adds code to the ending gcode that will unload the filament from the machine.  The unlaod distance is broken into chunks to avoid overly long E distances.
+# 'Unload' adds code to the Ending Gcode that will unload the filament from the machine.  The unlaod distance is broken into chunks to avoid overly long E distances.
 #  Added extra moves to account for Cura adding a "Travel to Prime Tower" move that can cross the middle of the build surface.
-
 
 from ..Script import Script
 from UM.Application import Application
@@ -33,7 +32,7 @@ class PurgeLinesAndUnload(Script):
         #This is set in 'Add Purge Lines' and is used by 'Move to Start' to indicate which corner the nozzle is in after the purge lines
         self._purge_end_loc = None
         # Set the default E adjustment
-        self._instance.setProperty("adjust_e_loc_to", "value", round(float(self._extruder[0].getProperty("retraction_amount", "value") * -1), 1))
+        self._instance.setProperty("adjust_e_loc_to", "value", -abs(round(float(self._extruder[0].getProperty("retraction_amount", "value")), 1)))
 
     def getSettingDataString(self):
         return """{
@@ -132,17 +131,20 @@ class PurgeLinesAndUnload(Script):
 
     def execute(self, data):
         # Run the selected procedures
-        if self.getSettingValueByKey("add_purge_lines"):
-            self._add_purge_lines(data)
-        if self.getSettingValueByKey("move_to_start"):
-            self._move_to_start(data)
-        if self.getSettingValueByKey("adjust_starting_e"):
-            self._adjust_starting_e(data)
-        if self.getSettingValueByKey("enable_unload"):
-            self._unload_filament(data)
+        # Mapping settings to corresponding methods
+        procedures = {
+            "add_purge_lines": self._add_purge_lines,
+            "move_to_start": self._move_to_start,
+            "adjust_starting_e": self._adjust_starting_e,
+            "enable_unload": self._unload_filament
+        }
+        # Run selected procedures
+        for setting, method in procedures.items():
+            if self.getSettingValueByKey(setting):
+                method(data)
         # Format the startup and ending gcodes
         data[1] = self._format_string(data[1])
-        data[len(data) - 1] = self._format_string(data[len(data) - 1])
+        data[-1] = self._format_string(data[-1])
         return data
 
     # Add Purge Lines to the user defined position on the build plate
@@ -607,9 +609,13 @@ class PurgeLinesAndUnload(Script):
         adjust_amt = self.getSettingValueByKey("adjust_e_loc_to")
         lines = data[1].split("\n")
         lines.reverse()
+        if curaApp.getProperty("machine_firmware_retract", "value"):
+            search_pattern = "G10"
+        else:
+            search_pattern = "G1 F(\d*) E-(\d.*)"
         for index, line in enumerate(lines):
-            if re.search("G1 F(\d*) E-(\d.*)", line) is not None:
-                lines[index] = re.sub("G1 F(\d*) E-(\d.*)", f"G92 E{adjust_amt}", line)
+            if re.search(search_pattern, line):
+                lines[index] = re.sub(search_pattern, f"G92 E{adjust_amt}", line)
                 lines.reverse()
                 data[1] = "\n".join(lines)
                 break
@@ -696,7 +702,7 @@ class PurgeLinesAndUnload(Script):
                 adj_lines = f"G0 F{travel_speed} X{min_x} ; Move to edge\nG0 F600 Z0 ; nail down the string\nG0 F600 Z2 ; move up\n"
         return adj_lines
 
-    # Determine that quadrant that the prime tower rests in so the adjustments can be calculated
+    # Determine the quadrant that the prime tower rests in so the adjustments can be calculated
     def _prime_tower_quadrant(self, prime_tower_x, prime_tower_y, bed_shape, origin_at_center, machine_width, machine_depth):
         if not origin_at_center:
             midpoint_x = machine_width / 2
@@ -722,7 +728,7 @@ class PurgeLinesAndUnload(Script):
             prime_tower_location = "LR"
         return prime_tower_location
 
-    # For some multi-extruder printers.  Take into account a 'Move to Prime Tower' if there is one.
+    # For some multi-extruder printers.  Takes into account a 'Move to Prime Tower' if there is one and adds orthononal travel moves to get there.
     def _move_to_prime_tower(self, startup_gcode: str, bed_shape: str, origin_at_center: bool, machine_width: int, machine_depth: int, travel_speed: int):
         adjustment_lines = ""
         curaApp = Application.getInstance().getGlobalContainerStack()

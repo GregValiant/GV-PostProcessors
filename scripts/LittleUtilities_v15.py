@@ -667,7 +667,7 @@ class LittleUtilities_v15(Script):
         if bool(extruder[0].getProperty("retraction_enable", "value")):
             self._final_lay_adj = 3
         else:
-            self._final_lay_adj = 2
+            self._final_lay_adj = 2            
         if  self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("add_extruder_end"):
             self._add_extruder_end(data)
         if self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("final_z"):

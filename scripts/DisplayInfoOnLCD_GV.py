@@ -309,18 +309,22 @@ class DisplayInfoOnLCD_GV(Script):
     # Display Progress (from 'Show Progress' and 'Display Progress on LCD')---------------------------------------
         elif display_option == "display_progress":
             print_sequence = Application.getInstance().getGlobalContainerStack().getProperty("print_sequence", "value")
-            ## Add the Initial Layer Height just below Layer Height in data[0]
+            # Add the Initial Layer Height just below Layer Height in data[0]
+            extruder_count = Application.getInstance().getGlobalContainerStack().getProperty("machine_extruder_count", "value")
             init_layer_hgt_line = ";Initial Layer Height: " + str(Application.getInstance().getGlobalContainerStack().getProperty("layer_height_0", "value"))
             nozzle_size_line = ";Nozzle Size T0: " + str(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value"))            
-            filament_type = str(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("material_type", "value"))
+            filament_type = "\n;Filament type for T0: " + str(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("material_type", "value"))
+            if extruder_count > 1:
+                nozzle_size_line += "\n;Nozzle Size T1: " + str(Application.getInstance().getGlobalContainerStack().extruderList[1].getProperty("machine_nozzle_size", "value"))
+                filament_type += "\n;Filament type for T1: " + str(Application.getInstance().getGlobalContainerStack().extruderList[1].getProperty("material_type", "value"))
             lines = data[0].split("\n")
             for index, line in enumerate(lines):
                 if line.startswith(";Layer height:"):
                     lines[index] += "\n" + init_layer_hgt_line + "\n" + nozzle_size_line
                 if line.startswith(";Filament used"):
-                    lines[index] += "\n;Filament type for T0: " + filament_type
+                    lines[index] += filament_type
             data[0] = "\n".join(lines)
-            ## Get settings
+            # Get settings
             display_total_layers = self.getSettingValueByKey("display_total_layers")
             display_remaining_time = self.getSettingValueByKey("display_remaining_time")
             speed_factor = self.getSettingValueByKey("speed_factor") / 100
@@ -333,13 +337,13 @@ class DisplayInfoOnLCD_GV(Script):
             if add_m73_line:
                 data[1] = "M75\n" + data[1]
                 data[len(data)-1] += "M77\n"
-            ## Initialize some variables
+            # Initialize some variables
             first_layer_index = 0
             time_total = int(data[0].split(";TIME:")[1].split("\n")[0])
             number_of_layers = 0
             time_elapsed = 0
 
-            ## If at least one of the settings is disabled, there is enough room on the display to display "layer"
+            # If at least one of the settings is disabled, there is enough room on the display to display "layer"
             first_section = data[0]
             lines = first_section.split("\n")
             for line in lines:
@@ -355,7 +359,7 @@ class DisplayInfoOnLCD_GV(Script):
                     orig_mmm = math.floor((orig_hhh % 1) * 60)
                     if add_m118_line: lines.insert(tindex + 6,"M118 Adjusted Print Time " + str(hr) + "hr " + str(mmm) + "min")
                     if add_m117_line: lines.insert(tindex + 6,"M117 ET " + str(hr) + "hr " + str(mmm) + "min")
-                    ## Add M73 line at beginning
+                    # Add M73 line at beginning
                     mins = int(60 * hr + mmm)   
                     if add_m73_line and (add_m73_time or add_m73_percent):
                         if m73_time:
@@ -380,7 +384,7 @@ class DisplayInfoOnLCD_GV(Script):
                                 if pause_cmd[q] in data[num]:
                                     pause_count += data[num].count(pause_cmd[q], 0, len(data[num]))
                         pause_str = f" with {pause_count} pause(s)"
-                    ## This line goes in to convert seconds to hours and minutes
+                    # This line goes in to convert seconds to hours and minutes
                     lines.insert(tindex + 1, f";Cura Time Estimate: {orig_hr}hr {orig_mmm}min {pause_str}")
                     data[0] = "\n".join(lines)
                     if add_m117_line:
