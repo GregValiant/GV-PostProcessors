@@ -25,6 +25,8 @@ ZhopOnTravel can now add retractions when they are necessary.
 
 MaxVolumetricSpeed (Max E Speed by Flow Rate) is new and there is a pull request in for it. 
 
+PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machines with disallowed areas.  Added moves when a multi-extruder printer travels to the purge tower at the beginning of a print.
+
 -----------------------------------------------------------------------------
 Here is a list of the post-processors and a brief description of what they do.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
@@ -90,7 +92,8 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 	Other settings are:
 	'Adjust the E location' prior to the start of the print.  The filament start of the skirt/brim can be dialed in.
 	'Circle around to start'.  Adds orthogonal travel moves around the build plate periphery to the layer start point to keep strings from crossing where the print will be.  A change in Cura for multi-extruder printers is to add a move to the prime tower location before the print starts.  I need to think about that because it affects the pre-print movements of this script.
-	'Unload FIlament' will unload the filament from the extruder at the end of a print.	
+	'Unload FIlament' will unload the filament from the extruder at the end of a print.
+	For multi-extruder printers:  If the definition file includes a 'Move to Prime Tower" before the start of the first layer then the script will add an orthogonal move to the nearest edge so the nozzle does not cross the print area.  This is not an option, but something that always runs.
 
 **Raise3DIDEX:**
 	Does for the Raise3D IDEX machines what the other post does for the Flash Forge IDEX machines.
