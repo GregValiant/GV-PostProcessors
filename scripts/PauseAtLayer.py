@@ -106,6 +106,14 @@ class PauseAtLayer(Script):
                     "default_value": 0,
                     "enabled": "enable_pause_at_layer and pause_method != 'griffin' and reason_for_pause == 'reason_filament'"
                 },
+                "enable_quick_purge":
+                {
+                    "label": "    Quick purge before unload",
+                    "description": "This can insure that the filament will unload by softening the tip so it can do the long retraction.  This purge is fixed length and will be 'retraction distance x 2'",
+                    "type": "bool",
+                    "default_value": true,
+                    "enabled": "enable_pause_at_layer and pause_method != 'griffin' and reason_for_pause == 'reason_filament' and unload_amount > 0"
+                },
                 "unload_reload_speed":
                 {
                     "label": "     Unload and Reload Speed",
@@ -229,7 +237,7 @@ class PauseAtLayer(Script):
                 },
                 "tool_temp_overide_enable":
                 {
-                    "label": "Temp Overide Enable",
+                    "label": "Hidden setting Temp Overide Enable",
                     "description": "Enable tool changes to overide the print temperature.",
                     "type": "bool",
                     "default_value": false,
@@ -353,31 +361,31 @@ class PauseAtLayer(Script):
             }
         }"""
 
-    ##  Get the machine name and gcode flavor so we can use their value in the script stack
+    #  Get the machine name and gcode flavor so we can use their value in the script stack
     def initialize(self) -> None:
         super().initialize()
-        ## Set up some defaults when loading.
-        mycura = Application.getInstance().getGlobalContainerStack()
-        if mycura is None or self._instance is None:
+        # Set up some defaults when loading.
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        if curaApp is None or self._instance is None:
             return
             
         for key in ["machine_name", "machine_gcode_flavor"]:
-            self._instance.setProperty(key, "value", mycura.getProperty(key, "value"))
-        extruder = mycura.extruderList
-        machine_extruder_count = int(mycura.getProperty("machine_extruder_count", "value"))
+            self._instance.setProperty(key, "value", curaApp.getProperty(key, "value"))
+        extruder = curaApp.extruderList
+        machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
         self._instance.setProperty("tool_temp_overide_enable", "value", machine_extruder_count > 1)
         self._instance.setProperty("tool_temp_overide", "value", machine_extruder_count > 1)
         standby_temperature = extruder[0].getProperty("material_print_temperature", "value")
         self._instance.setProperty("standby_temperature", "value", standby_temperature)
         resume_print_temperature = extruder[0].getProperty("material_print_temperature", "value")
         self._instance.setProperty("resume_print_temperature", "value", resume_print_temperature)
-        unload_reload_speed = int(mycura.getProperty("machine_max_feedrate_e", "value"))
-        ## If Cura has the max E speed at 299792458000 knock it down to something reasonable
+        unload_reload_speed = int(curaApp.getProperty("machine_max_feedrate_e", "value"))
+        # If Cura has the max E speed at 299792458000 knock it down to something reasonable
         if unload_reload_speed > 100: unload_reload_speed = 100
         self._instance.setProperty("unload_reload_speed", "value", unload_reload_speed)
-        self._machine_width = int(mycura.getProperty("machine_width", "value"))
-        self._machine_depth = int(mycura.getProperty("machine_depth", "value"))
-        self._machine_height = int(mycura.getProperty("machine_height", "value"))
+        self._machine_width = int(curaApp.getProperty("machine_width", "value"))
+        self._machine_depth = int(curaApp.getProperty("machine_depth", "value"))
+        self._machine_height = int(curaApp.getProperty("machine_height", "value"))
         self._instance.setProperty("head_park_x", "maximum_value", self._machine_width)
         self._instance.setProperty("head_park_y", "maximum_value", self._machine_depth)
 
@@ -385,8 +393,8 @@ class PauseAtLayer(Script):
         if not self.getSettingValueByKey("enable_pause_at_layer"):
             data[0] += ";    [Pause At Layer] Not enabled\n"
             return data
-        mycura = Application.getInstance().getGlobalContainerStack()
-        one_at_a_time = mycura.getProperty("print_sequence", "value")
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        one_at_a_time = curaApp.getProperty("print_sequence", "value")
         one_at_a_time_renum = bool(self.getSettingValueByKey("one_at_a_time_renum"))
         if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
             data = self._renumber_layers(data, "renum")
@@ -404,7 +412,7 @@ class PauseAtLayer(Script):
             data = self._renumber_layers(data, "un_renum")
         return data
 
-    ##  Get the X and Y values for a layer (will be used to get X and Y of the layer after the pause and of the 'redo' layer if that option is used).
+    #  Get the X and Y values for a layer (will be used to get X and Y of the layer after the pause and of the 'redo' layer if that option is used).
     def getNextXY(self, layer: str) -> Tuple[float, float]:
         lines = layer.split("\n")
         for line in lines:
@@ -416,8 +424,8 @@ class PauseAtLayer(Script):
         return 0, 0
 
     def _find_pause(self, new_data: [str], pause_layer: int, txt_msg: str) -> [str]:
-        mycura = Application.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
         speed_z_hop = extruder[0].getProperty("speed_z_hop", "value") * 60
         retraction_amount = extruder[0].getProperty("retraction_amount", "value")
         retraction_retract_speed = int(extruder[0].getProperty("retraction_retract_speed", "value")) * 60
@@ -428,13 +436,14 @@ class PauseAtLayer(Script):
         disarm_timeout = self.getSettingValueByKey("disarm_timeout") * 60
         reason_for_pause = self.getSettingValueByKey("reason_for_pause")
         unload_amount = self.getSettingValueByKey("unload_amount")
+        unload_quick_purge = self.getSettingValueByKey("enable_quick_purge")
         unload_reload_speed = int(self.getSettingValueByKey("unload_reload_speed")) * 60
         reload_amount = self.getSettingValueByKey("reload_amount")
         purge_amount = self.getSettingValueByKey("purge_amount")
         extra_prime_amount = self.getSettingValueByKey("extra_prime_amount")
         if reason_for_pause == "reason_filament":
             extra_prime_amount = "0"
-        purge_speed = round(nozzle_size * 500) ## calculate the purge speed based on the nozzle size.  A 0.4 will be 200 and a 0.8 will be 400 mm/min.
+        purge_speed = round(nozzle_size * 500) # calculate the purge speed based on the nozzle size.  A 0.4 will be 200 and a 0.8 will be 400 mm/min.
         park_enabled = self.getSettingValueByKey("head_park_enabled")
         park_x = self.getSettingValueByKey("head_park_x") if self.getSettingValueByKey("head_park_x") < self._machine_depth else self._machine_depth
         park_y = self.getSettingValueByKey("head_park_y") if self.getSettingValueByKey("head_park_y") < self._machine_width else self._machine_width
@@ -457,7 +466,7 @@ class PauseAtLayer(Script):
         control_temperatures = Application.getInstance().getGlobalContainerStack().getProperty("machine_nozzle_temp_enabled", "value")
         initial_layer_height = Application.getInstance().getGlobalContainerStack().getProperty("layer_height_0", "value")
         display_text = txt_msg #self.getSettingValueByKey("display_text")
-        ## Capitalize the command letter of any added commands.  Some firmware doesn't acknowledge lower case commands.
+        # Capitalize the command letter of any added commands.  Some firmware doesn't acknowledge lower case commands.
         gcode_before = self.getSettingValueByKey("custom_gcode_before_pause")
         if gcode_before != "":
             if "," in gcode_before:
@@ -497,43 +506,39 @@ class PauseAtLayer(Script):
             "custom": self.putValue(str(custom_pause_command)),
             "g_4": self.putValue(G = 4, S = g4_dwell_time)}[pause_method]
 
-        ## use offset to calculate the current height: <current_height> = <current_z> - <layer_0_z>
+        # use offset to calculate the current height: <current_height> = <current_z> - <layer_0_z>
         layer_0_z = 0
         current_z = 0
         current_height = 0
         current_layer = 0
         current_extrusion_f = 0
         got_first_g_cmd_on_layer_0 = False
-        current_t = 0 ## Tracks the current extruder for tracking the target temperature.
-        target_temperature = {} ## Tracks the current target temperature for each extruder.
+        current_t = 0 # Tracks the current extruder for tracking the target temperature.
+        target_temperature = {} # Tracks the current target temperature for each extruder.
 
         nbr_negative_layers = 0
 
         for index, layer in enumerate(new_data):
             lines = layer.split("\n")
 
-            ## Scroll each line of instruction for each layer in the G-code
+            # Scroll each line of instruction for each layer in the G-code
             for line in lines:
-                ## Fist positive layer reached
+                # Fist positive layer reached
                 if ";LAYER:0" in line:
                     layers_started = True
-                ## Count nbr of negative layers (raft)
+                # Count nbr of negative layers (raft)
                 elif ";LAYER:-" in line:
                     nbr_negative_layers += 1
-
-                ## Track the latest printing temperature in order to resume at the correct temperature.
+                # Track the latest printing temperature in order to resume at the correct temperature.
                 if use_tool_temperature:
                     if line.startswith("M109 S") or line.startswith("M104 S"):
                         resume_print_temperature = self.getValue(line, "S")
-
                 if not layers_started:
                     continue
-
-                ## Look for the feed rate of an extrusion instruction
+                # Look for the feed rate of an extrusion instruction
                 if self.getValue(line, "F") is not None and self.getValue(line, "E") is not None:
                     current_extrusion_f = self.getValue(line, "F")
-
-                ## If a Z instruction is in the line, read the current Z
+                # If a Z instruction is in the line, read the current Z
                 if self.getValue(line, "Z") is not None:
                     current_z = self.getValue(line, "Z")
 
@@ -543,16 +548,15 @@ class PauseAtLayer(Script):
                 try:
                     current_layer = int(current_layer)
 
-                ## Couldn't cast to int. Something is wrong with this g-code data
+                # Couldn't cast to int. Something is wrong with this g-code data
                 except ValueError:
                     continue
                 if current_layer < pause_layer - nbr_negative_layers:
                     continue
 
+                # Access last layer, browse it backwards to find last extruder absolute position check if it is a retraction
                 prev_layer = new_data[index - 1]
                 prev_lines = prev_layer.split("\n")
-
-                ## Access last layer, browse it backwards to find last extruder absolute position check if it is a retraction
                 is_retracted = None
                 current_e = None
                 for prevLine in reversed(prev_lines):
@@ -564,7 +568,7 @@ class PauseAtLayer(Script):
                         if is_retracted is None:
                             is_retracted = False
                         break
-                ## and also find last X,Y
+                # and also find last X,Y
                 for prevLine in reversed(prev_lines):
                     if prevLine.startswith(("G0", "G1", "G2", "G3")):
                         if self.getValue(prevLine, "X") is not None and self.getValue(prevLine, "Y") is not None:
@@ -572,7 +576,7 @@ class PauseAtLayer(Script):
                             y = self.getValue(prevLine, "Y")
                             break
 
-                ## Maybe redo the last layer.
+                # Maybe redo the previous layer.
                 if redo_layer and reason_for_pause == "reason_filament":
                     prev_layer = new_data[index - 1]
                     temp_list = prev_layer.split("\n")
@@ -580,7 +584,7 @@ class PauseAtLayer(Script):
                     prev_layer = "\n".join(temp_list)
                     layer = prev_layer + redo_layer_flow_reset + layer
                     new_data[index] = layer
-                    ## Get the X Y position and the extruder's absolute position at the beginning of the redone layer.
+                    # Get the X Y position and the extruder's absolute position at the beginning of the redone layer.
                     x, y = self.getNextXY(layer)
                     prev_lines = prev_layer.split("\n")
                     for lin in prev_lines:
@@ -595,29 +599,26 @@ class PauseAtLayer(Script):
                             current_e = new_e
                             break
 
-                ## Start putting together the pause string 'prepend_gcode'
+                # Start putting together the pause string 'prepend_gcode'
                 prepend_gcode = f";current layer: {current_layer}\n;TYPE:CUSTOM---------------; Pause at end of preview layer {current_layer} (end of Gcode LAYER:{int(current_layer) - 1})\n"
-
                 if pause_method == "repetier":
-                    ## Retraction
+                    # Retraction
                     prepend_gcode += self.putValue(M = 83) + "; Relative extrusion\n"
                     if not is_retracted:
                         prepend_gcode += self.putValue(G = 1, F = retraction_retract_speed, E = -retraction_amount) + "; Retract\n"
-
                     if park_enabled:
-                        ## Move the head to the park location
+                        # Move the head to the park location
                         if current_z + move_z > self._machine_height:
                             move_z = 0
                         prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = round(current_z + move_z, 2)) + "; Move up to clear the print\n"
                         prepend_gcode += self.putValue(G = 0, X = park_x, Y = park_y, F = travel_speed) + "; Move to park location\n"
                         if current_z < move_z:
                             prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = current_z + move_z) + "; Move up to clear the print\n"
-
-                    ## Disable the E steppers
+                    # Disable the E steppers
                     prepend_gcode += self.putValue(M = 84, E = 0) + "; Disable Steppers\n"
 
                 elif pause_method != "griffin":
-                    ## Retraction
+                    # Retraction
                     prepend_gcode += self.putValue(M = 83) + "; Relative extrusion\n"
                     if not is_retracted:
                         if firmware_retract:
@@ -625,18 +626,24 @@ class PauseAtLayer(Script):
                         else:
                             prepend_gcode += self.putValue(G = 1, F = retraction_retract_speed, E = -retraction_amount) + "; Retract\n"
                     if park_enabled:
-                        ## Move the head to the park position
+                        # Move the head to the park position
                         if current_z + move_z > self._machine_height:
                             move_z = 0
                         prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = round(current_z + move_z, 2)) + "; Move up to clear the print\n"
                         prepend_gcode += self.putValue(G = 0, F = travel_speed, X = park_x, Y = park_y) + "; Move to park location\n"
                         if current_z < min_purge_clearance - move_z:
                             prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = min_purge_clearance) + "; Minimum clearance" + str(" to purge" if purge_amount != 0 and reason_for_pause == 'reason_filament' else "") + " - move up some more\n"
-
+                            
+                    # 'Unload' and 'purge' are only available if there is a filament change.
                     if reason_for_pause == "reason_filament" and int(unload_amount) > 0:
-                        ## If it's a filament change then insert any 'unload' commands
+                        # If it's a filament change then insert any 'unload' commands
                         prepend_gcode += self.putValue(M = 400) + "; Complete all moves\n"
-                        ## Break up the unload distance into chunks of 150mm to avoid any firmware balks for 'too long of an extrusion'
+                        # Break up the unload distance into chunks of 150mm to avoid any firmware balks for 'too long of an extrusion'
+                        if unload_amount > 0:
+                            # The quick purge is meant to soften the filament end to insure it will retract.
+                            if unload_quick_purge:
+                                quick_purge_amt = retraction_amount + 7 if retraction_amount < 2 else retraction_amount * 2.5
+                                prepend_gcode += f"G1 F{purge_speed} E{quick_purge_amt} ; Quick purge before unload\n"
                         if unload_amount > 150:
                             temp_unload = unload_amount
                             while temp_unload > 150:
@@ -647,48 +654,48 @@ class PauseAtLayer(Script):
                         else:
                             prepend_gcode += self.putValue(G = 1, E = -unload_amount, F = int(unload_reload_speed)) + "; Unload\n"
 
+                    # Set extruder standby temperature
                     if control_temperatures:
-                        ## Set extruder standby temperature
                         prepend_gcode += self.putValue(M = 104, S = standby_temperature) + "; Standby temperature\n"
 
                 if display_text:
                     prepend_gcode += "M117 " + txt_msg + "; Message to LCD\n"
 
-                ## Set the disarm timeout
+                # Set the disarm timeout
                 if pause_method != "griffin":
                     if hold_steppers_on and int(disarm_timeout) > 0:
                         prepend_gcode += self.putValue(M = 84, S = disarm_timeout) + "; Keep steppers engaged for " + str(disarm_timeout/60) + " minutes\n"
 
-                ## Beep at pause
+                # Beep at pause
                 if beep_at_pause:
                     prepend_gcode += self.putValue(M = 300, S = 440, P = beep_length) + "; Beep\n"
 
-                ## Set a custom GCODE section before pause
+                # Set a custom GCODE section before pause
                 if gcode_before:
                     prepend_gcode += gcode_before + "\n"
                     
                 if txt_msg:
                     prepend_gcode += "M118 " + str(txt_msg) + " ; Message to print server\n"
                     
-                ## Wait till the user continues printing
+                # Wait till the user continues printing
                 prepend_gcode += pause_command + "; Do the actual pause\n"
 
-                ## Set a custom GCODE section after pause
+                # Set a custom GCODE section after pause
                 if gcode_after:
                     prepend_gcode += gcode_after + "\n"
 
                 if pause_method == "repetier":
-                    ## Optionally extrude material
+                    # Optionally extrude material
                     if int(purge_amount) != 0:
                         prepend_gcode += self.putValue(G = 1, F = purge_speed, E = purge_amount) + "; Extra extrude after the unpause\n"
                         prepend_gcode += self.putValue("     @info wait for cleaning nozzle from previous filament") + "\n"
                         prepend_gcode += self.putValue("     @pause remove the waste filament from parking area and press continue printing") + "\n"
 
-                    ## Retract before moving back to the print.
+                    # Retract before moving back to the print.
                     if purge_amount != 0:
                         prepend_gcode += self.putValue(G = 1, E = -retraction_amount, F = retraction_retract_speed) + ";Retract\n"
 
-                    ## Move the head back to the resume position
+                    # Move the head back to the resume position
                     if park_enabled:
                         prepend_gcode += self.putValue(G = 0, F = travel_speed, X = x, Y = y) + ";Return to print location\n"
                         prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = current_z) + ";Drop down to print height\n"
@@ -706,12 +713,12 @@ class PauseAtLayer(Script):
 
                     prepend_gcode += self.putValue(M = extrusion_mode_numeric) + "; switch back to " + extrusion_mode_string + " E values\n"
 
-                    ## Reset extruder value to pre pause value
+                    # Reset extruder value to pre pause value
                     prepend_gcode += self.putValue(G = 92, E = current_e) + ";Reset extruder\n"
 
                 elif pause_method != "griffin":
                     if control_temperatures:
-                        ## Set extruder resume temperature
+                        # Set extruder resume temperature
                         if resume_temperature_cmd == "m109_cmd" or use_tool_temperature:
                             WFT_numeric = 109
                             Temp_resume_Text = "; Wait for resume temperature\n"
@@ -721,7 +728,7 @@ class PauseAtLayer(Script):
 
                         prepend_gcode += self.putValue(M=WFT_numeric, S=int(resume_print_temperature)) + Temp_resume_Text
 
-                    ## Load and Purge.  Break the load amount in 150mm chunks to avoid 'too long of extrusion' warnings from firmware.
+                    # Load and Purge.  Break the load amount in 150mm chunks to avoid 'too long of extrusion' warnings from firmware.
                     if reason_for_pause == "reason_filament":
                         if int(reload_amount) > 0:
                             if reload_amount * .9 > 150:
@@ -743,26 +750,26 @@ class PauseAtLayer(Script):
                                 prepend_gcode += self.putValue(G = 1, E = -retraction_amount, F = int(retraction_retract_speed)) + "; Retract\n"
                             else:
                                 prepend_gcode += self.putValue(G = 10) + "; Retract\n"
-                            ## If there is a purge then give the user time to grab the string before the head moves back to the print position.
+                            # If there is a purge then give the user time to grab the string before the head moves back to the print position.
                             prepend_gcode += self.putValue(M = 400) + "; Complete all moves\n"
                             prepend_gcode += self.putValue(M = 300, P=250) + "; Beep\n"
                             prepend_gcode += self.putValue(G = 4, S = 2) + "; Wait for 2 seconds\n"
 
-                    ## Move the head back
+                    # Move the head back
                     if park_enabled:
                         prepend_gcode += self.putValue(G = 0, F = travel_speed, X = x, Y = y) + "; Move to resume location\n"
                         prepend_gcode += self.putValue(G = 1, F = speed_z_hop, Z = current_z) + "; Move back down to resume height\n"
 
                     if purge_amount != 0:
                         if firmware_retract and not is_retracted:
-                            retraction_count = 1 if control_temperatures else 3 ## Retract more if we don't control the temperature.
+                            retraction_count = 1 if control_temperatures else 3 # Retract more if we don't control the temperature.
                             for i in range(retraction_count):
                                 prepend_gcode += self.putValue(G = 11) + ";Unretract\n"
                         else:
                             if not is_retracted:
                                 prepend_gcode += self.putValue(G = 1, F = retraction_prime_speed, E = retraction_amount) + "; Unretract\n"
 
-                    ## If the pause is for something like an insertion then there might be an extra prime amount
+                    # If the pause is for something like an insertion then there might be an extra prime amount
                     if extra_prime_amount != "0" and reason_for_pause == "reason_other":
                         prepend_gcode += self.putValue(G = 1, E = extra_prime_amount, F = int(retraction_prime_speed)) + "; Extra Prime\n"
 
@@ -777,12 +784,12 @@ class PauseAtLayer(Script):
                     if not redo_layer:
                         prepend_gcode += self.putValue(M = extrusion_mode_numeric) + "; Switch back to " + extrusion_mode_string + " E values\n"
 
-                    ## Reset extrude value to pre pause value
+                    # Reset extrude value to pre pause value
                         prepend_gcode += self.putValue(G = 92, E = 0 if relative_extrusion else current_e) + "; Reset extruder location\n"
 
                     if redo_layer and reason_for_pause == "reason_filament":
-                        ## All other options reset the E value to what it was before the pause because E things were added.
-                        ## If it's not yet reset, it still needs to be reset if there were any redo layers.
+                        # All other options reset the E value to what it was before the pause because E things were added.
+                        # If it's not yet reset, it still needs to be reset if there were any redo layers.
                         if is_retracted:
                             prepend_gcode += self.putValue(G = 92, E = 0 if relative_extrusion else current_e - retraction_amount) + "; Reset extruder location ~ retracted\n"
                             prepend_gcode += self.putValue(M = extrusion_mode_numeric) + "; Switch back to " + extrusion_mode_string + " E values\n"
@@ -791,14 +798,14 @@ class PauseAtLayer(Script):
                             prepend_gcode += self.putValue(M = extrusion_mode_numeric) + "; Switch back to " + extrusion_mode_string + " E values\n"
                     elif redo_layer and reason_for_pause == "reason_other":
                         prepend_gcode += self.putValue(M = extrusion_mode_numeric) + "; Switch back to " + extrusion_mode_string + " E values\n"
-                ## Format prepend_gcode
+                # Format prepend_gcode
                 prepend_gcode += f";{'-' * 26}; End of the Pause code"
                 temp_lines = prepend_gcode.split("\n")
                 for temp_index, temp_line in enumerate(temp_lines):
                     if ";" in temp_line and not temp_line.startswith(";"):
                         temp_lines[temp_index] = temp_line.replace(temp_line.split(";")[0], temp_line.split(";")[0] + str(" " * (27 - len(temp_line.split(";")[0]))),1)
                 prepend_gcode = "\n".join(temp_lines)
-                ## Insert the Pause Prepend snippet at the end of the previous layer just before "TIME_ELAPSED".
+                # Insert the Pause Prepend snippet at the end of the previous layer just before "TIME_ELAPSED".
                 layer_lines = new_data[index - 1].split("\n")
                 layer_lines.insert(len(layer_lines) - 2, prepend_gcode)
                 new_data[index -1 ] = "\n".join(layer_lines)

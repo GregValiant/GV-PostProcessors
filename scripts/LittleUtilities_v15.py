@@ -59,7 +59,7 @@ class LittleUtilities_v15(Script):
             "metadata": {},
             "version": 2,
             "settings":
-            {                
+            {
                 "enable_little_utilities":
                 {
                     "label": "Enable the scripts",
@@ -667,7 +667,7 @@ class LittleUtilities_v15(Script):
         if bool(extruder[0].getProperty("retraction_enable", "value")):
             self._final_lay_adj = 3
         else:
-            self._final_lay_adj = 2            
+            self._final_lay_adj = 2
         if  self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("add_extruder_end"):
             self._add_extruder_end(data)
         if self.getSettingValueByKey("bug_fixes") and self.getSettingValueByKey("final_z"):
@@ -824,7 +824,7 @@ class LittleUtilities_v15(Script):
                 break
 
         # Concantenate the data list items that were added to the beginning of each separate model
-        
+
         for num in range(layer0_index,len(data) - 2):
             if num + 1 == len(data) - 2: break # Avoid concantenating the Ending Gcode
             try:
@@ -879,7 +879,7 @@ class LittleUtilities_v15(Script):
             for num in range(1,len(data) - 1):
                 if re.search(";LAYER:(\d*)\n", data[num]) is not None:
                     the_count += 1
-                    
+
         if renum_layers == "renum":
             for num in range(1,len(data) - 1):
                 layer = data[num]

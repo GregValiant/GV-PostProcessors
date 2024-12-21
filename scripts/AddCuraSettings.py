@@ -295,16 +295,16 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";G-code Flavor: " + str(curaApp.getProperty("machine_gcode_flavor", "value")) + "\n"
             if complete_set: setting_data += ";Firmware Retraction: " + str(curaApp.getProperty("machine_firmware_retract", "value")) + "\n"
             if machine_extruder_count > 1:
-                setting_data += "; Extruders Share Heater: " + str(curaApp.getProperty("machine_extruders_share_heater", "value")) + "\n"
-                setting_data += "; Extruders Share Nozzle: " + str(curaApp.getProperty("machine_extruders_share_nozzle", "value")) + "\n"
-                setting_data += "; Shared Nozzle Initial Retraction: " + str(curaApp.getProperty("machine_extruders_shared_nozzle_initial_retraction", "value")) + " mm\n"
+                setting_data += ";Extruders Share Heater: " + str(curaApp.getProperty("machine_extruders_share_heater", "value")) + "\n"
+                setting_data += ";Extruders Share Nozzle: " + str(curaApp.getProperty("machine_extruders_share_nozzle", "value")) + "\n"
+                setting_data += ";Shared Nozzle Initial Retraction: " + str(curaApp.getProperty("machine_extruders_shared_nozzle_initial_retraction", "value")) + " mm\n"
             if complete_set:
                 mach_dis_areas = curaApp.getProperty("machine_disallowed_areas", "value")
                 templist = ""
-                for num in range(0,len(mach_dis_areas)-1):
+                for num in range(0,len(mach_dis_areas)):
                     templist += str(mach_dis_areas[num]) + ", "
                 if templist == "": templist = "None"
-                setting_data += ";Disallowed Areas: " + templist + "\n"
+                setting_data += ";Machine Disallowed Areas: " + templist + "\n"
                 nozzle_dis_areas = curaApp.getProperty("nozzle_disallowed_areas", "value")
                 templist = ""
                 for num in range(0,len(nozzle_dis_areas)-1):
@@ -317,8 +317,20 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Nozzle Identifier: " + str(curaApp.getProperty("machine_nozzle_id", "value")) + "\n"
             setting_data += ";Extruder Nozzle Size:\n"
             for num in range(0,machine_extruder_count):
-                setting_data += ";  Extruder " + str(num + 1) + " (T" + str(num) + "): " + str(extruder[num].getProperty("machine_nozzle_size", "value")) + " mm\n"
+                setting_data += ";  Extruder " + str(num + 1) + " (T" + str(num) + "): " + str(extruder[num].getProperty("machine_nozzle_size", "value")) + " mm\n"                
             if complete_set:
+                if machine_extruder_count > 1:
+                    for num in range(0,machine_extruder_count):
+                        setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + ") Move to Prime Tower at Start: \n"
+                        if extruder[num].getProperty("machine_extruder_start_pos_x", "value") != 0 or extruder[num].getProperty("machine_extruder_start_pos_y", "value") != 0:
+                            setting_data += ";  Move to: X" + str(round(extruder[num].getProperty("machine_extruder_start_pos_x", "value"),2)) +  " Y" + str(round(extruder[num].getProperty("machine_extruder_start_pos_y", "value"),2)) + "\n"
+                        else:
+                            setting_data += ";  'Move to' is: False\n"
+                        setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + ") Move to Prime Tower at End: \n"
+                        if extruder[num].getProperty("machine_extruder_end_pos_x", "value") != 0 or extruder[num].getProperty("machine_extruder_end_pos_y", "value") != 0:
+                            setting_data += ";  Move to: X" + str(round(extruder[num].getProperty("machine_extruder_end_pos_x", "value"),2)) +  " Y" + str(round(extruder[num].getProperty("machine_extruder_end_pos_y", "value"),2)) + "\n"
+                        else:
+                            setting_data += ";  'Move to' is: False\n"
                 setting_data += ";Use Extruder Offsets in Gcode: " + str(curaApp.getProperty("machine_use_extruder_offset_to_offset_coords", "value")) + "\n"
                 setting_data += ";Z Position for Extruder Prime: " + str(curaApp.getProperty("extruder_prime_pos_z", "value")) + "\n"
                 setting_data += ";Absolute Extruder Prime: " + str(curaApp.getProperty("extruder_prime_pos_abs", "value")) + "\n"
@@ -334,6 +346,10 @@ class AddCuraSettings(Script):
                 setting_data += ";Default XY Jerk: " + str(curaApp.getProperty("machine_max_jerk_xy", "value")) + " mm/sec\n"
                 setting_data += ";Default Z Jerk: " + str(curaApp.getProperty("machine_max_jerk_z", "value")) + " mm/sec\n"
                 setting_data += ";Default E Jerk: " + str(curaApp.getProperty("machine_max_jerk_e", "value")) + " mm/sec\n"
+                setting_data += ";Steps/mm X: " + str(curaApp.getProperty("machine_steps_per_mm_x", "value")) + " steps/mm\n"
+                setting_data += ";Steps/mm Y: " + str(curaApp.getProperty("machine_steps_per_mm_y", "value")) + " steps/mm\n"
+                setting_data += ";Steps/mm Z: " + str(curaApp.getProperty("machine_steps_per_mm_z", "value")) + " steps/mm\n"
+                setting_data += ";Steps/mm E: " + str(curaApp.getProperty("machine_steps_per_mm_e", "value")) + " steps/mm\n"
                 setting_data += ";RepRap 0-1 Fan Scale: " + str(bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value"))) + "\n"
                 try:
                     setting_data += ";Reset Flow Duration: " + str(round(extruder[0].getProperty("reset_flow_duration", "value"),2)) + "\n"
