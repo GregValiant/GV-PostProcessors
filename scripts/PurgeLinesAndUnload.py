@@ -561,7 +561,7 @@ class PurgeLinesAndUnload(Script):
         # Comment out any existing purge lines in data_1
         startup = data_1[1].split("\n")
         for index, line in enumerate(startup):
-            if "G1" in line and " E" in line and (" X" in line or " Y" in line):
+            if "G1" in line and " E" in line and (" X" in line or " Y" in line) and not line.startswith(";"):
                 next_line = index
                 try:
                     while not startup[next_line].startswith ("G92 E0"):
