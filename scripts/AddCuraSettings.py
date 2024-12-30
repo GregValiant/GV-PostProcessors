@@ -204,6 +204,9 @@ class AddCuraSettings(Script):
         all_or_some = str(self.getSettingValueByKey("all_or_some"))
         complete_set = True if str(self.getSettingValueByKey("complete_or_short")) == "complete_set" else False
         machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
+        initial_extruder_nr = curaApp.getProperty("initial_extruder_nr", "value")
+        if initial_extruder_nr == None or initial_extruder_nr == -1:
+            initial_extruder_nr = 0
         setting_data = ";\n;  <<< Cura User Settings >>>\n"
         setting_data += ";    Cura Version: " + str(Application.getInstance().getVersion()) + "\n"
         setting_data += ";    Machine Name: " + str(curaApp.getProperty("machine_name", "value")) + "\n"
@@ -243,10 +246,10 @@ class AddCuraSettings(Script):
         raft_base_extruder_nr = int(curaApp.getProperty("raft_base_extruder_nr", "value"))
         raft_interface_extruder_nr = int(curaApp.getProperty("raft_interface_extruder_nr", "value"))
         raft_surface_extruder_nr = int(curaApp.getProperty("raft_surface_extruder_nr", "value"))
+        
         #General Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("general_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [General]\n"
-            setting_data += str(cura_version) + "\n"
+            setting_data += ";\n;  [General Settings]\n"
             setting_data += ";Job Name: " + str(Application.getInstance().getPrintInformation().jobName) + "\n"
             setting_data += ";Print Time: " + str(Application.getInstance().getPrintInformation().currentPrintTime.getDisplayString(DurationFormat.Format.ISO8601)) + "\n"
             setting_data += ";Slice Start Time: " + str(time.strftime("%H:%M:%S")) + " (24hr)\n"
@@ -264,12 +267,13 @@ class AddCuraSettings(Script):
                 setting_data += ";  Filament Amount: " + str(round(filament_amt[num],2)) + "m\n"
                 setting_data += ";  Filament Weight: " + str(round(filament_wt[num],2)) + "gm\n"
                 setting_data += ";  Filament Cost: " + currency_symbol + "{:.2f}".format(filament_cost[num]) + "\n"
+            setting_data += ";Initial Extruder Number: " + str(CuraApplication.getInstance().getExtruderManager().getInitialExtruderNr()) + "\n"
             setting_data += ";Keep Models Apart: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_push_free")) + "\n"
             setting_data += ";Drop Models to Build Plate: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_drop_down")) + "\n"
 
         #Machine Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("machine_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Machine]\n"
+            setting_data += ";\n;  [Machine Settings]\n"
             if complete_set: setting_data += ";Wait for bed heatup: " + str(curaApp.getProperty("material_bed_temp_wait", "value")) + "\n"
             if complete_set: setting_data += ";Wait for Nozzle Heatup: " + str(curaApp.getProperty("material_print_temp_wait", "value")) + "\n"
             if complete_set: setting_data += ";Add Print Temp Before StartUp: " + str(curaApp.getProperty("material_print_temp_prepend", "value")) + "\n"
@@ -314,51 +318,56 @@ class AddCuraSettings(Script):
             machine_head_with_fans_polygon = curaApp.getProperty("machine_head_with_fans_polygon", "value")
             if complete_set: setting_data += ";Print Head Disallowed Area (for One-At-A-Time): " + str(machine_head_with_fans_polygon[0]) + str(machine_head_with_fans_polygon[1]) + str(machine_head_with_fans_polygon[2]) + str(machine_head_with_fans_polygon[3]) + "\n"
             if complete_set: setting_data += ";Gantry Height: " + str(curaApp.getProperty("gantry_height", "value")) + " mm\n"
-            if complete_set: setting_data += ";Nozzle Identifier: " + str(curaApp.getProperty("machine_nozzle_id", "value")) + "\n"
-            setting_data += ";Extruder Nozzle Size:\n"
+            if complete_set: setting_data += ";Nozzle Identifier: " + str(curaApp.getProperty("machine_nozzle_id", "value")) + "\n"            
+            if machine_extruder_count > 1:
+                setting_data += ";Initial Extruder Number: T" + str(initial_extruder_nr) + "\n"
             for num in range(0,machine_extruder_count):
-                setting_data += ";  Extruder " + str(num + 1) + " (T" + str(num) + "): " + str(extruder[num].getProperty("machine_nozzle_size", "value")) + " mm\n"                
-            if complete_set:
-                if machine_extruder_count > 1:
-                    for num in range(0,machine_extruder_count):
-                        setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + ") Move to Prime Tower at Start: \n"
-                        if extruder[num].getProperty("machine_extruder_start_pos_x", "value") != 0 or extruder[num].getProperty("machine_extruder_start_pos_y", "value") != 0:
-                            setting_data += ";  Move to: X" + str(round(extruder[num].getProperty("machine_extruder_start_pos_x", "value"),2)) +  " Y" + str(round(extruder[num].getProperty("machine_extruder_start_pos_y", "value"),2)) + "\n"
-                        else:
-                            setting_data += ";  'Move to' is: False\n"
-                        setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + ") Move to Prime Tower at End: \n"
-                        if extruder[num].getProperty("machine_extruder_end_pos_x", "value") != 0 or extruder[num].getProperty("machine_extruder_end_pos_y", "value") != 0:
-                            setting_data += ";  Move to: X" + str(round(extruder[num].getProperty("machine_extruder_end_pos_x", "value"),2)) +  " Y" + str(round(extruder[num].getProperty("machine_extruder_end_pos_y", "value"),2)) + "\n"
-                        else:
-                            setting_data += ";  'Move to' is: False\n"
-                setting_data += ";Use Extruder Offsets in Gcode: " + str(curaApp.getProperty("machine_use_extruder_offset_to_offset_coords", "value")) + "\n"
-                setting_data += ";Z Position for Extruder Prime: " + str(curaApp.getProperty("extruder_prime_pos_z", "value")) + "\n"
-                setting_data += ";Absolute Extruder Prime: " + str(curaApp.getProperty("extruder_prime_pos_abs", "value")) + "\n"
-                setting_data += ";Max Feedrate X: " + str(curaApp.getProperty("machine_max_feedrate_x", "value")) + " mm/sec\n"
-                setting_data += ";Max Feedrate Y: " + str(curaApp.getProperty("machine_max_feedrate_y", "value")) + " mm/sec\n"
-                setting_data += ";Max Feedrate Z: " + str(curaApp.getProperty("machine_max_feedrate_z", "value")) + " mm/sec\n"
-                setting_data += ";Max Feedrate E: " + str(curaApp.getProperty("machine_max_feedrate_e", "value")) + " mm/sec\n"
-                setting_data += ";Max Accel X: " + str(curaApp.getProperty("machine_max_acceleration_x", "value")) + " mm/sec²\n"
-                setting_data += ";Max Accel Y: " + str(curaApp.getProperty("machine_max_acceleration_y", "value")) + " mm/sec²\n"
-                setting_data += ";Max Accel Z: " + str(curaApp.getProperty("machine_max_acceleration_z", "value")) + " mm/sec²\n"
-                setting_data += ";Max Accel E: " + str(curaApp.getProperty("machine_max_acceleration_e", "value")) + " mm/sec²\n"
-                setting_data += ";Default Machine Accel: " + str(curaApp.getProperty("machine_acceleration", "value")) + " mm/sec²\n"
-                setting_data += ";Default XY Jerk: " + str(curaApp.getProperty("machine_max_jerk_xy", "value")) + " mm/sec\n"
-                setting_data += ";Default Z Jerk: " + str(curaApp.getProperty("machine_max_jerk_z", "value")) + " mm/sec\n"
-                setting_data += ";Default E Jerk: " + str(curaApp.getProperty("machine_max_jerk_e", "value")) + " mm/sec\n"
-                setting_data += ";Steps/mm X: " + str(curaApp.getProperty("machine_steps_per_mm_x", "value")) + " steps/mm\n"
-                setting_data += ";Steps/mm Y: " + str(curaApp.getProperty("machine_steps_per_mm_y", "value")) + " steps/mm\n"
-                setting_data += ";Steps/mm Z: " + str(curaApp.getProperty("machine_steps_per_mm_z", "value")) + " steps/mm\n"
-                setting_data += ";Steps/mm E: " + str(curaApp.getProperty("machine_steps_per_mm_e", "value")) + " steps/mm\n"
-                setting_data += ";RepRap 0-1 Fan Scale: " + str(bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value"))) + "\n"
-                try:
-                    setting_data += ";Reset Flow Duration: " + str(round(extruder[0].getProperty("reset_flow_duration", "value"),2)) + "\n"
-                except:
-                    pass
+                setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + ") \n"
+                setting_data += ";  Extruder Nozzle Size: " + str(extruder[num].getProperty("machine_nozzle_size", "value")) + " mm\n"
+                if complete_set and machine_extruder_count > 1:
+                    if extruder[num].getProperty("machine_extruder_start_pos_x", "value") != 0 or extruder[num].getProperty("machine_extruder_start_pos_y", "value") != 0:
+                        setting_data += ";  Move to Prime Tower at start: X" + str(round(extruder[num].getProperty("machine_extruder_start_pos_x", "value"),2)) +  " Y" + str(round(extruder[num].getProperty("machine_extruder_start_pos_y", "value"),2)) + "\n"
+                    else:
+                        setting_data += ";  Move to Prime Tower at start: False\n"
+                    if extruder[num].getProperty("machine_extruder_end_pos_x", "value") != 0 or extruder[num].getProperty("machine_extruder_end_pos_y", "value") != 0:
+                        setting_data += ";  Move to Prime Tower at end: X" + str(round(extruder[num].getProperty("machine_extruder_end_pos_x", "value"),2)) +  " Y" + str(round(extruder[num].getProperty("machine_extruder_end_pos_y", "value"),2)) + "\n"
+                    else:
+                        setting_data += ";  Move to Prime Tower at end: False\n"
+                    setting_data += ";  Use Extruder Offsets in Gcode: " + str(curaApp.getProperty("machine_use_extruder_offset_to_offset_coords", "value")) + "\n"
+                    try:
+                        if bool(curaApp.getProperty("machine_use_extruder_offset_to_offset_coords", "value")):
+                            setting_data += f";    Machine Nozzle Offset X (T{num}): " + str(extruder[num].getProperty("machine_nozzle_offset_x", "value")) + "\n"
+                            setting_data += f";    Machine Nozzle Offset Y (T{num}): " + str(extruder[num].getProperty("machine_nozzle_offset_y", "value")) + "\n"
+                    except:
+                        pass
+                            
+            setting_data += ";Z Position for Extruder Prime: " + str(curaApp.getProperty("extruder_prime_pos_z", "value")) + "\n"
+            setting_data += ";Absolute Extruder Prime: " + str(curaApp.getProperty("extruder_prime_pos_abs", "value")) + "\n"
+            setting_data += ";Max Feedrate X: " + str(curaApp.getProperty("machine_max_feedrate_x", "value")) + " mm/sec\n"
+            setting_data += ";Max Feedrate Y: " + str(curaApp.getProperty("machine_max_feedrate_y", "value")) + " mm/sec\n"
+            setting_data += ";Max Feedrate Z: " + str(curaApp.getProperty("machine_max_feedrate_z", "value")) + " mm/sec\n"
+            setting_data += ";Max Feedrate E: " + str(curaApp.getProperty("machine_max_feedrate_e", "value")) + " mm/sec\n"
+            setting_data += ";Max Accel X: " + str(curaApp.getProperty("machine_max_acceleration_x", "value")) + " mm/sec²\n"
+            setting_data += ";Max Accel Y: " + str(curaApp.getProperty("machine_max_acceleration_y", "value")) + " mm/sec²\n"
+            setting_data += ";Max Accel Z: " + str(curaApp.getProperty("machine_max_acceleration_z", "value")) + " mm/sec²\n"
+            setting_data += ";Max Accel E: " + str(curaApp.getProperty("machine_max_acceleration_e", "value")) + " mm/sec²\n"
+            setting_data += ";Default Machine Accel: " + str(curaApp.getProperty("machine_acceleration", "value")) + " mm/sec²\n"
+            setting_data += ";Default XY Jerk: " + str(curaApp.getProperty("machine_max_jerk_xy", "value")) + " mm/sec\n"
+            setting_data += ";Default Z Jerk: " + str(curaApp.getProperty("machine_max_jerk_z", "value")) + " mm/sec\n"
+            setting_data += ";Default E Jerk: " + str(curaApp.getProperty("machine_max_jerk_e", "value")) + " mm/sec\n"
+            setting_data += ";Steps/mm X: " + str(curaApp.getProperty("machine_steps_per_mm_x", "value")) + " steps/mm\n"
+            setting_data += ";Steps/mm Y: " + str(curaApp.getProperty("machine_steps_per_mm_y", "value")) + " steps/mm\n"
+            setting_data += ";Steps/mm Z: " + str(curaApp.getProperty("machine_steps_per_mm_z", "value")) + " steps/mm\n"
+            setting_data += ";Steps/mm E: " + str(curaApp.getProperty("machine_steps_per_mm_e", "value")) + " steps/mm\n"
+            setting_data += ";RepRap 0-1 Fan Scale: " + str(bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value"))) + "\n"
+            try:
+                setting_data += ";Reset Flow Duration: " + str(round(extruder[0].getProperty("reset_flow_duration", "value"),2)) + "\n"
+            except:
+                pass
 
         #Quality Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("quality_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Quality]\n"
+            setting_data += ";\n;  [Quality Settings]\n"
             setting_data += ";Layer Height: " + str(curaApp.getProperty("layer_height", "value")) + " mm\n"
             setting_data += ";Initial Layer Height: " + str(curaApp.getProperty("layer_height_0", "value")) + " mm\n"
             for num in range(0,machine_extruder_count):
@@ -503,7 +512,7 @@ class AddCuraSettings(Script):
 
         #Material Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("material_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Material]\n"
+            setting_data += ";\n;  [Material Settings]\n"
             if complete_set: setting_data += ";Heated Build Volume: " + str(curaApp.getProperty("machine_heated_build_volume", "value")) + "\n"
             if complete_set and bool(curaApp.getProperty("machine_heated_build_volume", "value")):
                 setting_data += ";Build Volume Temp: " + str(curaApp.getProperty("build_volume_temperature", "value")) + "°\n"
@@ -545,7 +554,7 @@ class AddCuraSettings(Script):
 
         #Speed Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("speed_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Speed]\n"
+            setting_data += ";\n;  [Speed Settings]\n"
             for num in range(0,machine_extruder_count):
                 setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                 setting_data += ";  Speed Print: " + str(extruder[num].getProperty("speed_print", "value")) + " mm/sec\n"
@@ -657,7 +666,7 @@ class AddCuraSettings(Script):
 
         # Travel Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("travel_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Travel]\n"
+            setting_data += ";\n;  [Travel Settings]\n"
             for num in range(0,machine_extruder_count):
                 setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                 setting_data += ";  Retraction Enabled: " + str(extruder[num].getProperty("retraction_enable", "value")) + "\n"
@@ -688,7 +697,7 @@ class AddCuraSettings(Script):
 
         # Cooling Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("cooling_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Cooling]\n"
+            setting_data += ";\n;  [Cooling Fan Settings]\n"
             for num in range(0,machine_extruder_count):
                 setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                 setting_data += ";  Cooling Enabled: " + str(extruder[num].getProperty("cool_fan_enabled", "value")) + "\n"
@@ -712,7 +721,7 @@ class AddCuraSettings(Script):
 
         # Support Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("support_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Support]\n"
+            setting_data += ";\n;  [Support Settings]\n"
             setting_data += ";Enable Support: " + str(curaApp.getProperty("support_enable", "value")) + "\n"
             if bool(curaApp.getProperty("support_enable", "value")):
                 if machine_extruder_count > 1:
@@ -888,7 +897,7 @@ class AddCuraSettings(Script):
 
         # Dual Extrusion Settings-------------------------------------------------------
         if (bool(self.getSettingValueByKey("dualext_set")) or all_or_some == "all_settings") and machine_extruder_count > 1:
-            setting_data += ";\n;  [Dual Extrusion]\n"
+            setting_data += ";\n;  [Dual Extrusion Settings]\n"
             setting_data += ";Initial Extruder Number: E" + str(extruderMgr.getInitialExtruderNr() + 1) + " (T" + str(extruderMgr.getInitialExtruderNr()) + ")\n"
             setting_data += ";Prime Tower Enable: " + str(curaApp.getProperty("prime_tower_enable", "value")) + "\n"
             if bool(curaApp.getProperty("prime_tower_enable", "value")):
@@ -922,7 +931,7 @@ class AddCuraSettings(Script):
 
         # Mesh Fixes Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("meshfix_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Mesh Fixes]\n"
+            setting_data += ";\n;  [Mesh Fixes Settings]\n"
             setting_data += ";Union Overlapping Volumes: " + str(curaApp.getProperty("meshfix_union_all", "value")) + "\n"
             setting_data += ";Remove All Holes: " + str(curaApp.getProperty("meshfix_union_all_remove_holes", "value")) + "\n"
             if complete_set: setting_data += ";Extensive Stitching: " + str(curaApp.getProperty("meshfix_extensive_stitching", "value")) + "\n"
@@ -957,7 +966,7 @@ class AddCuraSettings(Script):
 
         # Experimental-------------------------------------------------------
         if bool(self.getSettingValueByKey("experimental_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Experimental]\n"
+            setting_data += ";\n;  [Experimental Settings]\n"
             setting_data += ";Slicing Tolerance: " + str(curaApp.getProperty("slicing_tolerance", "value")) + "\n"
             setting_data += ";Infill Travel Optimization: " + str(curaApp.getProperty("infill_enable_travel_optimization", "value")) + "\n"
             if machine_extruder_count > 1 and complete_set:
@@ -1093,7 +1102,7 @@ class AddCuraSettings(Script):
 
         # PostProcessor Settings-------------------------------------------------------
         if bool(self.getSettingValueByKey("postprocess_set")) or all_or_some == "all_settings":
-            setting_data += ";\n;  [Post-Processors]\n"
+            setting_data += ";\n;  [Post-Processor Settings]\n"
             scripts_list = curaApp.getMetaDataEntry("post_processing_scripts")
             for script_str in scripts_list.split("\n"):
                 script_str = script_str.replace(r"\\\n", "\n;  ").replace("\n;  \n;  ", "\n")
