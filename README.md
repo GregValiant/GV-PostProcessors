@@ -13,6 +13,9 @@ Filament Change:.
 	
 Flash Forge IDEX Tool Temps:
     This started out as a simple attempt to change the syntax of the Cura Gcode to be acceptable to the Flash Forge IDEX printers.  It ended up being a pretty full-fledged translator and allows the user to select the mode "Normal, Duplicate, or Mirror" in the post processor settings and when the file is saved the gcode is translated and some lines added so the Flash Forge printer will print it as it should.  Just because the Cura gcode opened in FlashPrint seems to be correct doesn't mean that it will print correctly.  This is another one that I need feedback on.
+	
+Marlin to FlashForge Converter (for single extruder printers):
+	Goes through the gcode and makes changes like changing the "TYPE" lines to ";structure:" lines are used by FlashPrint.  It also adds tool numbers to fan lines, changes the G0 commands to G1 commands, and translates things like Cura's heating lines and Build Volume Fan lines.  The script is compatible with the FlashFinder plugins from the MarketPlace.
 
 -----------------------------------------------------------------------------
 Latest Changes:
