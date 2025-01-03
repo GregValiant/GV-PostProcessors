@@ -24,10 +24,15 @@ class AnnealingOrDrying(Script):
         self._instance.setProperty("startout_temp", "value", bed_temp)
         # Get the Build Volume temperature if there is one
         heated_build_volume = bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_build_volume", "value"))
+        curaApp = Application.getInstance().getGlobalContainerStack()
+        chamber_fan_nr = curaApp.getProperty("build_volume_fan_nr", "value")
+        extruder_count = curaApp.getProperty("machine_extruder_count", "value")
         if heated_build_volume:
-            chamber_temp = Application.getInstance().getGlobalContainerStack().getProperty("build_volume_temperature", "value")
+            chamber_temp = curaApp.getProperty("build_volume_temperature", "value")
             self._instance.setProperty("has_build_volume_heater", "value", heated_build_volume)
             self._instance.setProperty("build_volume_temp", "value", chamber_temp)
+        if chamber_fan_nr > 0:
+            self._instance.setProperty("enable_chamber_fan_setting", "value", True)
 
     def getSettingDataString(self):
         return """{
@@ -131,6 +136,24 @@ class AnnealingOrDrying(Script):
                     "maximum_value_warning": 75,
                     "enabled": "enable_annealing and has_build_volume_heater and bed_and_chamber == 'bed_chamber'"
                 },
+                "enable_chamber_fan_setting":
+                {
+                    "label": "Hidden Setting",
+                    "description": "Enables chamber fan and speed.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": false
+                },
+                "chamber_fan_speed":
+                {
+                    "label": "Chamber Fan Speed",
+                    "description": "Set to % fan speed.  Set to 0 to turn it off.",
+                    "type": "int",
+                    "default_value": 0,
+                    "minimum_value": 0,
+                    "maximum_value": 100,
+                    "enabled": "enable_annealing and enable_chamber_fan_setting"
+                },
                 "time_span":
                 {
                     "label": "Cool Down Time Span:",
@@ -210,6 +233,7 @@ class AnnealingOrDrying(Script):
             Message(title = "[Anneal or Dry Filament]", text = "The script did not run because the Shutoff Temp is less than 30°.").show()
             return data
         curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = curaApp.extruderList
         bed_temperature = int(self.getSettingValueByKey("startout_temp"))
         heated_chamber = bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_build_volume", "value"))
         anneal_type = self.getSettingValueByKey("bed_and_chamber")
@@ -220,12 +244,24 @@ class AnnealingOrDrying(Script):
         else:
             anneal_type = "bed_only"
             chamber_temp = "0"
+        has_bv_fan = bool(curaApp.getProperty("build_volume_fan_nr", "value"))
+        bv_fan_nr = int(curaApp.getProperty("build_volume_fan_nr", "value"))
+        speed_bv_fan = int(self.getSettingValueByKey("chamber_fan_speed"))
+        if bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value")):
+            speed_bv_fan = round(speed_bv_fan * .01)
+        else:
+            speed_bv_fan = round(speed_bv_fan * 2.55)
+        if has_bv_fan:
+            self.bv_fan_on_str = f"M106 S{speed_bv_fan} P{bv_fan_nr} ; Build Chamber Fan On\n"
+            self.bv_fan_off_str = f"M106 S0 P{bv_fan_nr} ; Build Chamber Fan Off\n"
+        else:
+            self.bv_fan_on_str = ""
+            self.bv_fan_off_str = ""
         # Park Head
         max_y = str(curaApp.getProperty("machine_depth", "value"))
         max_x = str(curaApp.getProperty("machine_width", "value"))
         # Max_z is limited to 'machine_height - 20' just so the print head doesn't smack into anything.
         max_z = str(int(curaApp.getProperty("machine_height", "value")) - 20)
-        extruder = curaApp.extruderList
         speed_travel = str(round(extruder[0].getProperty("speed_travel", "value")*60))
         park_xy = bool(self.getSettingValueByKey("park_head"))
         park_z = bool(self.getSettingValueByKey("park_max_z"))
@@ -274,6 +310,7 @@ class AnnealingOrDrying(Script):
         if add_messages:
             anneal_string += "M117 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
             anneal_string += "M118 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
+        anneal_string += self.bv_fan_on_str
         if wait_time > 0:
             # Move the head before the M190
             anneal_string += park_string
@@ -322,6 +359,7 @@ class AnnealingOrDrying(Script):
         anneal_string += "M140 S0 ; Shut off the bed heater" + "\n"
         if anneal_type == "bed_chamber":
             anneal_string += "M141 S0 ; Shut off the chamber heater\n"
+        anneal_string += self.bv_fan_off_str
         anneal_string += beep_string
         if add_messages:
             anneal_string += "M117 CoolDown Complete\n"
@@ -388,6 +426,7 @@ class AnnealingOrDrying(Script):
         drying_string += "M113 S0 ; No echo\n"
         drying_string += f"M84 S{round(dry_time)} ; Set stepper timeout\n"
         drying_string += f"M140 S{bed_temperature} ; Heat bed\n"
+        drying_string += self.bv_fan_on_str
         if heated_chamber and anneal_type == "bed_chamber":
             drying_string += f"M141 S{chamber_temp} ; Chamber temp\n"
         if pause_cmd == "M0":
@@ -419,6 +458,7 @@ class AnnealingOrDrying(Script):
         if heated_chamber and anneal_type == "bed_chamber":
             drying_string += f"M141 S0 ; Shut off chamber\n"
         drying_string += "M140 S0 ; Shut off bed\n"
+        drying_string += self.bv_fan_off_str
         if self.getSettingValueByKey("beep_when_done"):
             beep_duration = self.getSettingValueByKey("beep_duration")
             drying_string += f"M300 P{beep_duration} ; Beep\n"

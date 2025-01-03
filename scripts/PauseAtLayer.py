@@ -19,6 +19,7 @@
 #      ~All pause layers must be listed (use the Cura Preview layer numbers).
 #      ~A pause at 'Layer:5' will only result in a pause at the first layer:5 encountered whereas pauses at '15,23,67' might be in different models.
 #      ~Models can be skipped, or have pauses at different layers than other models, and some models could be entirely different colors or material.
+#   Added 'Flow Rate' option for 'Redo Layer'.
 #    Multi-extruder printers now use the Cura settings of the active tool (retraction amount, retract and prime speeds, etc.)
 #    The 'Stepper Timeout' has (hopefully) been de-confused.
 #  Obsolete:
@@ -481,9 +482,10 @@ class PauseAtLayer(Script):
         use_tool_temperature = bool(self.getSettingValueByKey("tool_temp_overide"))
         resume_print_temperature = self.getSettingValueByKey("resume_print_temperature")
 
-        firmware_retract = Application.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value")
-        control_temperatures = Application.getInstance().getGlobalContainerStack().getProperty("machine_nozzle_temp_enabled", "value")
-        initial_layer_height = Application.getInstance().getGlobalContainerStack().getProperty("layer_height_0", "value")
+        firmware_retract = curaApp.getProperty("machine_firmware_retract", "value")
+        control_temperatures = curaApp.getProperty("machine_nozzle_temp_enabled", "value")
+        initial_layer_height = curaApp.getProperty("layer_height_0", "value")
+        self.layer_height = curaApp.getProperty("layer_height", "value")
         display_text = txt_msg
         # Capitalize the command letter of any added commands.  Some firmware doesn't acknowledge lower case commands.
         gcode_before = self.getSettingValueByKey("custom_gcode_before_pause")
@@ -542,7 +544,7 @@ class PauseAtLayer(Script):
 
             # Scroll each line of instruction for each layer in the G-code
             for line in lines:
-                # Fist positive layer reached
+                # First positive layer reached
                 if ";LAYER:0" in line:
                     layers_started = True
                 # Count nbr of negative layers (raft)
@@ -707,7 +709,14 @@ class PauseAtLayer(Script):
                 # Set a custom GCODE section after pause
                 if gcode_after:
                     prepend_gcode += gcode_after + "\n"
-
+                
+                # If redoing a layer then move back own to the previous layer height.
+                if redo_layer:
+                    working_z = current_z - self.layer_height
+                    working_z_txt = "; Move down to redo layer height\n"
+                else:
+                    working_z = current_z
+                    working_z_txt = "; Move down to resume height\n"                    
                 if pause_method == "repetier":
                     # Optionally extrude material
                     if int(purge_amount) != 0:
@@ -720,9 +729,10 @@ class PauseAtLayer(Script):
                         prepend_gcode += self.putValue(G = 1, E = -self.retraction_amount, F = self.retraction_retract_speed) + ";Retract\n"
 
                     # Move the head back to the resume position
+                           
                     if park_enabled:
                         prepend_gcode += self.putValue(G = 0, F = self.speed_travel, X = x, Y = y) + ";Return to print location\n"
-                        prepend_gcode += self.putValue(G = 0, F = self.speed_z_hop, Z = current_z) + ";Drop down to print height\n"
+                        prepend_gcode += self.putValue(G = 0, F = self.speed_z_hop, Z = working_z) + working_z_txt
 
                     if purge_amount != 0 and self.retraction_enabled:
                         prepend_gcode += self.putValue(G = 1, E = self.retraction_amount, F = self.retraction_prime_speed) + ";Unretract\n"
@@ -784,7 +794,7 @@ class PauseAtLayer(Script):
                     # Move the head back
                     if park_enabled:
                         prepend_gcode += self.putValue(G = 0, F = self.speed_travel, X = x, Y = y) + "; Move to resume location\n"
-                        prepend_gcode += self.putValue(G = 0, F = self.speed_z_hop, Z = current_z) + "; Move back down to resume height\n"
+                        prepend_gcode += self.putValue(G = 0, F = self.speed_z_hop, Z = working_z) + working_z_txt
 
                     if purge_amount != 0:
                         if firmware_retract and not is_retracted and self.retraction_enabled:
