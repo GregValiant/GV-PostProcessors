@@ -27,6 +27,7 @@ AddCuraSettings is updated to the settings in Cura 5.9.0 stable release.
 ZhopOnTravel can now add retractions when they are necessary.
 
 MaxVolumetricSpeed (Max E Speed by Flow Rate) is new and there is a pull request in for it. 
+    Also added the same function as a Plugin.  The settings appear at the top of the "Speed Settings" in Cura.
 
 PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machines with disallowed areas.  Added moves when a multi-extruder printer travels to the purge tower at the beginning of a print.
 
@@ -118,8 +119,9 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 	Retractions have been added and occur if there isn't already one in place when the new Zhop's are added.
 	This is compatible with firmware retraction, relative extrusion, and extra prime amount.  You can leave "z-hop on retraction" disabled in Cura and use this script to hop for just a couple of layers when necessary.
 	
-**Max E Speed by Flow Rate**
-	Goes through the Gcode and at every retraction/prime it changes the Max E Speed with M203.  Before the retraction/prime the speed is increased so retraction/prime is at the set speed.  After the retract/prime event; the speed is reduced so that flow increases in the gcode will not under-extrude.  The script works with Absolute Extrusion, Relative Extrusion, Firmware Retraction, Marlin and RepRap.
+**Max E Speed and Jerk Decoupler**
+	Goes through the Gcode and at every retraction/prime it changes the Max E Speed with M203.  Before the retraction/prime the speed is increased so retraction/prime is at the set speed.  After the retract/prime event; the speed is reduced so that flow increases in the gcode will not under-extrude.  The script works with Absolute Extrusion, Relative Extrusion, Firmware Retraction, Marlin and RepRap, and allows for separate settings for dual extruders.
+	Jerk settings are included for the extruder(s).
 
 -----------------------------------------------------------------------------
 Plugin Extensions for Cura:
@@ -133,6 +135,9 @@ Plugin Extensions for Cura:
 
 **Support Interface Material Change:** 
 	This is the same as the post-processor.  It is available in the normal Cura 'Support' settings under 'Enable Support Interface'
+	
+**Max E Speed and Jerk Decoupler:** 
+	See the post processor above.
 	
 -----------------------------------------------------------------------------
 
