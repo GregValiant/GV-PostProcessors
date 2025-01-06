@@ -115,6 +115,17 @@ class SuptIntMaterialChange(Script):
                     "default_value": "10,28-31,54",
                     "enabled": "enable_supt_int_matl_change"
                 },
+                "stepper_disarm_time":
+                {
+                    "label": "Stepper Disarm Time",
+                    "description": "How long (in minutes) to wait before the steppers disarm and lose their positions.  Entering a '0' is firmware specific and will either keep the motors from disarming, or disarm them immediately.  You need to know which will happen.  Maximum value is 240 minutes (4 hours).",
+                    "type": "int",
+                    "default_value": 60,
+                    "unit": "minutes",
+                    "minimum_value": 0,
+                    "maximum_value": 240,
+                    "enabled": "enable_supt_int_matl_change"
+                },
                 "model_str":
                 {
                     "label": "Model Mat'l (Msg to LCD)",
@@ -382,11 +393,10 @@ class SuptIntMaterialChange(Script):
             z_lift_list.append(z_lift)
 
         # Retrieve some settings from Cura and set up some variables
-        m84_line = "M84 S3600; Keep steppers enabled for 1 hour"
         firmware_retraction = bool(mycura.getProperty("machine_firmware_retract", "value"))
         speed_travel = str(round(extruder[0].getProperty("speed_travel", "value") * 60))
         retract_enabled = bool(extruder[0].getProperty("retraction_enable", "value"))
-        retract_dist = str(extruder[0].getProperty("retraction_amount", "value"))
+        retract_dist = round(float(extruder[0].getProperty("retraction_amount", "value")),2)
         retract_speed = int(extruder[0].getProperty("retraction_retract_speed", "value") * 60)
         unretract_speed = int(extruder[0].getProperty("retraction_prime_speed", "value") * 60)
         max_speed_e = str(mycura.getProperty("machine_max_feedrate_e", "value"))
@@ -398,6 +408,8 @@ class SuptIntMaterialChange(Script):
         enable_purge = bool(self.getSettingValueByKey("enable_purge"))
         purge_amt_model = int(self.getSettingValueByKey("purge_amt_model"))
         purge_amt_interface = int(self.getSettingValueByKey("purge_amt_interface"))
+        disarm_time = int(self.getSettingValueByKey("stepper_disarm_time") * 60)
+        m84_line = f"M84 S{disarm_time}; Keep steppers enabled"
 
         # Absolute or Relative Extrusion
         relative_ext_mode = bool(mycura.getProperty("relative_extrusion", "value"))
@@ -520,9 +532,9 @@ class SuptIntMaterialChange(Script):
         nozzle_size = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
         firmware_retract = bool(CuraApplication.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value"))
         if purge_amt_model > 0 and enable_purge:
-            purge_str_model += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(purge_amt_model) + "; Purge full amount\n"
+            purge_str_model += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{purge_amt_model}; Purge full amount\n"
         if not firmware_retract:
-            purge_str_model += "G1 F" + str(int(retract_speed)) + " E-" + str(retract_dist) + "; Retract\n"
+            purge_str_model += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract\n"
         else:
             purge_str_model += "G10; Retract\n"
         purge_str_model += "M400; Complete all moves\n"
@@ -535,17 +547,17 @@ class SuptIntMaterialChange(Script):
         nozzle_size = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
         firmware_retract = bool(CuraApplication.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value"))
         if purge_amt_interface > 0 and enable_purge:
-            purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge 1/3 amount\n"
-            purge_str_interface += "G1 F" + str(retract_speed) + " E-" + str(retract_dist) + "; Retract to clean\n"
+            purge_str_interface += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{round(float(purge_amt_interface)/3)}; Purge 1/3 amount\n"
+            purge_str_interface += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract to clean\n"
             purge_str_interface += "G4 S1; Wait 1 second\n"
-            purge_str_interface += "G1 F" + str(unretract_speed) + " E" + str(retract_dist) + "; UnRetract\n"
-            purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge 1/3 amount\n"
-            purge_str_interface += "G1 F" + str(retract_speed) + " E-" + str(retract_dist) + "; Retract to clean\n"
+            purge_str_interface += f"G1 F{int(unretract_speed)} E{retract_dist}; UnRetract\n"
+            purge_str_interface += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{round(float(purge_amt_interface)/3)}; Purge 1/3 amount\n"
+            purge_str_interface += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract to clean\n"
             purge_str_interface += "G4 S1; Wait 1 second\n"
-            purge_str_interface += "G1 F" + str(unretract_speed) + " E" + str(retract_dist) + "; UnRetract\n"
-            purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge remainder\n"
+            purge_str_interface += f"G1 F{int(unretract_speed)} E{retract_dist}; UnRetract\n"
+            purge_str_interface += f"G1 F{round(float(nozzle_size) * 8.333) * 60} E{round(float(purge_amt_interface)/3)}; Purge remainder\n"
         if not firmware_retract:
-            purge_str_interface += "G1 F" + str(int(retract_speed)) + " E-" + str(retract_dist) + "; Retract\n"
+            purge_str_interface += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract\n"
         else:
             purge_str_interface += "G10; Retract\n"
         purge_str_interface += "M400; Complete all moves\n"
@@ -554,8 +566,8 @@ class SuptIntMaterialChange(Script):
 
         # Put together the preliminary strings for the interface material and model material
         interface_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Change to Interface Material" + "\n" + m84_line + "\nG91; Relative movement\nM83; Relative extrusion\n"
-        interface_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_model + m300_str + unload_str + interface_str + m118_interface_str + pre_pause_interface_temp +pause_cmd_interface + gcode_after_pause + interface_temp
-        model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement" + "\nM83; Relative extrusion\n"
+        interface_replacement_pre_string_2 = f"G90; Absolute movement\n{park_str}{cold_pull_temp_model}{m300_str}{unload_str}{interface_str}{m118_interface_str}{pre_pause_interface_temp}{pause_cmd_interface}{gcode_after_pause}{interface_temp}"
+        model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement\n" + "M83; Relative extrusion\n"
         model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_interface + m300_str + unload_str + model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
 
         # Make a list of the layers and whether or not 'Support-Interface' was found on the layer.  Use in a message at the end.
@@ -716,15 +728,16 @@ class SuptIntMaterialChange(Script):
     def getUnloadReloadScript(self, data: str, filament_dist: int, extrude_speed: int, retract_speed: int, unload_filament: bool, retract_dist: int)->str:
         if unload_filament:
             filament_str = "M83; Relative extrusion\nM400; Complete all moves\n"
+            filament_str += f"G1 F{int(retract_speed)} E{round(retract_dist * 2.5,5) if float(retract_dist) > 2 else 15}; Quick purge\n"
             if filament_dist > 150:
                 temp_unload = filament_dist
                 while temp_unload > 150:
-                    filament_str += "G1 F" + str(int(extrude_speed)) + " E-150; Unload some\n"
+                    filament_str += f"G1 F{int(extrude_speed)} E-150; Unload some\n"
                     temp_unload -= 150
                 if 0 < temp_unload <= 150:
-                    filament_str += "G1 F" + str(int(extrude_speed)) + " E-" + str(temp_unload) + "; Unload the remainder\n"
+                    filament_str += f"G1 F{int(extrude_speed)} E-{temp_unload}; Unload the remainder\n"
             else:
-                filament_str += "G1 F" + str(int(extrude_speed)) + " E-" + str(filament_dist) + "; Unload\n"
+                filament_str += f"G1 F{int(extrude_speed)} E-{filament_dist}; Unload\n"
         # The reload string must also be broken into chunks.  It has 2 parts...Fast reload and Slow reload.  (Purge is handled up above).
         elif not unload_filament:
             nozzle_size = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
@@ -735,14 +748,14 @@ class SuptIntMaterialChange(Script):
                 if filament_dist * .9 > 150:
                     temp_dist = filament_dist - filament_dist * .1
                     while temp_dist > 150:
-                        filament_str += "G1 F" + str(extrude_speed) + " E150" + "; Fast Reload\n"
+                        filament_str += f"G1 F{int(extrude_speed)} E150; Fast Reload\n"
                         temp_dist -= 150
                     if 0 < temp_dist <= 150:
-                        filament_str += "G1 F" + str(extrude_speed) + " E" + str(round(temp_dist))  + "; Fast Reload\n"
-                        filament_str += "G1 F" + str(round(float(nozzle_size) * 16.666 * 60)) + " E" + str(round(filament_dist * .1)) + "; Reload the last 10% slower to avoid ramming the nozzle\n"
+                        filament_str += f"G1 F{int(extrude_speed)} E{round(temp_dist)}; Fast Reload\n"
+                        filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
                     else:
-                        filament_str += "G1 F" + str(round(float(nozzle_size) * 16.666 * 60)) + " E" + str(round(filament_dist * .1)) + "; Reload the last 10% slower to avoid ramming the nozzle\n"
+                        filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
                 else:
-                    filament_str += "G1 F" + str(int(extrude_speed)) + " E" + str(round(filament_dist * .9)) + "; Fast Reload\n"
-                    filament_str += "G1 F" + str(round(float(nozzle_size) * 16.666 * 60)) + " E" + str(round(filament_dist * .1))  + "; Reload the last 10% slower to avoid ramming the nozzle\n"
+                    filament_str += f"G1 F{int(extrude_speed)} E{round(filament_dist * .9)}; Fast Reload\n"
+                    filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
         return filament_str

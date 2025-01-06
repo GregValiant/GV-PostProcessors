@@ -472,8 +472,8 @@ class PauseAtLayer(Script):
         layers_started = False
         redo_layer = self.getSettingValueByKey("redo_layer")
         if redo_layer and reason_for_pause == "reason_filament":
-            redo_layer_flow = "M221 S" + str(self.getSettingValueByKey("redo_layer_flow")) + str(" " * (27 - len("M221 S" + str(self.getSettingValueByKey("redo_layer_flow"))))) + "; Set Redo Layer Flow"
-            redo_layer_flow_reset = "M221 S100                  ; PauseAtLayer Reset flow\n"
+            redo_layer_flow = "M221 S" + str(self.getSettingValueByKey("redo_layer_flow")) + str(" " * (27 - len("M221 S" + str(self.getSettingValueByKey("redo_layer_flow"))))) + "; Set Redo Layer Flow Rate"
+            redo_layer_flow_reset = "M221 S100                  ; End of Redo Layer - Reset Flow Rate\n"
         else:
             redo_layer_flow = ""
             redo_layer_flow_reset = ""
@@ -486,6 +486,11 @@ class PauseAtLayer(Script):
         control_temperatures = curaApp.getProperty("machine_nozzle_temp_enabled", "value")
         initial_layer_height = curaApp.getProperty("layer_height_0", "value")
         self.layer_height = curaApp.getProperty("layer_height", "value")
+        self.z_hop_enabled = extruder[0].getProperty("retraction_hop_enabled", "value")
+        if self.z_hop_enabled:
+            self.z_hop_height = extruder[0].getProperty("retraction_hop", "value")
+        else:
+            self.z_hop_height = 0
         display_text = txt_msg
         # Capitalize the command letter of any added commands.  Some firmware doesn't acknowledge lower case commands.
         gcode_before = self.getSettingValueByKey("custom_gcode_before_pause")
@@ -602,10 +607,11 @@ class PauseAtLayer(Script):
                 if redo_layer and reason_for_pause == "reason_filament":
                     prev_layer = new_data[index - 1]
                     temp_list = prev_layer.split("\n")
-                    temp_list[0] = temp_list[0] + ".5" + str(" " * (27 - len(temp_list[0] + ".1"))) + "; Redo layer from PauseAtLayer\n" + redo_layer_flow
+                    temp_list[0] = temp_list[0] + str(" " * (27 - len(temp_list[0] + ".1"))) + "; Redo layer from PauseAtLayer\n" + redo_layer_flow
                     prev_layer = "\n".join(temp_list)
                     layer = prev_layer + redo_layer_flow_reset + layer
                     new_data[index] = layer
+                    new_data = self._renumber_layers(new_data, "renum")
                     # Get the X Y position and the extruder's absolute position at the beginning of the redone layer.
                     x, y = self.getNextXY(layer)
                     prev_lines = prev_layer.split("\n")
@@ -712,7 +718,7 @@ class PauseAtLayer(Script):
                 
                 # If redoing a layer then move back own to the previous layer height.
                 if redo_layer:
-                    working_z = current_z - self.layer_height
+                    working_z = current_z - (self.layer_height if not self.z_hop_enabled else 0)
                     working_z_txt = "; Move down to redo layer height\n"
                 else:
                     working_z = current_z
@@ -875,9 +881,9 @@ class PauseAtLayer(Script):
             lay_num = 0
             for num in range(layer0_index,len(one_data),1):
                 layer = one_data[num]
-                if layer.startswith(";LAYER:") and not layer.startswith(";LAYER:-"):
-                    temp = layer.split("\n")
-                    one_data[num] = layer.replace(temp[0],";LAYER:" + str(lay_num))
+                if ";LAYER:" in layer and not ";LAYER:-" in layer:
+                    #temp = layer.split("\n")
+                    one_data[num] = re.sub(";LAYER:(\d.+)", ";LAYER:" + str(lay_num), layer)
                     lay_num += 1
             layer = one_data[layer0_index - 1]
 

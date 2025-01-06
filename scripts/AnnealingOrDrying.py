@@ -10,6 +10,7 @@
 #    The bed must be empty because the printer will auto-home before raising the Z to 'machine_height minus 20mm' and then park the head in the XY.
 #    The bed will heat up to the set point.
 #    G4 commands are used to keep the machine from turning the bed off until the Drying Time has expired.
+# If you happen to have an enclosure with a fan, the fan can be set up to run during the drying or annealing.
 
 from UM.Application import Application
 from ..Script import Script
@@ -232,8 +233,8 @@ class AnnealingOrDrying(Script):
             data[0] += ";  Anneal or Dry Filament did not run.  Shutoff Temp < 30\n"
             Message(title = "[Anneal or Dry Filament]", text = "The script did not run because the Shutoff Temp is less than 30°.").show()
             return data
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
+        self.curaApp = Application.getInstance().getGlobalContainerStack()
+        extruder = self.curaApp.extruderList
         bed_temperature = int(self.getSettingValueByKey("startout_temp"))
         heated_chamber = bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_build_volume", "value"))
         anneal_type = self.getSettingValueByKey("bed_and_chamber")
@@ -244,8 +245,8 @@ class AnnealingOrDrying(Script):
         else:
             anneal_type = "bed_only"
             chamber_temp = "0"
-        has_bv_fan = bool(curaApp.getProperty("build_volume_fan_nr", "value"))
-        bv_fan_nr = int(curaApp.getProperty("build_volume_fan_nr", "value"))
+        has_bv_fan = bool(self.curaApp.getProperty("build_volume_fan_nr", "value"))
+        bv_fan_nr = int(self.curaApp.getProperty("build_volume_fan_nr", "value"))
         speed_bv_fan = int(self.getSettingValueByKey("chamber_fan_speed"))
         if bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value")):
             speed_bv_fan = round(speed_bv_fan * .01)
@@ -258,10 +259,10 @@ class AnnealingOrDrying(Script):
             self.bv_fan_on_str = ""
             self.bv_fan_off_str = ""
         # Park Head
-        max_y = str(curaApp.getProperty("machine_depth", "value"))
-        max_x = str(curaApp.getProperty("machine_width", "value"))
+        max_y = str(self.curaApp.getProperty("machine_depth", "value"))
+        max_x = str(self.curaApp.getProperty("machine_width", "value"))
         # Max_z is limited to 'machine_height - 20' just so the print head doesn't smack into anything.
-        max_z = str(int(curaApp.getProperty("machine_height", "value")) - 20)
+        max_z = str(int(self.curaApp.getProperty("machine_height", "value")) - 20)
         speed_travel = str(round(extruder[0].getProperty("speed_travel", "value")*60))
         park_xy = bool(self.getSettingValueByKey("park_head"))
         park_z = bool(self.getSettingValueByKey("park_max_z"))

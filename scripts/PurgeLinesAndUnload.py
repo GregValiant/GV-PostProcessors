@@ -183,14 +183,8 @@ class PurgeLinesAndUnload(Script):
 
     def execute(self, data):
         # Exit if the Gcode has already been processed.
-        for num in range(0, len(data)):
-            layer = data[num].split("\n")
-            for line in layer:
-                if ";LAYER:" in line:
-                    break
-                elif "PurgeLinesAndUnload" in line:
-                    Logger.log("i", "[Add Purge Lines and Unload Filament] has already run on this gcode.")
-                    return data
+        if ";POSTPROCESSED" in data[0]:
+            return data
         # The function also retrieves extruder settings used later in the script
         # 't0_has_offsets' is used to exit 'Add Purge Lines' and 'Circle around...' because the script is not compatible with machines with the right nozzle as the primary nozzle.
         self.t0_has_offsets = False
@@ -777,7 +771,7 @@ class PurgeLinesAndUnload(Script):
         extrude_speed = 3000
         quick_purge_speed = 240
         retract_amount = self.extruder[0].getProperty("retraction_amount", "value")
-        quick_purge_amount = retract_amount + 5 if retract_amount < 2.0 else retract_amount * 2
+        quick_purge_amount = retract_amount + 7 if retract_amount < 2.0 else retract_amount * 3
         unload_distance = self.getSettingValueByKey("unload_distance")
         quick_purge = self.getSettingValueByKey("unload_quick_purge")
         lines = data[-1].split("\n")

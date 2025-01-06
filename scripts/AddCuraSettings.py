@@ -200,7 +200,7 @@ class AddCuraSettings(Script):
         cura_version_int = int(cura_version_int.replace(".", ""))
         currency_symbol = Application.getInstance().getPreferences().getValue("cura/currency")
         extruderMgr = Application.getInstance().getExtruderManager()
-        extruder = Application.getInstance().getGlobalContainerStack().extruderList
+        extruder = curaApp.extruderList
         all_or_some = str(self.getSettingValueByKey("all_or_some"))
         complete_set = True if str(self.getSettingValueByKey("complete_or_short")) == "complete_set" else False
         machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
