@@ -1,12 +1,9 @@
 # GregValiant
 
-This Plugin is new in December of 2024.
+This Plugin is new in January of 2025.
 
-This plugin adds two or three settings below "Enable Firmware Retraction" in the machine_settings.
-**Configure G10/G11:**
-    Is dependent on 'Firmware Retraction' being enabled.  When checked it enables the script.
-**Z-hops (T0):**
-    Enables Z-hops via G10 or sets them to 0.  The Hop Height used is from the Cura Travel Settings.  It will be necessary to enable Zhops in Cura to change the hop height setting.  Z-hops in the Travel settings may then be disabled once again.
-**Z-hops (T1):**
-    Added if the machine is multi-extruder.  It works the same as noted above but for the second extruder.
-
+This plugin adds two settings above "Print Speed" in the speed_settings.
+**Enable Volumetric Speed Control:**
+    Enables the script and allows the user to input their preferred Max Flow Rate and the script will determine the Max Speed for the E motor.
+**Max Flow Rate:**
+    The maximum speed that the printer works well at.  The E motor will be limited to the speed derived from the flow rate.  The calculation is based on the nozzle size and the filament size.

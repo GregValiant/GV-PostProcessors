@@ -16,7 +16,7 @@ from UM.Settings.ContainerRegistry import ContainerRegistry
 from UM.Logger import Logger
 from UM.Message import Message
 
-class ConfigureFirmwareRetractPlugin(Extension):
+class MaxVolumetricFlowPlugin(Extension):
     def __init__(self):
         super().__init__()
         # Min and Max versions numbers are adjusted with the extra 0 in case 5.10 is released
@@ -35,25 +35,25 @@ class ConfigureFirmwareRetractPlugin(Extension):
         cura_ver = float(str(cura_maj) + "." + str(cura_min) + str(suffix))
         # Exit if the version number is above max or less than min.
         if cura_ver < cura_min_version or cura_ver > cura_max_version:
-            Logger.log("w", "[Configure Firmware Retractions] Did not load because it has not been tested with Cura Versions less than 5.6.0 or greater than 5.9.0.")
-            Message(title = "[Configure Firmware Retractions]", text = "Did not load because it has not been tested with Cura Versions less than 5.6.0 or greater than 5.9.0.").show()
+            Logger.log("w", "[Max Volumetric Flow] Did not load because it has not been tested with Cura Versions less than 5.6.0 or greater than 5.9.0.")
+            Message(title = "[Max Volumetric Flow]", text = "Did not load because it has not been tested with Cura Versions less than 5.6.0 or greater than 5.9.0.").show()
             return
         self._application = Application.getInstance()
 
         self._i18n_catalog = None
 
         self._settings_dict = OrderedDict()
-        self._settings_dict["config_firmware_retract_enable"] = {
-            "label": "    Configure G10/G11",
-            "description": "Adds M207 and M208 to the StartUp Gcode.  The settings come from the Retraction settings.  Z-hops may be enabled separately here but the height is from the retraction settings. For Multi-extruder printers the 'Nozzle Switch' settings come from the 'Dual Extrusion' settings.",
+        self._settings_dict["max_volumetric_speed_enable"] = {
+            "label": "Enable Volumetric Speed Limit",
+            "description": "If you wish to control the print speed to keep it under your max volumetric limit - enable this command.  Travel speeds are not affected.",
             "type": "bool",
-            "value": "machine_firmware_retract",
+            "value": False,
             "default_value": False,
-            "enabled": "machine_firmware_retract"
+            "enabled": True
         }
         self._settings_dict["enable_hop_t0"] = {
-            "label": "        Enable Z hops (T0)",
-            "description": "When this is enabled there will be Z-hops for every retraction.  The 'Z-Hop Height' from the Cura Travel Settings will be used.  You should disable 'Z-Hop on Retraction' for Extruder 1 in the Travel Settings.",
+            "label": "    Max Volumetric Flow",
+            "description": "Enter the maximum volumetric flow rate that your printer is comfortable with.",
             "type": "bool",
             "default_value": False,
             "enabled": "config_firmware_retract_enable and machine_firmware_retract"
