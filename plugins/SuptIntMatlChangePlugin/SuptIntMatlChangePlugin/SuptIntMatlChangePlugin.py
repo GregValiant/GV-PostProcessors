@@ -1,13 +1,11 @@
 #------------------------------------------------------------------------------------------------------------------------------------
 # Initial Copyright(c) 2024 Greg Foresi (GregValiant)
 #
-# Support Interface Material Change is released under the terms of the AGPLv3 or higher.
-#
 # Description:  postprocessing script to allow single extruder printers to switch material for the support interfaces on specific layers or ranges of layers.
 # Not available if "Print Sequence" is 'One-at-a-Time'.
 #
 #------------------------------------------------------------------------------------------------------------------------------------
-# Several "pause" commands are listed including G4  A 'custom' pause command can be entered.
+# Several "pause" commands are listed including G4.  A 'custom' pause command can be entered.
 #
 #------------------------------------------------------------------------------------------------------------------------------------
 
@@ -121,8 +119,8 @@ class SuptIntMatlChangePlugin(Extension):
             "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["interface_flow"] = {
-            "label": "     Interface Flow Rate",
-            "description": "The percent flow rate of the support-interface material.  This will usually be 100% but can be tweaked here.  NOTE: This uses M220 to alter the flow.  At the end of each switch to the model material this script always sets the flow rate to 100%.  If you have other M220 lines in the gcode they will be negated by the M220 S100 lines.",
+            "label": "     Interface Flow Rate %",
+            "description": "The flow rate of the support-interface material as a percentage of the normal flow rate.  This will usually be 100% but can be tweaked here.  NOTE: This uses M220 to alter the flow.  At the end of each switch to the model material this script always sets the flow rate to 100%.  If you have other M220 lines in the gcode they will be negated by the M220 S100 lines.",
             "type": "int",
             "value": 100,
             "unit": "%  ",
@@ -132,7 +130,7 @@ class SuptIntMatlChangePlugin(Extension):
             "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }        
         self._settings_dict["interface_feed"] = {
-            "label": "     Interface Feed Rate",
+            "label": "     Interface Feed Rate %",
             "description": "The feed rate of the support-interface material as a percentage of the Print Speed.  This will typically be 100% but can be tweaked here.  NOTE: At the end of each switch to the model material this script always sets the feed rate to 100%.  If you have other M220 lines in the gcode they will be negated by the M220 S100 line this scripts adds as a reset.",
             "type": "int",
             "value": 100,
@@ -305,6 +303,8 @@ class SuptIntMatlChangePlugin(Extension):
             insert_pt = 43
         elif "5.7" in cura_version:
             insert_pt = 41
+        elif "5.9" in cura_version:            
+            insert_pt = 43
         else:
             insert_pt = 0
         if support_category:
@@ -381,15 +381,16 @@ class SuptIntMatlChangePlugin(Extension):
             # More reasons to exit
             if not support_enable:
                 Logger.log("i", "[Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.")
-                gcode_list[0] += ";    [Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.\n"
+                if ";    [Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.\n" not in gcode_list[0]:
+                    gcode_list[0] += ";    [Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.\n"
                 return
             if not support_interface_enable:
                 Logger.log("i", "[Supt-Int Matl Change] Did not run because 'Enable Support Interface' was not enabled for Extruder 1.")
-                gcode_list[0] += ";    [Supt-Int Matl Change] Did not run because 'Enable Support Interface' was not enabled for Extruder 1.\n"
+                if ";    [Supt-Int Matl Change] Did not run because 'Enable Support Interface' was not enabled for Extruder 1.\n" not in gcode_list[0]:
+                    gcode_list[0] += ";    [Supt-Int Matl Change] Did not run because 'Enable Support Interface' was not enabled for Extruder 1.\n"
                 return
             if not suptintmatlchange_enable:
                 Logger.log("i", "[Supt-Int Matl Change] was not enabled.")
-                gcode_list[0] += ";    [Supt-Int Matl Change] was not enabled.\n"
                 return
             
             # If the gcode has already been processed then don't run again.
@@ -555,7 +556,7 @@ class SuptIntMatlChangePlugin(Extension):
                 flow_rate_reset = "M221 S100; Reset flow rate\n"
                 # Feed lines
                 feed_rate_str = f"M220 S{interface_feed} ; Set interface feed rate\n"
-                feed_rate_reset = "M220 S100; Reset flow rate\n"
+                feed_rate_reset = "M220 S100; Reset feed rate\n"
 
                 ## Load and Unload lines
                 if unload_dist != 0:
@@ -779,6 +780,7 @@ class SuptIntMatlChangePlugin(Extension):
     def _getUnloadReloadScript(self, data: str, filament_dist: int, extrude_speed: int, retract_speed: int, unload_filament: bool, retract_dist: int)->str:
         if unload_filament:
             filament_str = "M83; Relative extrusion\nM400; Complete all moves\n"
+            filament_str += f"G1 F{int(retract_speed)} E{round(retract_dist * 2.5,5) if float(retract_dist) > 2 else 15}; Quick purge\n"
             if filament_dist > 150:
                 temp_unload = filament_dist
                 while temp_unload > 150:
