@@ -1,7 +1,6 @@
 # Copyright (c) 2023 UltiMaker B.V.
-# The PostProcessingPlugin is released under the terms of the AGPLv3 or higher.
 # Altered 06-01-2023 by GregValiant (Greg Foresi)
-#  Added regex to check for Zhop lines because they were interfering with the script during combing.
+#  Fixed problem with script when Z-hops were enabled.  Added regex expression to check for Zhop lines.
 #  Changed the significant digits to: F=0, X=3, Y=3, Z=2
 
 from ..Script import Script
@@ -25,11 +24,11 @@ class RetractContinueGV(Script):
             {
                 "extra_retraction_speed":
                 {
-                    "label": "Extra Retraction Ratio",
+                    "label": "Extra Retraction Ratio Ret/Dist",
                     "description": "How much does it retract during the travel move, by ratio of the travel length.",
                     "unit": "mmRet/mmDist",
                     "type": "float",
-                    "default_value": 0.05
+                    "default_value": 0.025
                 }
             }
         }"""
@@ -46,9 +45,9 @@ class RetractContinueGV(Script):
     def _travelMoveString(self, travel: Vector, f: float, e: float) -> str:
         # Note that only G1 moves are written, since extrusion is included.
         if f <= 0.0:
-            return f"G0 X{travel.x:.3f} Y{travel.y:.3f} Z{travel.z:.2f} E{e:.5f} ;Trav"
+            return f"G1 X{travel.x:.3f} Y{travel.y:.3f} Z{travel.z:.2f} E{e:.5f} ;Trav"
         else:
-            return f"G0 F{f:.0f} X{travel.x:.3f} Y{travel.y:.3f} Z{travel.z:.2f} E{e:.5f} ;Trav"
+            return f"G1 F{f:.0f} X{travel.x:.3f} Y{travel.y:.3f} Z{travel.z:.2f} E{e:.5f} ;Trav"
 
     def execute(self, data: List[str]) -> List[str]:
         current_e = 0.0
@@ -64,6 +63,10 @@ class RetractContinueGV(Script):
         )
 
         for layer_number, layer in enumerate(data):
+            if layer_number < 2:
+                continue
+            if layer_number > len(data) - 2:
+                break
             lines = layer.split("\n")
             for line_number, line in enumerate(lines):
 
@@ -88,7 +91,7 @@ class RetractContinueGV(Script):
 
                 # Handle lines: Detect retractions and compensate relative if G1, potential retract-continue if G0.
                 # and ignore Zhop lines
-                if code_g == 1 and re.search("G1 F(\d*) Z(\d.*)", line) == None:
+                if code_g == 1 and re.search("G1 F(\d+\.\d+|\d+) Z(\d+\.\d+|\d+)", line) == None:
                     if last_e > (current_e + 0.0001):  # Account for floating point inaccuracies.
 
                         # There is a retraction, each following G0 command needs to continue the retraction.
@@ -105,11 +108,11 @@ class RetractContinueGV(Script):
                     # There is no retraction (see continue in the retract-clause) and everything else has been handled.
                     is_active = False
                 # If the line is G0 or a Zhop then maake changes----------------------------------------
-                elif code_g == 0 or re.search("G1 F(\d*) Z(\d.*)", line) != None:
+                elif code_g == 0 or re.search("G1 F(\d+\.\d+|\d+) Z(\d+\.\d+|\d+)", line) != None:
                     if not is_active:
                         continue
                     #Ignore G1 Z hop lines and act on the G0 lines----------------------------
-                    if re.search("G1 F(\d*) Z(\d.*)", line) == None:
+                    if re.search("G1 F(\d+\.\d+|\d+) Z(\d+\.\d+|\d+)", line) == None:
                         # The retract-continue is active, so each G0 until the next extrusion needs to continue retraction.
                         travel, f = self._getTravelMove(lines[line_number], current_pos)
                         travel_length = (current_pos - last_pos).length()
