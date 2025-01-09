@@ -85,19 +85,20 @@ class InsertAtLayerChange(Script):
         }"""
 
     def execute(self, data):
-    #Initialize variables
-        mycode = self.getSettingValueByKey("gcode_to_add").upper()
+        #Initialize variables
+        global_stack = Application.getInstance().getGlobalContainerStack()
+        code_to_add = self.getSettingValueByKey("gcode_to_add").upper()
         the_start_layer = int(self.getSettingValueByKey("start_layer")) -1
         the_end_layer = self.getSettingValueByKey("end_layer")
         when_to_insert = self.getSettingValueByKey("insert_frequency")
         all_models = bool(self.getSettingValueByKey("all_models"))
-        print_sequence = Application.getInstance().getGlobalContainerStack().getProperty("print_sequence", "value")
+        print_sequence = global_stack.getProperty("print_sequence", "value")
         if print_sequence == "all_at_once":
             all_models = True
         start_here = False
         real_num = 0
         past_first_0 = False
-        retraction_enabled = bool(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("retraction_enable", "value"))
+        retraction_enabled = bool(global_stack.extruderList[0].getProperty("retraction_enable", "value"))
         if retraction_enabled:
             top_fix = 1
         else:
@@ -108,12 +109,12 @@ class InsertAtLayerChange(Script):
             the_end_layer = the_start_layer
         else:
             the_end_layer -= 1
-    #If the gcode_to_enter is multi-line then replace the commas with newline characters
-        if mycode != "":
-            if "," in mycode:
-                mycode = re.sub(",", "\n",mycode)
-            gcode_to_add = mycode + "\n"
-    #Get the insertion frequency
+        #If the gcode_to_enter is multi-line then replace the commas with newline characters
+        if code_to_add != "":
+            if "," in code_to_add:
+                code_to_add = re.sub(",", "\n",code_to_add)
+            gcode_to_add = code_to_add + "\n"
+        #Get the insertion frequency
         match when_to_insert:
             case "every_layer":
                 freq = 1
@@ -136,32 +137,28 @@ class InsertAtLayerChange(Script):
             case _:
                 the_search_layer = int(self.getSettingValueByKey("single_end_layer")) - 1
                 raise Exception("Error.  Insert changed to Once Only.")
-
-    #Single insertion
-        if when_to_insert == "once_only":
-            if print_sequence == "all_at_once" or not all_models:
-                for index, layer in enumerate(data):
+                
+        # Insert the 'gcode_to_add' after the ';LAYER:' line
+        for index, layer in enumerate(data):
+            #Single insertion
+            if when_to_insert == "once_only":
+                if print_sequence == "all_at_once" or not all_models:
                     if ";LAYER:" + str(the_search_layer) + "\n" in layer:
                         lines = layer.split("\n")
                         lines.insert(1,gcode_to_add[0:-1])
                         data[index] = "\n".join(lines)
                         return data
-
-            elif print_sequence == "one_at_a_time" and all_models:
-                for index, layer in enumerate(data):
+                elif print_sequence == "one_at_a_time" and all_models:
                     if ";LAYER:" + str(the_search_layer) + "\n" not in layer:
                         continue
                     elif ";LAYER:" + str(the_search_layer) + "\n" in layer:
                         lines = layer.split("\n")
                         lines.insert(1,gcode_to_add[0:-1])
                         data[index] = "\n".join(lines)
-                        continue
-                return data
-
-    #Multiple insertions
-        if when_to_insert != "once_only":
-            layer_number = 0
-            for index, layer in enumerate(data):
+                        continue                        
+            #Multiple insertions
+            else:
+                layer_number = 0
                 lines = layer.split("\n")
                 for l_index, line in enumerate(lines):
                     if ";LAYER:" in line:
