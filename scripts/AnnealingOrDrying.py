@@ -25,11 +25,11 @@ class AnnealingOrDrying(Script):
         self._instance.setProperty("startout_temp", "value", bed_temp)
         # Get the Build Volume temperature if there is one
         heated_build_volume = bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_build_volume", "value"))
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        chamber_fan_nr = curaApp.getProperty("build_volume_fan_nr", "value")
-        extruder_count = curaApp.getProperty("machine_extruder_count", "value")
+        global_stack = Application.getInstance().getGlobalContainerStack()
+        chamber_fan_nr = global_stack.getProperty("build_volume_fan_nr", "value")
+        extruder_count = global_stack.getProperty("machine_extruder_count", "value")
         if heated_build_volume:
-            chamber_temp = curaApp.getProperty("build_volume_temperature", "value")
+            chamber_temp = global_stack.getProperty("build_volume_temperature", "value")
             self._instance.setProperty("has_build_volume_heater", "value", heated_build_volume)
             self._instance.setProperty("build_volume_temp", "value", chamber_temp)
         if chamber_fan_nr > 0:
@@ -219,7 +219,8 @@ class AnnealingOrDrying(Script):
 
     def execute(self, data):
         # Exit if there is no heated bed.
-        if not bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_bed", "value")):
+        self.global_stack = Application.getInstance().getGlobalContainerStack()
+        if not bool(self.global_stack.getProperty("machine_heated_bed", "value")):
             Message(title = "[Anneal or Dry Filament]", text = "The script did not run because Heated Bed is disabled in Machine Settings.").show()
             return data
         # Enter a message in the gcode if the script is not enabled.
@@ -233,10 +234,9 @@ class AnnealingOrDrying(Script):
             data[0] += ";  Anneal or Dry Filament did not run.  Shutoff Temp < 30\n"
             Message(title = "[Anneal or Dry Filament]", text = "The script did not run because the Shutoff Temp is less than 30°.").show()
             return data
-        self.curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = self.curaApp.extruderList
+        extruder = self.global_stack.extruderList
         bed_temperature = int(self.getSettingValueByKey("startout_temp"))
-        heated_chamber = bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_build_volume", "value"))
+        heated_chamber = bool(self.global_stack.getProperty("machine_heated_build_volume", "value"))
         anneal_type = self.getSettingValueByKey("bed_and_chamber")
 
         # Get the heated chamber temperature or set to 0 if no chamber
@@ -245,8 +245,8 @@ class AnnealingOrDrying(Script):
         else:
             anneal_type = "bed_only"
             chamber_temp = "0"
-        has_bv_fan = bool(self.curaApp.getProperty("build_volume_fan_nr", "value"))
-        bv_fan_nr = int(self.curaApp.getProperty("build_volume_fan_nr", "value"))
+        has_bv_fan = bool(self.global_stack.getProperty("build_volume_fan_nr", "value"))
+        bv_fan_nr = int(self.global_stack.getProperty("build_volume_fan_nr", "value"))
         speed_bv_fan = int(self.getSettingValueByKey("chamber_fan_speed"))
         if bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value")):
             speed_bv_fan = round(speed_bv_fan * .01)
@@ -259,10 +259,10 @@ class AnnealingOrDrying(Script):
             self.bv_fan_on_str = ""
             self.bv_fan_off_str = ""
         # Park Head
-        max_y = str(self.curaApp.getProperty("machine_depth", "value"))
-        max_x = str(self.curaApp.getProperty("machine_width", "value"))
+        max_y = str(self.global_stack.getProperty("machine_depth", "value"))
+        max_x = str(self.global_stack.getProperty("machine_width", "value"))
         # Max_z is limited to 'machine_height - 20' just so the print head doesn't smack into anything.
-        max_z = str(int(self.curaApp.getProperty("machine_height", "value")) - 20)
+        max_z = str(int(self.global_stack.getProperty("machine_height", "value")) - 20)
         speed_travel = str(round(extruder[0].getProperty("speed_travel", "value")*60))
         park_xy = bool(self.getSettingValueByKey("park_head"))
         park_z = bool(self.getSettingValueByKey("park_max_z"))
