@@ -98,6 +98,13 @@ class ZhopOnTravel(Script):
                     "type": "bool",
                     "default_value": false,
                     "enabled": "zhop_travel_enabled"
+                },
+                "infill_only": {
+                    "label": "Add Z-hops to Infill Only",
+                    "description": "Only add Z-hops to 'Infill' within the layer range.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "zhop_travel_enabled"
                 }
             }
         }"""
@@ -131,6 +138,7 @@ class ZhopOnTravel(Script):
         min_travel_dist = self.getSettingValueByKey("min_travel_dist")
         hop_height = round(self.getSettingValueByKey("hop_height"),2)
         list_or_range = self.getSettingValueByKey("list_or_range")
+        infill_only = self.getSettingValueByKey("infill_only")
         layer_list = []
         index_list = []
 
@@ -201,12 +209,17 @@ class ZhopOnTravel(Script):
             self._track_all_axes(data, cmd_list, start_index, relative_extrusion)
 
         # Make the insertions
+        in_the_infill = False
         for num in index_list: #for num in range(start_index, end_index + 1):
             lines = data[num].splitlines()
             for index, line in enumerate(lines):
                 if num == 2:
                     if line.startswith(";TYPE"):
                         start_here = True
+                if line.startswith(";") and in_the_infill == True:
+                    in_the_infill = False
+                if line.startswith(";TYPE:FILL"):
+                    in_the_infill = True
                 if line.startswith("G92") and " E" in line:
                     self._cur_e = self.getValue(line, "E")
                     self._prev_e = self._cur_e
@@ -239,14 +252,16 @@ class ZhopOnTravel(Script):
                     start_here = True
                 if not start_here:
                     continue
-
                 # All travels are checked for their cumulative length
                 if line.startswith("G0 ") and hop_start == 0:
                     hop_indexes = self._total_travel_length(index, lines)
                     hop_start = int(hop_indexes[0])
                     hop_end = int(hop_indexes[1])
+                    if infill_only and not in_the_infill:
+                        hop_start = 0
+                        hop_end = 0
                     if hop_start > 0:
-                        # For any lines that are XYZ moves right before layer change
+                        # For any lines that are XYZ moves right before layer change 
                         if " Z" in line:
                             lines[index] = lines[index].replace("Z" + str(self._cur_z), "Z" + str(self._cur_z + hop_height))
                         # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
