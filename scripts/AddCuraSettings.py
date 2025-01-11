@@ -251,6 +251,15 @@ class AddCuraSettings(Script):
         if bool(self.getSettingValueByKey("general_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [General Settings]\n"
             setting_data += ";Job Name: " + str(Application.getInstance().getPrintInformation().jobName) + "\n"
+            model_list = []
+            for mdex, layer in enumerate(data):
+                layer = data[mdex].split("\n")
+                for line in layer:
+                    if line.startswith(";MESH:") and "NONMESH" not in line:
+                        model_name = line.split(":")[1]
+                        if not model_name in model_list:
+                            model_list.append(model_name)
+            setting_data += ";Model List: " + str(model_list) + "\n"
             setting_data += ";Print Time: " + str(Application.getInstance().getPrintInformation().currentPrintTime.getDisplayString(DurationFormat.Format.ISO8601)) + "\n"
             setting_data += ";Slice Start Time: " + str(time.strftime("%H:%M:%S")) + " (24hr)\n"
             setting_data += ";Slice Date: " + str(time.strftime("%m-%d-%Y")) + " (mm-dd-yyyy)\n"
