@@ -252,7 +252,8 @@ class DisplayInfoOnLCD(Script):
         else:
             data = self._display_progress(data)
         return data
-        # This is from the original 'Display Filename and Layer on LCD'
+        
+    # This is from the original 'Display Filename and Layer on LCD'
     def _display_filename_layer(self, data: str) -> str:
         data[0] = self._add_stats(data)
         max_layer = 0
