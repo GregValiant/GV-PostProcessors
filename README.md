@@ -7,18 +7,22 @@ Known Issues:
 
 MultiExtruderColorMix:
     I don't own a multi-extruder machine so this script might not work as expected.  I could use feedback on this one.
-	
+
 Filament Change:.
     I added all the possible parameters as listed on MarlinFW.org.  The parameters must be supported in the firmware.  If they are not then the parameter is likely to be ignored, but it is possible that an invalid parameter will keep the command from being executed by the printer.
-	
+
 Flash Forge IDEX Tool Temps:
     This started out as a simple attempt to change the syntax of the Cura Gcode to be acceptable to the Flash Forge IDEX printers.  It ended up being a pretty full-fledged translator and allows the user to select the mode "Normal, Duplicate, or Mirror" in the post processor settings and when the file is saved the gcode is translated and some lines added so the Flash Forge printer will print it as it should.  Just because the Cura gcode opened in FlashPrint seems to be correct doesn't mean that it will print correctly.  This is another one that I need feedback on.
-	
+
 Marlin to FlashForge Converter (for single extruder printers):
+	Please note that some testing on a Creator 2 has shown that the script is not working as expected.  The print refuses to start.
 	Goes through the gcode and makes changes like changing the "TYPE" lines to ";structure:" lines are used by FlashPrint.  It also adds tool numbers to fan lines, changes the G0 commands to G1 commands, and translates things like Cura's heating lines and Build Volume Fan lines.  The script is compatible with the FlashFinder plugins from the MarketPlace.
 
 -----------------------------------------------------------------------------
 Latest Changes:
+
+1/25/2025: Little Utilities update:
+	Added 'Initial Layer Walls Z Height' adjustment.  The layer height of the initial layer Inner and Outer walls can be adjusted separate from other features.  The second layer has the Wall Flow Rate adjusted to account for the higher layer heights.
 
 AnnealingCoolDown now has a "Filament Drying" function.  It will create a gcode file with just the commands needed to Auto-Home, park the head, heat the build plate to a temperature of your choice.  The bed will stay at that temperature for the specified period of time and then shut off.
 
@@ -26,7 +30,7 @@ AddCuraSettings is updated to the settings in Cura 5.9.0 stable release.
 
 ZhopOnTravel can now add retractions when they are necessary.
 
-MaxVolumetricSpeed (Max E Speed by Flow Rate) is new and there is a pull request in for it. 
+MaxVolumetricSpeed (Max E Speed by Flow Rate) is new and there is a pull request in for it.
     Also added the same function as a Plugin.  The settings appear at the top of the "Speed Settings" in Cura.
 
 PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machines with disallowed areas.  Added moves when a multi-extruder printer travels to the purge tower at the beginning of a print.
@@ -56,7 +60,7 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 
 **CuraPrependBugFix:**
 	This is specifically for Cura 5.7.2 and removes the temperature prepend lines that are being erroneously entered before the StartUp Gcode.
-	
+
 **DiscoverSettings:**
     NOTE:  This does not generate a gcode file.
 	Goes through "fdmprinter.def.json" and retrieves all the settings and pastes them into the gcode file.  If a comparison between two Cura versions is being made then it lists all the settings in each version and reports the differences between the two versions.  This is what I use to update "AddCuraSettings".
@@ -82,8 +86,8 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 **LimitXYAccelJerk:**
 	For bed slinger printers, the accel can be changed at a layer, or gradually changed across a range of layers.  It can keep jerky motion of tall prints from breaking the print loose from the bed.
 
-**LittleUtilities_v15:**
-	A collection of about 15 post processors ranging from "Remove Comments" (usefull for UM2 printers) to creating debugging gcode files with no extrusions.  There are some script debugging tools as well.  'Add Purge Lines' and a couple of others have been split out into their own file.  The 'v' number indicates how many scripts are included rather than the version number.
+**LittleUtilities_v17:**
+	A collection of 17 post processors ranging from "Remove Comments" (usefull for UM2 printers) to creating debugging gcode files with no extrusions.  There are some script debugging tools as well.  The 'v' number indicates how many scripts are included rather than the version number.
 
 **MultiExtruderColorMix:**
 	A work in process.  This is intended to allow graduated mixing for printers with mixing hot ends.  The Marlin side is well along.  The RepRap side is just started.
@@ -113,12 +117,12 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 
 **TimeLapse:**
 	A re-write that has been submitted to UM.  It includes additional options like "Frequency" of the insertion.
-	
+
 **Zhop On Travel:**
 	Adds Z-hops to a file within a range of layers based on the length of a travel move.  The hop height and minimum travel are user defined.  This is not dependent on retractions and is compatible with Z-Hops enabled in Cura.  It is not compatible with One-at-a-Time mode.
 	Retractions have been added and occur if there isn't already one in place when the new Zhop's are added.
 	This is compatible with firmware retraction, relative extrusion, and extra prime amount.  You can leave "z-hop on retraction" disabled in Cura and use this script to hop for just a couple of layers when necessary.
-	
+
 **Max E Speed and Jerk Decoupler**
 	Goes through the Gcode and at every retraction/prime it changes the Max E Speed with M203.  Before the retraction/prime the speed is increased so retraction/prime is at the set speed.  After the retract/prime event; the speed is reduced so that flow increases in the gcode will not under-extrude.  The script works with Absolute Extrusion, Relative Extrusion, Firmware Retraction, Marlin and RepRap, and allows for separate settings for dual extruders.
 	Jerk settings are included for the extruder(s).
@@ -129,15 +133,15 @@ Plugin Extensions for Cura:
 **SovolSV04_IDEX:**
 	This is intended to compliment the Sovol SV04 in Cura.  The commands are available in the "Dual Extruder" section of the Cura settings.
 	When it is installed and in "Auto_Mode" it will check the printer name and make an adjustment to 'Copy', 'Dual', 'Mirror', 'Single01', or Single02 mode.  In Dual Mode there are options for single use 'StartUp' and 'Ending' macros.
-	
-**FlashForge_IDEX_Plugin:** 
+
+**FlashForge_IDEX_Plugin:**
 	Same as the post-processor but as a plugin/extension
 
-**Support Interface Material Change:** 
+**Support Interface Material Change:**
 	This is the same as the post-processor.  It is available in the normal Cura 'Support' settings under 'Enable Support Interface'
-	
-**Max E Speed and Jerk Decoupler:** 
+
+**Max E Speed and Jerk Decoupler:**
 	See the post processor above.
-	
+
 -----------------------------------------------------------------------------
 
