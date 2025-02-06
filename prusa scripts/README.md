@@ -1,56 +1,54 @@
-# GV-PostProcessors
-
-*PostProcessing Scripts for PrusaSlicer and OrcaSLicer*
+# GregValiant's PostProcessors for PrusaSlicer and Orca
 
 As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
 
 PLEASE NOTE:
-"GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
+- These post-processors are "python scripts" and Python must be installed on your computer. 
+- "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
 
-**NOTE:  These post-processors are "python scripts" and Python must be installed on your computer.**
-
-In both Prusa and Orca, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner:
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
+In both Prusa and Orca, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner...
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
 The quotation marks are necessary on my installtion of Windows 10 Pro.
-The first part of the line is the path and file name for "python.exe" on your computer.
-then a "space" character.
-The second part is the path and file name of the post-processor followed by a semi-colon
+The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".
+The second part is the path and file name of the post-processor followed by a semi-colon.
 Each post-processor requires the same form and must be separate.
-For multiple post-processors the "Post-processing scripts" textbox would look something like this:
--------------
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_SearchAndReplace.py";
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AdvancedFanControl.py";
--------------
+For multiple post-processors the "Post-processing scripts" textbox would look something like this...
+
+<path\python.exe><1space><path\post-processor file name><;>
+
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
+
 As each post-processor runs it will open a command window and you will be asked to enter your options.  There will be a final listing of your inputs that will look something like this (Add Layer Numbers does not have a final review):
 
-Review your fan settings:
+Review your fan settings:  
 
-Use normal PWM fan scale (0 to 255)
-Start Layer (model starts on ';Layer:1' in the Gcode): 5
-End Layer in the Gcode...............................: 32
-TYPE:External Perimeter..............................: 100%
-TYPE:Perimeter.......................................: 35%
-TYPE:Top solid infill................................: 50%
-TYPE:Solid infill....................................: 35%
-TYPE:Bridge infill...................................: 100%
-TYPE:Internal infill.................................: 50%
-TYPE:Skirt/Brim......................................: 0%
-TYPE:Support.........................................: 35%
-TYPE:Support interface...............................: 100%
-Fan off during travel................................: False
-Final Fan speed (above the End Layer)................: 75%
-Top-of-Raft fan speed................................: 80%
- <Continue(y,n) or Redo(r)>
-
-Entering an "r" will allow you to go back through and change things.
+Use normal PWM fan scale (0 to 255)  
+Start Layer (model starts on ';Layer:1' in the Gcode): 5  
+End Layer in the Gcode...............................: 32  
+TYPE:External Perimeter..............................: 100%  
+TYPE:Perimeter.......................................: 35%  
+TYPE:Top solid infill................................: 50%  
+TYPE:Solid infill....................................: 35%  
+TYPE:Bridge infill...................................: 100%  
+TYPE:Internal infill.................................: 50%  
+TYPE:Skirt/Brim......................................: 0%  
+TYPE:Support.........................................: 35%  
+TYPE:Support interface...............................: 100%  
+Fan off during travel................................: False  
+Final Fan speed (above the End Layer)................: 75%  
+Top-of-Raft fan speed................................: 80%  
+ <Continue(y,n) or Redo(r)>  
+ 
+ Entering an "r" will allow you to go back through and change things.  
  
 -----------------------------------------------------------------------------
-**Add Layer Numbers:**
+**Add Layer Numbers:
 Goes through the gcode and looks for ";LAYER_CHANGE" and adds a line below that ";Layer:XX".
 The layer numbers will match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
 
-**Search and Replace**
+**Search and Replace
 The review will include the settings:
 Search String......................: YourString >>> Enter the string to search for.  This can be a simple string like ";LAYER_CHANGE" or can be a regular expression like  ";Layer:(\d+)\n"
 Replace With.......................: M999 >>> This is the text that will replace the search string.  For a Regular Expression replacement it could be ";LAYER:\1\nM999" which would remember the layer number in the Regex search example.
