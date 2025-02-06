@@ -189,11 +189,11 @@ else:
                 input_str += "Final Fan speed (above the End Layer)................: " + str(round(final_fan_speed / 2.55)) + "%\n"
             if raft_layers > 0:
                 input_str += "Top-of-Raft fan speed................................: " + str(round(raft_cooling_speed / 2.55)) + "%\n"
-            setting_review = input(input_str + "\n<Continue(y,n) or Redo(r)> ").lower()
+            setting_review = input(input_str + "\n<Continue(y)  Redo(r)  Quit(x)> ").lower()
         except:            
-            setting_review = "n"
-        if setting_review == "n":
-            response = input("Your response was 'n'.  The script will exit with no fan changes. <Enter>.")
+            setting_review = "x"
+        if setting_review == "x":
+            response = input("Your response was 'x'.  The script will exit with no fan changes. <Enter>.")
             exit(0)
 
     if raft_layers > 0 and raft_cooling_speed > 0:
