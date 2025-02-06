@@ -16,9 +16,9 @@ For multiple post-processors the "Post-processing scripts" textbox would look so
 
 <path\python.exe><1space><path\post-processor file name><;>
 
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_SearchAndReplace.py";
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AdvancedFanControl.py";
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";
 
 As each post-processor runs it will open a command window and you will be asked to enter your options.  There will be a final listing of your inputs that will look something like this (Add Layer Numbers does not have a final review):
 
