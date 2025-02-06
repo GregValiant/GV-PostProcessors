@@ -14,7 +14,7 @@ The second part is the path and file name of the post-processor followed by a se
 Each post-processor requires the same form and must be separate.
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
 
-<path\python.exe><space><path\post-processor file name><;>
+<path\python.exe><1space><path\post-processor file name><;>
 
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_SearchAndReplace.py";
