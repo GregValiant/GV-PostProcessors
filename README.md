@@ -1,4 +1,4 @@
-# GV-PostProcessors and Plugins
+# GregValiant's PostProcessors and Plugins for Cura
  PostProcessing Scripts for Cura
 
 As I work on these I update the Git page.  The versions here should work as intended and they are not Cura "version specific".  My own Cura installations go from UM 4.13.1 to current and Smart Avionics 4.20.x fork and I test on those.  They are likely to be acceptable to Creality and other Cura forks but I don't debug with those.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
@@ -20,6 +20,7 @@ Marlin to FlashForge Converter (for single extruder printers):
 
 -----------------------------------------------------------------------------
 Latest Changes:
+2/01/2025:  Added the post processors for Prusa/Orca
 
 1/25/2025: Little Utilities update:
 	Added 'Initial Layer Walls Z Height' adjustment.  The layer height of the initial layer Inner and Outer walls can be adjusted separate from other features.  The second layer has the Wall Flow Rate adjusted to account for the higher layer heights.
