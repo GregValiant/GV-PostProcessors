@@ -10,10 +10,12 @@ In both Prusa and Orca, the post processors need to be entered into the "Output 
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
 The quotation marks are necessary on my installtion of Windows 10 Pro.
 The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".
-The second part is the path and file name of the post-processor followed by a semi-colon
+The second part is the path and file name of the post-processor followed by a semi-colon.
 Each post-processor requires the same form and must be separate.
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
+
 <path\python.exe><space><path\post-processor file name><;>
+
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_SearchAndReplace.py";
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AdvancedFanControl.py";
