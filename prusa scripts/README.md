@@ -3,15 +3,15 @@
 As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
 
 PLEASE NOTE:
-    These post-processors are "python scripts" and Python must be installed on your computer. 
-	"GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).  In both Prusa and Orca, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner:
+- These post-processors are "python scripts" and Python must be installed on your computer. 
+- "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).  In both Prusa and Orca, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner...
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
 The quotation marks are necessary on my installtion of Windows 10 Pro.
 The first part of the line is the path and file name for "python.exe" on your computer.
 then a "space" character.
 The second part is the path and file name of the post-processor followed by a semi-colon
 Each post-processor requires the same form and must be separate.
-For multiple post-processors the "Post-processing scripts" textbox would look something like this:
+For multiple post-processors the "Post-processing scripts" textbox would look something like this...
 -------------
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_SearchAndReplace.py";
