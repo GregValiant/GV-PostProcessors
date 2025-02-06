@@ -12,11 +12,11 @@ then a "space" character.
 The second part is the path and file name of the post-processor followed by a semi-colon
 Each post-processor requires the same form and must be separate.
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
--------------
+
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_SearchAndReplace.py";
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AdvancedFanControl.py";
--------------
+
 As each post-processor runs it will open a command window and you will be asked to enter your options.  There will be a final listing of your inputs that will look something like this (Add Layer Numbers does not have a final review):
 
 Review your fan settings:
