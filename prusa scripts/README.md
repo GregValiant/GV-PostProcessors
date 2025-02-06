@@ -32,7 +32,7 @@ The review will include the settings:
 - *Search String......................: YourString* >>> Enter the string to search for.  This can be a simple string like ";LAYER_CHANGE" or can be a regular expression like  ";Layer:(\d+)\n"  
 - *Replace With.......................: M999* >>> This is the text that will replace the search string.  For a Regular Expression replacement it could be ";LAYER:\1\nM999" which would remember the layer number in the Regex search example.  
 - *Is Regex?..........................: False* >>> Whether the search string should be considered a "Regular Expression".  
-- *Enable a Layer Range Search?.......: True* >>> It isn't necessary to search the entire gcode.  The search can be limited to a reange of layers.  If you do enable a layer range then you get to pick the start and end layers.  
+- *Enable a Layer Range Search?.......: True* >>> It isn't necessary to search the entire gcode.  The search can be limited to a range of layers.  If you do enable a layer range then you get to pick the start and end layers.  
 - *Start Layer....................: 25* >>> the search will commence at the beginning of the Start Layer.  
 - *End Layer......................: 50* >>> the search will continue through to the end of the End Layer.  
 - *Replace the First Instance only?...: False* >>> You can opt to change only the first instance of the Search String rather than all of the occurences.  
