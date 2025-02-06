@@ -25,23 +25,23 @@ As each post-processor runs it will open a command window and you will be asked 
 Review your fan settings:
 
 Use normal PWM fan scale (0 to 255)
-Start Layer (model starts on ';Layer:1' in the Gcode): 5
-End Layer in the Gcode...............................: 32
-TYPE:External Perimeter..............................: 100%
-TYPE:Perimeter.......................................: 35%
-TYPE:Top solid infill................................: 50%
-TYPE:Solid infill....................................: 35%
-TYPE:Bridge infill...................................: 100%
-TYPE:Internal infill.................................: 50%
-TYPE:Skirt/Brim......................................: 0%
-TYPE:Support.........................................: 35%
-TYPE:Support interface...............................: 100%
-Fan off during travel................................: False
-Final Fan speed (above the End Layer)................: 75%
-Top-of-Raft fan speed................................: 80%
- <Continue(y,n) or Redo(r)>
-
-Entering an "r" will allow you to go back through and change things.'''
+Start Layer (model starts on ';Layer:1' in the Gcode): 5;
+End Layer in the Gcode...............................: 32;
+TYPE:External Perimeter..............................: 100%;
+TYPE:Perimeter.......................................: 35%;
+TYPE:Top solid infill................................: 50%;
+TYPE:Solid infill....................................: 35%;
+TYPE:Bridge infill...................................: 100%;
+TYPE:Internal infill.................................: 50%;
+TYPE:Skirt/Brim......................................: 0%;
+TYPE:Support.........................................: 35%;
+TYPE:Support interface...............................: 100%;
+Fan off during travel................................: False;
+Final Fan speed (above the End Layer)................: 75%;
+Top-of-Raft fan speed................................: 80%;
+ <Continue(y,n) or Redo(r)>;
+;
+Entering an "r" will allow you to go back through and change things.''';
  
 -----------------------------------------------------------------------------
 **Add Layer Numbers:
