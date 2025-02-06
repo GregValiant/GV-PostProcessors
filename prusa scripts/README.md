@@ -7,7 +7,7 @@ As I work on these I update the Git page.  The versions here should work as inte
 PLEASE NOTE:
 "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
 
-**NOTE:  These post-processors are "python scripts" and Python must be installed on your computer.**
+**NOTE:  These post-processors are "python scripts" and Python must be installed on your computer.
 
 In both Prusa and Orca, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner:
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\Creality\PrusaScripts\GregValiants_AddLayerNumbers.py";
@@ -46,11 +46,11 @@ Top-of-Raft fan speed................................: 80%
 Entering an "r" will allow you to go back through and change things.
  
 -----------------------------------------------------------------------------
-**Add Layer Numbers:**
+**Add Layer Numbers:
 Goes through the gcode and looks for ";LAYER_CHANGE" and adds a line below that ";Layer:XX".
 The layer numbers will match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
 
-**Search and Replace**
+**Search and Replace
 The review will include the settings:
 Search String......................: YourString >>> Enter the string to search for.  This can be a simple string like ";LAYER_CHANGE" or can be a regular expression like  ";Layer:(\d+)\n"
 Replace With.......................: M999 >>> This is the text that will replace the search string.  For a Regular Expression replacement it could be ";LAYER:\1\nM999" which would remember the layer number in the Regex search example.
