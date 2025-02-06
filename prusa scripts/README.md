@@ -21,11 +21,11 @@ For multiple post-processors the "Post-processing scripts" textbox would look so
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
 
 As each post-processor runs it will open a command window and you will be asked to enter your options.  There will be a final listing of your inputs that will look something like this (Add Layer Numbers does not have a final review):
-'''
-Review your fan settings:
 
-Use normal PWM fan scale (0 to 255)
-Start Layer (model starts on ';Layer:1' in the Gcode): 5 
+Review your fan settings:  
+
+Use normal PWM fan scale (0 to 255)  
+Start Layer (model starts on ';Layer:1' in the Gcode): 5  
 End Layer in the Gcode...............................: 32  
 TYPE:External Perimeter..............................: 100%  
 TYPE:Perimeter.......................................: 35%  
@@ -39,9 +39,9 @@ TYPE:Support interface...............................: 100%
 Fan off during travel................................: False  
 Final Fan speed (above the End Layer)................: 75%  
 Top-of-Raft fan speed................................: 80%  
- <Continue(y,n) or Redo(r)>;
-;
-Entering an "r" will allow you to go back through and change things.''';
+ <Continue(y,n) or Redo(r)>  
+ 
+ Entering an "r" will allow you to go back through and change things.  
  
 -----------------------------------------------------------------------------
 **Add Layer Numbers:
