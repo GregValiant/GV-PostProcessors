@@ -25,9 +25,11 @@ As each post-processor runs it will open a command window and you will be asked 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**
 Goes through the gcode and looks for ";LAYER_CHANGE" and adds a line below that ";Layer:XX".  
-The layer numbers will match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.  
+The layer numbers will match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
+Any followup scripts that run will need this.  It only needs to be run once.  
 
 **Search and Replace**
+Requires "Add Layer Numbers" to run before it.
 The review will include the settings:  
 - *Search String......................: YourString* >>> Enter the string to search for.  This can be a simple string like ";LAYER_CHANGE" or can be a regular expression like  ";Layer:(\d+)\n"  
 - *Replace With.......................: M999* >>> This is the text that will replace the search string.  For a Regular Expression replacement it could be ";LAYER:\1\nM999" which would remember the layer number in the Regex search example.  
@@ -42,6 +44,7 @@ The review will include the settings:
 * <Continue?(y)  Redo(r)  Quit(x)* >>> selecting "r" will allow you to go back and make changes to your settings.  
  
 **Advanced Fan Control**
+Requires "Add Layer Numbers" to run before it.
 Currently this is set up for single fans.  If there is interest, additional fan circuits could be added.  That is a PITA.
 The two main options are "By Feature" (works well for large models) and "By Layer".
 The first option is "Fan speed by PWM or by RepRap scale 0-1".  Most printers us PWM.
@@ -74,6 +77,22 @@ Final Fan speed (above the End Layer)................: 75%
 Top-of-Raft fan speed................................: 80%  
  <Continue(y,n) or Redo(r)>  
  
- Entering an "r" will allow you to go back through and change things.  
+ Entering an "r" will allow you to go back through and change things.
+ 
+ **Time Lapse Camera**
+ This requires 'Add Layer Numbers' to run first.
+ The script will add camera trigger commands at the ends of layers.  The setting options are.  
+
+Trigger Command............. (often M240)
+Insert Frequency............ (how often to insert the command.  Every layer, every 3rd, every 19th, whatever)  
+Anti-Shake-Wait............. (in milleseconds - how long to wait (at the park position) for the printer frame to become still)  
+Pause after image........... (in milleseconds - how long to wait after the camera takes the image)  
+Park Print Head............. (whether to park the print head or not)  
+  Park Head X............... (the 'x' location to park the head  
+  Park Head Y............... (the 'y' location to park the head  
+Retract when necessary...... (add a retraction and prime if there wasn't one before parking the head.)  
+Z-hop before parking........ (the height to move the nozzle up from the print before parking)  
+Insure final Image.......... (if the insertion frequency was such that there was no image taken at the end of the last layer - this will do that) 
+ 
  
 
