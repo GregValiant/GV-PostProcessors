@@ -8,9 +8,12 @@ sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 try:
-    response = input("Greg Valiants [Search and Replace] for Prusa/Orca has started.\nDo you wish to continue? (y,n).\n").lower()
+    response = input("\nGreg Valiants [Search and Replace]\nfor Prusa/Orca has started.\nDo you wish to Continue?  (y) or (n).\n").lower()
 except:
     response = "n"
+if response not in ["y", "n"]:
+    fail_response = input("The response was other than 'y' or 'n'.  The script will exit.")
+    exit(0)
 if response == "n":
     exit(0)
 
@@ -96,7 +99,7 @@ while response == "r":
         ignore_end = True
 
     try:
-        msg_str = "The current Search and Replace settings are:\n\n"
+        msg_str = "Review your Search and Replace settings\n\n"
         msg_str += "Search String......................: " + str(search_string) + "\n"
         msg_str += "Replace With.......................: " + str(replace_string) + "\n"
         msg_str += "Is Regex?..........................: " + str(is_regex) + "\n"

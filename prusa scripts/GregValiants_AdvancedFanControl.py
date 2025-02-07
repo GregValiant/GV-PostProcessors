@@ -10,9 +10,12 @@ sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 try:
-    response = input("Greg Valiants [Advanced Fan Control] for Prusa/Orca has started.\nDo you wish to continue? (y,n).\n").lower()
+    response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca has started.\nDo you wish to continue?  (y) or (n).\n").lower()
 except:
     response = "n"
+if response not in ["y", "n"]:
+    fail_response = input("The response was other than 'y' or 'n'.  The script will exit.")
+    exit(0)
 if response == "n":
     exit(0)
 

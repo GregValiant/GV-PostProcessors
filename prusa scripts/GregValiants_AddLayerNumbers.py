@@ -14,9 +14,12 @@ lines = final_file.readlines()
 
 # Let the user decide to run the script or exit without running.
 try:
-    response = input("\nGreg Valiants [Add Layer Numbers] for Prusa/Orca has started.  Layer numbers are required for some post-processors.  Layers are numbered as per the preview and start with ';Layer:1'.\nDo you wish to continue? (y) or (n).\n").lower()
+    response = input("\nGregValiant's [Add Layer Numbers]\nfor Prusa/Orca has started.  Layer numbers are required for some post-processors.  Layers are numbered as per the preview and start with ';Layer:1'.\nDo you wish to continue? (y) or (n).\n").lower()
 except:
     response = "n"
+if response not in ["y", "n"]:
+    fail_response = input("The response was other than 'y' or 'n'.  The script will exit.")
+    exit(0)
 if response == "n":
     exit(0)
 # Insert the post-processor name
@@ -35,6 +38,10 @@ for index, line in enumerate(lines):
     if line.startswith(";HEIGHT:"):
         hgt = float(line.split(":")[1])
         lines[index] = f";HEIGHT:{round(hgt, 3)}\n"
+    # Format the 'WIDTH' lines so they are rounded to 2 decimal places
+    if line.startswith(";WIDTH:"):
+        wdt = float(line.split(":")[1])
+        lines[index] = f";WIDTH:{round(wdt, 2)}\n"
     # Remove blank lines
     if line == "\n":
         lines[index] = ""
