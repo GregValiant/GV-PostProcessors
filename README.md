@@ -1,4 +1,4 @@
-# GregValiant's PostProcessors and Plugins for Cura
+# GregValiant's PostProcessors and Plugins for Cura and Prusa/Orca
  PostProcessing Scripts for Cura
 
 As I work on these I update the Git page.  The versions here should work as intended and they are not Cura "version specific".  My own Cura installations go from UM 4.13.1 to current and Smart Avionics 4.20.x fork and I test on those.  They are likely to be acceptable to Creality and other Cura forks but I don't debug with those.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
@@ -37,7 +37,7 @@ MaxVolumetricSpeed (Max E Speed by Flow Rate) is new and there is a pull request
 PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machines with disallowed areas.  Added moves when a multi-extruder printer travels to the purge tower at the beginning of a print.
 
 -----------------------------------------------------------------------------
-Here is a list of the post-processors and a brief description of what they do.
+Here is a list of the Cura post-processors and a brief description of what they do.  See the Prusa folder for the Prusa/Orca scripts.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
 
 **AAA Post Process ReadMe:**
@@ -127,6 +127,7 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 **Max E Speed and Jerk Decoupler**
 	Goes through the Gcode and at every retraction/prime it changes the Max E Speed with M203.  Before the retraction/prime the speed is increased so retraction/prime is at the set speed.  After the retract/prime event; the speed is reduced so that flow increases in the gcode will not under-extrude.  The script works with Absolute Extrusion, Relative Extrusion, Firmware Retraction, Marlin and RepRap, and allows for separate settings for dual extruders.
 	Jerk settings are included for the extruder(s).
+	NOTE This has been superceded by the Cura Engine plugin for Max Volumetric Speed that actually changes the F values in the gcode file.
 
 -----------------------------------------------------------------------------
 Plugin Extensions for Cura:
