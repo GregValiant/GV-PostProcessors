@@ -99,7 +99,7 @@ This requires 'Add Layer Numbers' to run first.
  The script will search the gcode complete, or a range of layers, and make replacements.  Regular Expressions are an option as is ignoring the StartUp and Ending gcodes.  
  The setting options are. 
  
-h1# Review your Search and Replace settings  
+[size=85]Review your Search and Replace settings[/size]  
 
 Search String......................: (the string you want to search for.)  
 Replace With.......................: (the replacement string.  If your search string ends with a '\n' then the replacement string should end with a \n.)  
