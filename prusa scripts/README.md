@@ -83,7 +83,7 @@ Top-of-Raft fan speed................................: 80%
  This requires 'Add Layer Numbers' to run first.
  The script will add camera trigger commands at the ends of layers.  The setting options are.  
 
-Trigger Command............. (often M240)
+Trigger Command............. (often M240)  
 Insert Frequency............ (how often to insert the command.  Every layer, every 3rd, every 19th, whatever)  
 Anti-Shake-Wait............. (in milleseconds - how long to wait (at the park position) for the printer frame to become still)  
 Pause after image........... (in milleseconds - how long to wait after the camera takes the image)  
@@ -93,6 +93,21 @@ Park Print Head............. (whether to park the print head or not)
 Retract when necessary...... (add a retraction and prime if there wasn't one before parking the head.)  
 Z-hop before parking........ (the height to move the nozzle up from the print before parking)  
 Insure final Image.......... (if the insertion frequency was such that there was no image taken at the end of the last layer - this will do that) 
- 
- 
 
+**Search and Replace**
+This requires 'Add Layer Numbers' to run first.
+ The script will search the gcode complete, or a range of layers, and make replacements.  Regular Expressions are an option as is ignoring the StartUp and Ending gcodes.  
+ The setting options are. 
+ 
+Review your Search and Replace settings  
+
+Search String......................: (the string you want to search for.)  
+Replace With.......................: (the replacement string.  If your search string ends with a '\n' then the replacement string should end with a \n.)  
+Is Regex?..........................: (will treat the search string as a regular expression Ex: ;Layer:(\d+) )  
+Enable a Layer Range Search?.......: (you can limit the search to a range of layers.  If the Start and End numbers are the same, then just that layer would be searched.)  
+  Start Layer......................: (the starting layer)  
+  End Layer........................: (the ending layer)  
+Replace the First Instance only?...: (you might only need to replace a single instance rather than everything in the file)  
+Ignore Startup G-Code?.............: (leave the startup out)
+Ignore Ending G-Code?..............: (leave the ending out)
+ <Continue?(y)  Redo(r)  Quit(x)\n"  
