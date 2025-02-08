@@ -88,8 +88,8 @@ Insert Frequency............ (how often to insert the command.  Every layer, eve
 Anti-Shake-Wait............. (in milleseconds - how long to wait (at the park position) for the printer frame to become still)  
 Pause after image........... (in milleseconds - how long to wait after the camera takes the image)  
 Park Print Head............. (whether to park the print head or not)  
-  Park Head X............... (the 'x' location to park the head  
-  Park Head Y............... (the 'y' location to park the head  
+  Park Head X............... (the 'x' location to park the head)  
+  Park Head Y............... (the 'y' location to park the head)  
 Retract when necessary...... (add a retraction and prime if there wasn't one before parking the head.)  
 Z-hop before parking........ (the height to move the nozzle up from the print before parking)  
 Insure final Image.......... (if the insertion frequency was such that there was no image taken at the end of the last layer - this will do that) 
@@ -108,6 +108,6 @@ Enable a Layer Range Search?.......: (you can limit the search to a range of lay
   Start Layer......................: (the starting layer)  
   End Layer........................: (the ending layer)  
 Replace the First Instance only?...: (you might only need to replace a single instance rather than everything in the file)  
-Ignore Startup G-Code?.............: (leave the startup out)
-Ignore Ending G-Code?..............: (leave the ending out)
+Ignore Startup G-Code?.............: (leave the startup out)  
+Ignore Ending G-Code?..............: (leave the ending out)  
  <Continue?(y)  Redo(r)  Quit(x)\n"  
