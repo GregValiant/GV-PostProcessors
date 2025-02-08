@@ -64,7 +64,7 @@ if by_layer == "":
 # BY LAYER
 if by_layer == "l":
     # Add the post processor name to the gcode
-    lines.insert(1, ";\n;   Post Processed by GregValiant [Advanced Fan Control By Layer] for Prusa/Orca")
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control By Layer] for Prusa/Orca")
     fan_layer_list = []
     fan_layers = ""
     try:
@@ -97,7 +97,7 @@ if by_layer == "l":
 
 else:
     # Add the post processor name to the gcode
-    lines.insert(1, ";\n;   Post Processed by GregValiant [Advanced Fan Control By Feature] for Prusa/Orca")
+    lines.insert(1, ";   Post Processed by Greg Valiant's [Advanced Fan Control By Feature] for Prusa/Orca\n")
     setting_review = "r"
     while setting_review == "r":
         # Get the fan settings for each feature

@@ -27,7 +27,7 @@ if response == "n":
     exit(0)
     
 # Insert the post-processor name
-lines.insert(1, ";   Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca")
+lines.insert(1, ";   Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca\n")
 
 # Get some settings
 for index, line in enumerate(lines):

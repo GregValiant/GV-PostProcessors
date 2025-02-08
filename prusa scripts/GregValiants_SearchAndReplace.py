@@ -26,7 +26,7 @@ for line in lines:
     if "; raft_layers =" in line:
         raft_layers = int(line.split("= ")[1])
 
-lines.insert(1, ";\n;   Post Processed by GregValiant [Search and Replace] for Prusa/Orca")
+lines.insert(1, ";   Post Processed by Greg Valiant's [Search and Replace] for Prusa/Orca\n")
 response = "r"
 while response == "r":
     try:

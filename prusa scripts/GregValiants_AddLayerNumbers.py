@@ -23,7 +23,7 @@ if response not in ["y", "n"]:
 if response == "n":
     exit(0)
 # Insert the post-processor name
-lines.insert(1, ";   Post Processed by Greg Valiant's [Add Layer Numbers] for Prusa/Orca")
+lines.insert(1, ";   Post Processed by Greg Valiant's [Add Layer Numbers] for Prusa/Orca\n")
 
 # Start to do the actual post-processing
 
