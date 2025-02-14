@@ -43,7 +43,7 @@ def main():
             layer_height = line.split("= ")[1]
         if "; support_material =" in line:
             support_enabled = bool(int(line.split("= ")[1][:-1]))
-
+    # Prusa shows different layer counts depending on whether or not Supports are generated.
     if support_enabled:
         lay_num = with_supports_enabled(initial_layer_height, layer_height)
     elif not support_enabled or support_enabled == None:
@@ -61,8 +61,7 @@ def with_supports_disabled(initial_layer_height, layer_height):
     theory_z = round(float(initial_layer_height), 2)
     lay_z = round(float(layer_height), 2)
     lay_num = 1
-
-    # Add the ';layer:#' lines below the 'LAYER_CHANGE' lines when the layer height it should be.  Some ';LAYER_CHANGE' lines will be skipped.
+    # Add the ';layer:#' lines below the 'LAYER_CHANGE' lines.  Some 'LAYER_CHANGE' lines may be skipped.
     for index, line in enumerate(lines):
         if ";LAYER_CHANGE" in lines[index] and ";Z:" in lines[index + 1]:
             z_value = lines[index + 1].split(":")[1][:-1]
@@ -84,11 +83,8 @@ def with_supports_disabled(initial_layer_height, layer_height):
     return lay_num
 
 def with_supports_enabled(initial_layer_height, layer_height):
-    theory_z = round(float(initial_layer_height), 2)
-    lay_z = round(float(layer_height), 2)
     lay_num = 1
-
-    # Add the ';layer:#' lines below the 'LAYER_CHANGE' lines when the layer height it should be.  Some ';LAYER_CHANGE' lines will be skipped.
+    # Add the ';layer:#' lines below the 'LAYER_CHANGE' lines.
     for index, line in enumerate(lines):
         if ";LAYER_CHANGE" in lines[index]:
             lines.insert(index + 1, ";Layer:" + str(lay_num) + "\n")
