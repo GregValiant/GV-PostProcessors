@@ -24,9 +24,10 @@ As each post-processor runs it will open a command window and you will be asked 
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**
-Goes through the gcode and looks for ";LAYER_CHANGE" and adds a line below that ";Layer:XX".  
-The layer numbers will match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
-Any followup scripts that run will need this.  It only needs to be run once.  
+2/14/2025  The layer numbering for PrusaSlicer.  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers.  The script will make the adjustment when supports are enabled or disabled.
+The script will go through the gcode and look for ";LAYER_CHANGE" and add a line below that ";Layer:XX".  
+The layer numbers will (should) match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
+Any followup scripts that run will likely require that 'Add Layer Numbers' runs first.  It only needs to be run once.  
 
 **Search and Replace**
 Requires "Add Layer Numbers" to run before it.
