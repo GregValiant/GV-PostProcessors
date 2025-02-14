@@ -41,7 +41,7 @@ def main():
             initial_layer_height = line.split("= ")[1]
         if "; layer_height =" in line:
             layer_height = line.split("= ")[1]
-        if "; support_material =" in line:
+        if "; support_material =" in line or "; enable_support =" in line:
             support_enabled = bool(int(line.split("= ")[1][:-1]))
     # Prusa shows different layer counts depending on whether or not Supports are generated.
     if support_enabled:
@@ -92,7 +92,6 @@ def with_supports_enabled(initial_layer_height, layer_height):
         if ";LAYER_CHANGE" in lines[index]:
             lines.insert(index + 1, ";Layer:" + str(lay_num) + "\n")
             lay_num += 1
-        # Format the 'HEIGHT' lines so they are rounded to 3 decimal places
     return lay_num
 
 # Register 'main' so it will run

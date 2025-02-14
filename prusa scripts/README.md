@@ -15,7 +15,7 @@ Each post-processor requires the same form and must be separate.
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
 
 <path\python.exe><1space><path\post-processor file name><;>
-
+Github is shortening this but each "path + post processor" should be on a single line.
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
