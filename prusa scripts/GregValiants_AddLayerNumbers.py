@@ -48,6 +48,20 @@ def main():
         lay_num = with_supports_enabled(initial_layer_height, layer_height)
     elif not support_enabled or support_enabled == None:
         lay_num = with_supports_disabled(initial_layer_height, layer_height)
+        
+    # Finish up by removing empty lines and formatting long floats.
+    for index, line in enumerate(lines):
+        if line.startswith(";HEIGHT:"):
+            hgt = float(line.split(":")[1])
+            lines[index] = f";HEIGHT:{round(hgt, 3)}\n"
+        # Format the 'WIDTH' lines so they are rounded to 2 decimal places
+        if line.startswith(";WIDTH:"):
+            wdt = float(line.split(":")[1])
+            lines[index] = f";WIDTH:{round(wdt, 2)}\n"
+        # Remove blank lines
+        if line == "\n":
+            lines[index] = ""
+    
     # Inform the user of the layer count
     input("\n " + str(lay_num - 1) + " 'Layer:' lines were added. <enter>\n")
     # Create the destination file and write the new code to it
@@ -69,17 +83,6 @@ def with_supports_disabled(initial_layer_height, layer_height):
                 lines.insert(index + 1, ";Layer:" + str(lay_num) + "\n")
                 lay_num += 1
                 theory_z = round(theory_z, 2) + lay_z
-        # Format the 'HEIGHT' lines so they are rounded to 3 decimal places
-        if line.startswith(";HEIGHT:"):
-            hgt = float(line.split(":")[1])
-            lines[index] = f";HEIGHT:{round(hgt, 3)}\n"
-        # Format the 'WIDTH' lines so they are rounded to 2 decimal places
-        if line.startswith(";WIDTH:"):
-            wdt = float(line.split(":")[1])
-            lines[index] = f";WIDTH:{round(wdt, 2)}\n"
-        # Remove blank lines
-        if line == "\n":
-            lines[index] = ""
     return lay_num
 
 def with_supports_enabled(initial_layer_height, layer_height):
@@ -90,16 +93,6 @@ def with_supports_enabled(initial_layer_height, layer_height):
             lines.insert(index + 1, ";Layer:" + str(lay_num) + "\n")
             lay_num += 1
         # Format the 'HEIGHT' lines so they are rounded to 3 decimal places
-        if line.startswith(";HEIGHT:"):
-            hgt = float(line.split(":")[1])
-            lines[index] = f";HEIGHT:{round(hgt, 3)}\n"
-        # Format the 'WIDTH' lines so they are rounded to 2 decimal places
-        if line.startswith(";WIDTH:"):
-            wdt = float(line.split(":")[1])
-            lines[index] = f";WIDTH:{round(wdt, 2)}\n"
-        # Remove blank lines
-        if line == "\n":
-            lines[index] = ""
     return lay_num
 
 # Register 'main' so it will run
