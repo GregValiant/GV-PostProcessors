@@ -3,174 +3,175 @@
 #    Add fan speed changes 'By Layer' or 'By Feature'
 
 import sys
-import re
 import os
 
 sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
-try:
-    response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca has started.\nDo you wish to continue?  (y) or (n).\n").lower()
-except:
-    response = "n"
-if response not in ["y", "n"]:
-    fail_response = input("The response was other than 'y' or 'n'.  The script will exit.")
-    exit(0)
-if response == "n":
-    exit(0)
 
-# Get the layer count and number of raft layers
-raft_layers = 0
-total_layer_count = 0
-for line in lines:
-    if ";LAYER_CHANGE" in line:
-        total_layer_count += 1
-    if "; raft_layers =" in line:
-        raft_layers = int(line.split("= ")[1])
-raft_cooling_speed = 0
+def __init__(self, lines, fan_speed_0_to_1, extruder_count, total_layer_count, draft_shield) -> None:
+    self.get_prusa_settings()
+    self.get_post_settings()
+    self.remove_fan_lines()
+    self.add_starting_ending_fan()
+    self.fan_speed_feature_type()
+    self.single_extruder_ByLayer()
+    self.dual_extruder_ByLayer()
+    self.single_extruder_ByFeature()
+    self.dual_extruder_ByFeature()
+    self.getSettings_ByFeature()
+    self.getSettings_ByLayer()
+    lines = final_file.readlines()
+    fan_speed_0_to_1
+    extruder_count
+    total_layer_count
+    draft_shield
 
-# Should previous M106 lines be removed?  Not doing so will allow changes made by previous instances of PrusaFanControl to remain in the gcode.
-try:
-    fan_speed_0_to_1_str = input("Should Fan Speeds be normal PWM (0 to 255) or RepRap (0 to 1)? <p,r>\n")
-    if fan_speed_0_to_1_str == "r":
-        fan_speed_0_to_1 = True
-    else:
-        fan_speed_0_to_1 = False
-except:
-    fan_speed_0_to_1 = False
-try:
-    remove_m106 = input("Should the existing M106 lines be removed?\nIf you intend to run more than one instance of this post-processor, the first instance should remove the M106 and M107 lines and succeeding instances should not.  (NOTE: M106/M107 Removal starts at the first layer regardless of your 'Start Layer'.)\nDo you want to remove the existing fan lines so they don't interfere?(y/n)\n").lower()
-except:
-    remove_m106 = "n"
-# Remove the M106 and M107 lines if requested.
-if remove_m106 == "y":
-    for index, line in enumerate(lines):
-        if "LAYER_CHANGE" in line:
-            start_here = index
-            break
-    for index, line in enumerate(lines):
-        if index <= start_here:
+def main():
+    response = "q"
+    while not response in ["y", "n"]:
+        response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca has started.\n Note: You may run multiple instances of this script.  The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?  (y) or (n).\n").lower()
+        if response not in ["y", "n"]:
+            print("Invalid Response.  Must be 'y' or 'n'.")
             continue
-        if "M106" in line or "M107" in line:
-                lines[index] = ""
-try:
-    by_layer = input("By Feature(f) or By Layer(l).\n").lower()
-except:
-    by_layer = "l"
-if by_layer == "":
-    response = input("Invalid response.  The script will exit with no fan changes. <Enter>")
-    exit(0)
+        if response == "n":
+            print("Exiting")
+            final_file.close()
+            exit(0)
 
-# BY LAYER
-if by_layer == "l":
-    # Add the post processor name to the gcode
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control By Layer] for Prusa/Orca")
+    # Get the preliminary settings from both the gcode and the user
+    my_settings = get_post_settings()
+    remove_m106 = bool(my_settings[0])
+    fan_0 = my_settings[1]
+    fan_1 = my_settings[2]
+    raft_layers = my_settings[3]
+    raft_cooling_speed = my_settings[4]
+    total_layer_count = my_settings[5]
+    nozzle_size_0 = my_settings[6]
+    nozzle_size_1 = my_settings[7]
+    extruder_count = my_settings[8]
+    fan_mode = my_settings[9]
+    fan_speed_0_to_1 = my_settings[10]
+
+    # If removing the existing fan lines
+    if remove_m106:
+        lines = remove_fan_lines()
+
+    # The 4 options: Single Extruder By Layer, Singler extruder By Feature, Dual Extruder By Layer, Dual Extruder By Feature
+    if fan_mode == 1:
+        # Get the By Feature settings
+        feature_settings = getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers)
+        feature_type_list = feature_settings[0]
+        feature_speed_list = feature_settings[1]
+        start_layer = feature_settings[2]
+        end_layer = feature_settings[3]
+        if extruder_count == 1:
+            # Single extruder by feature
+            lines = single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0)
+        elif extruder_count > 1:
+            # Dual extruder by feature
+            lines = dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0, fan_1)
+    elif fan_mode == 2:
+        fan_layer_list = getSettings_ByLayer(fan_speed_0_to_1)
+        if extruder_count == 1:
+            # Single extruder by layer
+            lines = single_extruder_ByLayer(fan_layer_list, fan_0)
+        elif extruder_count > 1:
+            # Dual extruder by layer
+            lines = dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1)
+
+    # Make sure the fan is off at the start and end of the print.
+    if remove_m106:
+        add_m106_S0_lines = add_starting_ending_fan(extruder_count, fan_0, fan_1)
+
+    # Send the file back to Prusa/Orca
+    dest_file = open(sourceFile, "w")
+    for line in lines:
+        dest_file.write(line)
+    dest_file.close()
+    final_file.close()
+
+def getSettings_ByLayer(fan_speed_0_to_1):
+    fan_layers = "r"
     fan_layer_list = []
-    fan_layers = ""
-    try:
-        fan_layers = input("Enter layers and Fan speeds as 'layer/speed'. For multiple changes delimit the settings with commas.\nWhat are the change layers and fan speed %(s) (EX: 5/35,25/100,35/0)\n")
-    except:
-        print("There appears to be an error in the 'layer / Speed' input.  All settings will be '0/0'.")
-        fan_layers = "0/0"
-    # Add the layer list to the gcode as a record of the settings
-    lines.insert(2, ";\n;     Fan Changes (LAY / %): " + str(fan_layers))
-
-    # Convert the fan_layers to a list
-    if "," in fan_layers:
-        new_layer_list = fan_layers.split(",")
-        for fan_cmd in new_layer_list:
-            fan_layer_list.append(fan_cmd)
-    else:
-        fan_layer_list.append(fan_layers)
-
-    # Go through the file and make the changes
-    for fan_change in fan_layer_list:
-        fan_split = fan_change.split("/")
-        layer_nr = int(fan_split[0])
-        if not fan_speed_0_to_1:
-            fan_speed = round(int(fan_split[1]) * 2.55)
+    while fan_layers == "r":
+        fan_layers = input("Enter layers and Fan speeds% as 'layer#/speed%'. For multiple changes delimit the settings with commas. The layer numbers must be in 'Ascending' order.\n (EX: 5/35,25/100,35/0)\n")
+        if "," in fan_layers:
+            new_layer_list = fan_layers.split(",")
+            for fan_cmd in new_layer_list:
+                fan_layer_list.append(fan_cmd)
         else:
-            fan_speed = round(int(fan_split[1]) * 0.01,2)
-        for index, line in enumerate(lines):
-            if line == ";Layer:" + str(layer_nr) + "\n":
-                lines[index] += "M106 S" + str(fan_speed) + "\n"
+            fan_layer_list.append(fan_layers)
+        # Check for input errors
+        err_code = 0
+        for fan in fan_layer_list:
+            if "/" not in fan or "." in fan_layers:
+                err_code = 1
+                fan_layers = "r"
+                fan_layer_list = []
+        if err_code > 0:
+            print("There is an error in the fan list.  Each fan speed indicator must be entered as 'lay/speed%'.  If more than one they are separated by commas.\n Try again...")
+            fan_layers = "r"
+            continue
 
-else:
-    # Add the post processor name to the gcode
-    lines.insert(1, ";   Post Processed by Greg Valiant's [Advanced Fan Control By Feature] for Prusa/Orca\n")
+    # Add the layer list to the gcode as a record of the settings
+    lines.insert(2, f";\n;     Fan Changes (LAY / %): {fan_layers}\n")
+    # Convert the percentages into PWM or 0to1 as required
+    fan_layer_list = fan_layers.split(",")
+    for index, fan in enumerate(fan_layer_list):
+        if fan_speed_0_to_1:
+            fan_layer_list[index] = fan_layer_list[index].split("/")[0] + "/" + str(round(int(fan_layer_list[index].split("/")[1]) * .01, 2))
+        else:
+            fan_layer_list[index] = fan_layer_list[index].split("/")[0] + "/" + str(round(int(fan_layer_list[index].split("/")[1]) * 2.55))
+    return fan_layer_list
+
+
+def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers):
     setting_review = "r"
     while setting_review == "r":
         # Get the fan settings for each feature
-        try:
-            start_layer = int(input("Enter the starting layer.  Use the preview numbers.\n"))
-            if start_layer < 1: start_layer = 1
-        except:
-            start_layer = 1
-        try:
-            end_layer = int(input(f"Enter the ending layer number.  Fan control will continue to the end of this layer.  Use the layer numbers from the preview (top layer is: {total_layer_count}).\n"))
-            if end_layer > total_layer_count or end_layer == 0: end_layer = total_layer_count
-        except:
-            end_layer = total_layer_count
-        try:
-            type_external_perimeter = int(input("\nEnter the Fan speed (0% to 100%) for each feature as they come up.\n\nTYPE:External Perimeter (outer walls)\n")) * 2.55
-        except:
-            type_external_perimeter = 0
-        try:
-            type_perimeter = int(input("TYPE:Perimeter (inner walls)\n")) * 2.55
-        except:
-            type_perimeter = 0
-        try:
-            type_top_solid_infill = int(input("TYPE:Top solid infill (very top skins)\n")) * 2.55
-        except:
-            type_top_solid_infill = 0
-        try:
-            type_solid_infill = int(input("TYPE:Solid infill (bottom and middle skins)\n")) * 2.55
-        except:
-            type_solid_infill = 0
-        try:
-            type_bridge_infill = int(input("TYPE:Bridge infill (first skin over infill and bridges)\n")) * 2.55
-        except:
-            type_bridge_infill = 0
-        try:
-            type_internal_infill = int(input("TYPE:Internal infill (infill)\n")) * 2.55
-        except:
-            type_internal_infill = 0
-        try:
-            type_skirt_brim = 0
-            if start_layer == 1:
-                type_skirt_brim = int(input("TYPE:Skirt/Brim (bed adhesion) and Draft Shield\n")) * 2.55
-        except:
-            type_skirt_brim = 0
-        try:
-            type_support = int(input("TYPE:Support (support structure)\n")) * 2.55
-        except:
-            type_support = 0
-        try:
-            type_support_interface = int(input("TYPE:Support interface (support interface)\n")) * 2.55
-        except:
-            type_support_interface = 0
-        try:
-            type_travel_fan_speed = input("Fan off during travel (WIPE) moves?\n   NOTE: turning off the fan during wipes will add A LOT of lines to the gcode.(y,n)\n").lower()
-        except:
-            type_travel_fan_speed = "n"
-        if raft_layers > 0:
+        start_layer = "a"
+        while start_layer == "a":
             try:
-                raft_cooling_speed = int(input("You have a Raft enabled.  You can cool the top layer of the raft independent of your Start Layer.\nIf you wish to cool the top layer of the Raft enter the fan speed to use, or enter 0 to disable.\n")) * 2.55
+                start_layer = int(input("'Start Layer'\n Enter the start layer for Fan Control.  Use the preview numbers.\n"))
             except:
-                raft_cooling_speed = 0
+                print("The Start Layer must be an integer > 0.  Try again.")
+                start_layer = "a"
+                continue
 
-        fan_off_for_travel = False
-        if type_travel_fan_speed == "y":
-            fan_off_for_travel = True
-        final_fan_speed = 0
-        if end_layer < total_layer_count:
+        end_layer = "z"
+        while end_layer == "z":
             try:
-                final_fan_speed = round(int(input(f"Enter the 'Final Fan Speed' for layers from your End Layer ({end_layer}) to the end of the print.\n")) * 2.55)
+                end_layer = int(input(f"'End Layer'\n Enter the ending layer number.  Fan Control will continue to the end of this layer.  Use the layer numbers from the preview\n (top layer is: {total_layer_count}).\n"))
+                if end_layer > total_layer_count:
+                    print(f"The end layer must be an integer less than {total_layer_count}.  Try again.\n")
+                    end_layer = "z"
+                    continue
+
             except:
-                fan_off_for_travel = False
-        
-        input_str = "\nReview your fan settings:\n\n"
-        try:
+                print(f"The end layer must be an integer less than {total_layer_count}.  Try again.\n")
+                end_layer = "z"
+                continue
+
+        type_external_perimeter = fan_speed_feature_type("\n'TYPE:External perimeter'\n Enter the Fan speed (0% to 100%) for the outer walls.\n")
+        type_perimeter = fan_speed_feature_type("\nTYPE:Perimeter'\n Enter the Fan speed (0% to 100%) for the inner walls.\n")
+        type_top_solid_infill = fan_speed_feature_type("\n'TYPE:Top solid infill'\n Enter the Fan speed (0% to 100%) for the top skins.\n")
+        type_solid_infill = fan_speed_feature_type("\n'TYPE:Solid infill'\n Enter the Fan speed (0% to 100%) for the bottom and mid skins.\n")
+        type_bridge_infill = fan_speed_feature_type("\n'TYPE:Bridge infill'\n Enter the Fan speed (0% to 100%) for the first skins over support.\n")
+        type_overhang_perimeter = fan_speed_feature_type("\n'TYPE:Overhang perimeter'\n Enter the Fan speed (0% to 100%) for the walls around overhangs.\n")
+        type_internal_infill = fan_speed_feature_type("\n'TYPE:Internal infill'\n Enter the Fan speed (0% to 100%) for the bottom skins.\n")
+        type_skirt_brim = fan_speed_feature_type("\n'TYPE:Skirt'\n Enter the Fan speed (0% to 100%) for the skirt/brim/draft shield.\n If your StartLayer is above Layer:1 this would only effect a draft shield.\n")
+        type_support = fan_speed_feature_type("\n'TYPE:Support material'\n Enter the Fan speed (0% to 100%) for the support structure.\n")
+        type_support_interface = fan_speed_feature_type("\n'TYPE:Support material interface'\n Enter the Fan speed (0% to 100%) for the support interface.\n")
+        if end_layer < total_layer_count:
+            final_fan_speed = fan_speed_feature_type("\n'Final Fan Speed'\n Your end layer is lower than the print top layer.  Enter the fan speed to use from the End layer to the end of the print.\n Enter the Fan speed (0% to 100%) for the Final Fan Speed.\n")
+        else:
+            final_fan_speed = 0
+
+        draft_shield = get_prusa_settings(lines)[6]
+        input_str = "\nReview your Custom Fan settings:\n\n"
+        final_review = "z"
+        while final_review == "z":
             if not fan_speed_0_to_1:
                 input_str += "Use normal PWM fan scale (0 to 255)\n"
             else:
@@ -182,39 +183,32 @@ else:
             input_str += "TYPE:Top solid infill................................: " + str(round(type_top_solid_infill / 2.55)) + "%\n"
             input_str += "TYPE:Solid infill....................................: " + str(round(type_solid_infill / 2.55)) + "%\n"
             input_str += "TYPE:Bridge infill...................................: " + str(round(type_bridge_infill / 2.55)) + "%\n"
+            input_str += "Type:Overhang perimeter..............................; " + str(round(type_overhang_perimeter / 2.55)) + "%\n"
             input_str += "TYPE:Internal infill.................................: " + str(round(type_internal_infill / 2.55)) + "%\n"
-            if start_layer == 1:
-                input_str += "TYPE:Skirt/Brim......................................: " + str(round(type_skirt_brim / 2.55)) + "%\n"
+            if start_layer == 1 or draft_shield:
+                input_str += "TYPE:Skirt/Brim/Draft Shield.........................: " + str(round(type_skirt_brim / 2.55)) + "%\n"
             input_str += "TYPE:Support.........................................: " + str(round(type_support / 2.55)) + "%\n"
             input_str += "TYPE:Support interface...............................: " + str(round(type_support_interface / 2.55)) + "%\n"
-            input_str += "Fan off during travel................................: " + str(fan_off_for_travel) + "\n"
             if end_layer < total_layer_count:
-                input_str += "Final Fan speed (above the End Layer)................: " + str(round(final_fan_speed / 2.55)) + "%\n"
-            if raft_layers > 0:
-                input_str += "Top-of-Raft fan speed................................: " + str(round(raft_cooling_speed / 2.55)) + "%\n"
+                input_str += "Final Fan speed......................................: " + str(round(final_fan_speed / 2.55)) + "%\n"
             setting_review = input(input_str + "\n<Continue(y)  Redo(r)  Quit(x)> ").lower()
-        except:            
-            setting_review = "x"
-        if setting_review == "x":
-            response = input("Your response was 'x'.  The script will exit with no fan changes. <Enter>.")
-            exit(0)
+            if setting_review not in ["y", "r", "x"]:
+                print("Response must be 'y', 'r', or 'x'.  Try again.\n")
+                final_review = "z"
+                continue
+            else:
+                final_review = "c"
+            if setting_review == "x":
+                response = input("Your response was 'x'.  The script will exit with no fan changes. <Enter>.")
+                exit(0)
 
-    if raft_layers > 0 and raft_cooling_speed > 0:
-        for index, line in enumerate(lines):
-            if ";Layer:" + str(raft_layers) in line:
-                lines.insert(index + 1, "M106 S" + str(round(raft_cooling_speed)) + "\n")
-                start_here = index + 1
-                while not ";LAYER_CHANGE" in lines[start_here]:
-                    start_here += 1
-                lines.insert(start_here, "M106 S0\n")
-                break
-        
     feature_type_list = [
         ";TYPE:External perimeter\n",
         ";TYPE:Perimeter\n",
         ";TYPE:Top solid infill\n",
         ";TYPE:Solid infill\n",
         ";TYPE:Bridge infill\n",
+        ";TYPE:Overhang perimeter\n",
         ";TYPE:Internal infill\n",
         ";TYPE:Skirt/Brim\n",
         ";TYPE:Support material\n",
@@ -226,10 +220,12 @@ else:
             round(type_top_solid_infill),
             round(type_solid_infill),
             round(type_bridge_infill),
+            round(type_overhang_perimeter),
             round(type_internal_infill),
             round(type_skirt_brim),
             round(type_support),
-            round(type_support_interface)]
+            round(type_support_interface),
+            round(final_fan_speed)]
     else:
         feature_speed_list = [
             round(type_external_perimeter / 255, 2),
@@ -237,52 +233,300 @@ else:
             round(type_top_solid_infill / 255, 2),
             round(type_solid_infill / 255, 2),
             round(type_bridge_infill / 255, 2),
+            round(type_overhang_perimeter / 255, 2),
             round(type_internal_infill / 255, 2),
             round(type_skirt_brim / 255, 2),
             round(type_support / 255, 2),
-            round(type_support_interface / 255, 2)]
-    # Go through the file and make the changes
-    prev_fan_speed = 0
-    run_script = False
+            round(type_support_interface / 255, 2),
+            round(final_fan_speed / 255, 2)]
+    return feature_type_list, feature_speed_list, start_layer, end_layer
+
+def single_extruder_ByLayer(fan_layer_list, fan_0):
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca\n")
     for index, line in enumerate(lines):
-        if line == ";Layer:" + str(start_layer) + "\n":
-            run_script = True
-        if not run_script:
-            continue
-        if line in feature_type_list:
-            position = feature_type_list.index(line)
-            lines[index] += "M106 S" + str(feature_speed_list[position]) + "\n"
-            prev_fan_speed = feature_speed_list[position]
-        if fan_off_for_travel:
-            if ";WIPE_START" in line:
-                lines[index] += "M106 S0\n"
-            elif ";WIPE_END" in line:
-                lines[index] += f"M106 S{prev_fan_speed}\n"
-        if line == ";Layer:" + str(end_layer + 1) + "\n":
-            run_script = False
+        if line == ";Layer:1\n":
+            start_index = index
             break
-    if end_layer < total_layer_count:
+    for l_index in range(start_index,len(lines) - 1):
+        if ";Layer:" in lines[l_index]:
+            layer_number = str(lines[l_index].split(":")[1][:-1])
+            # If there is a match for the current layer number make the insertion
+            for fan_change in fan_layer_list:
+                fan_split = fan_change.split("/")
+                layer_nr = int(fan_split[0])
+                if layer_number == str(layer_nr):
+                    lines[l_index] += f"M106 S{fan_split[1]} {fan_0}\n"
+    return lines
+
+def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca\n")
+    active_tool = "T0"
+    active_fan = fan_0
+    off_fan = fan_1
+    cur_fan_speed = 0
+    start_layer = fan_layer_list[0].split("/")[0]
+    for layer_speed in fan_layer_list:
+        layer = layer_speed.split("/")[0]
+        speed = layer_speed.split("/")[1]
         for index, line in enumerate(lines):
-            if line == ";Layer:" + str(end_layer + 1) + "\n":
-                lines[index] += "M106 S" + str(final_fan_speed) + "\n"
+            if ";Layer:" + layer.split("/")[0] in line:
+                lines.insert(index, f"M999 S{speed}\n")
                 break
+    speed_change_started = False
+    for index, line in enumerate(lines):
+        if line.startswith("T0") or line.startswith("T1"):
+            if line.startswith("T0"):
+                active_fan = fan_0
+                off_fan = fan_1
+            elif line.startswith("T1"):
+                active_fan = fan_1
+                off_fan = fan_0
+            if speed_change_started:
+                lines[index] = f"M106 S0 {off_fan}\n{line}M106 S{cur_speed} {active_fan}\n"
+        if line.startswith("M999"):
+            cur_speed = int(line.split("S")[1][:-1])
+            lines[index] = f"M106 S{cur_speed} {active_fan}\n"
+            speed_change_started = True
+    return lines
 
-# If the M106 lines were removed then start with the fan off, and turn it off at the end.
-if remove_m106 == "y":
+def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0):
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca\n")
+    end_index = None
     for index, line in enumerate(lines):
-        if ";Layer:" in line:
-            lines[index] = "M106 S0 ; Start with the fan off\n" + lines[index]
-            break
+        if line == f";Layer:{start_layer}\n":
+            start_index = index
+        if line == f";Layer:{int(end_layer) + 1}\n":
+            end_index = index
+        if "end gcode" in line:
+            last_index = index
+    if end_index == None:
+        end_index = last_index
+    for num in range(start_index, end_index):
+        if lines[num] in feature_type_list:
+            cur_index = feature_type_list.index(lines[num])
+            cur_speed = feature_speed_list[cur_index]
+            lines[num] += f"M106 S{cur_speed} {fan_0}\n"
+    if end_index != last_index:
+        lines[end_index] += f"M106 S{feature_speed_list[10]} {fan_0}\n"
+    return lines
+
+def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0, fan_1):
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca\n")
+    end_index = None
     for index, line in enumerate(lines):
-        if index < start_here:
+        if line == f";Layer:{start_layer}\n":
+            start_index = index
+        if line == f";Layer:{int(end_layer) + 1}\n":
+            end_index = index
+        if "end gcode" in line:
+            last_index = index
+    if end_index == None:
+        end_index = last_index
+    # Track the tool number
+    active_tool = "T0"
+    active_fan = fan_0
+    off_tool = "T1"
+    off_fan = fan_1
+    cur_speed = 0
+    for num in range(0, start_index):
+        if line.startswith("T0"):
+            active_fan = fan_0
+        elif line.startswith("T1"):
+            active_fan = fan_1
+    for num in range(start_index, end_index):
+        if lines[num] in feature_type_list:
+            cur_index = feature_type_list.index(lines[num])
+            cur_speed = feature_speed_list[cur_index]
+            lines[num] += f"M106 S{cur_speed} {active_fan}\n"
+        if fan_0 != fan_1:
+            if lines[num].startswith("T0"):
+                lines[num] = f"M106 S0 {fan_1}\n{lines[num]}M106 S{cur_speed} {fan_0}\n"
+                active_fan = fan_0
+            if lines[num].startswith("T1"):
+                lines[num] = f"M106 S0 {fan_0}\n{lines[num]}M106 S{cur_speed} {fan_1}\n"
+                active_fan = fan_1
+    if end_index != last_index:
+        final_speed = feature_speed_list[10]
+        lines[end_index] += f"M106 S{final_speed} {active_fan}\n"
+        for num in range(end_index, last_index):
+            if fan_0 != fan_1:
+                if line.startswith("T0"):
+                    lines[num] = f"M106 S0 {fan_1}\n{lines[num]}M106 S{cur_speed} {fan_0}\n"
+                if line.startswith("T1"):
+                    lines[num] = f"M106 S0 {fan_0}\n{lines[num]}M106 S{cur_speed} {fan_1}\n"
+    return lines
+
+def fan_speed_feature_type(feature_text):
+    feature_type = -1
+    while feature_type == -1:
+        try:
+            feature_type = int(input(f"{feature_text}")) * 2.55
+            if feature_type < 0 or feature_type > 255:
+                feature_type = -1
+                print("The fan speed must be an integer between 0 and 100.  Try again.")
+                continue
+        except:
+            print("There was an error in the input.  Try again.")
+            feature_type = -1
             continue
-        if "M140 S0" in line:
-            lines[index] = "M106 S0 ; turn off fan\n" + lines[index]
-            break
+    return feature_type
 
-# Write the new file
-dest_file = open(sourceFile, "w+")
-for line in lines:
-    dest_file.write(line)
-dest_file.close()
-final_file.close()
+def add_starting_ending_fan(extruder_count, fan_0, fan_1):
+    start_index = None
+    for index, line in enumerate(lines):
+        if line == ";Layer:1\n":
+            start_index = index
+            fan_off_line = f"M106 S0 {fan_0}"
+            if extruder_count > 1:
+                fan_off_line += f"\nM106 S0 {fan_1}"
+            fan_off_line += f"\n{lines[index - 1]}\n"
+            lines[index - 1] = fan_off_line
+        if line.startswith("M140 S0") and start_index != None:
+            fan_off_line = f"M106 S0 {fan_0}"
+            if extruder_count > 1:
+                fan_off_line += f"\nM106 S0 {fan_1}"
+            fan_off_line += f"\n{lines[index]}"
+            lines[index] = fan_off_line
+    return
+
+# Get the settings from Prusa
+def get_prusa_settings(lines: str) -> str:
+    raft_layers = 0
+    total_layer_count = 0
+    for line in lines:
+        if ";Layer:" in line:
+            total_layer_count += 1
+        if "; raft_layers =" in line:
+            raft_layers = int(line.split("= ")[1])
+        if "; nozzle_diameter =" in line:
+            nozzle_size_str = line.split("= ")[1]
+            nozzle_size_list = nozzle_size_str.split(",")
+            nozzle_size_0 = float(nozzle_size_list[0])
+            if len(nozzle_size_list) > 1:
+                nozzle_size_1 = float(nozzle_size_list[1])
+            else:
+                nozzle_size_1 = None
+
+            extruder_count = len(nozzle_size_list)
+        if "; draft_shield =" in line:
+            if "disabled" in line:
+                draft_shield = False
+            else:
+                draft_shield = True
+
+    raft_cooling_speed = 0
+    return raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield
+
+# Get user settings
+def get_post_settings() -> str:
+    # Get the layer count and number of raft layers
+    prusa_settings = get_prusa_settings(lines)
+    raft_layers = prusa_settings[0] #  raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield
+    raft_cooling_speed = prusa_settings[1]
+    total_layer_count = prusa_settings[2]
+    nozzle_size_0 = prusa_settings[3]
+    nozzle_size_1 = prusa_settings[4]
+    extruder_count = prusa_settings[5]
+    draft_shield = prusa_settings[6]
+
+    response = "99"
+    while response == "99":
+        # Should previous M106 lines be removed?  Not doing so will allow changes made by previous instances of PrusaFanControl to remain in the gcode.
+        fan_speed_0_to_1 = "99"
+        while fan_speed_0_to_1 not in [True, False]:
+            fan_speed_0_to_1_str = input("'Fan Speed Scale'\n Should Fan Speeds be normal PWM (0 to 255) or RepRap (0 to 1)?\n Enter <1> for PWM or <2> for RepRap 0 to 1\n")
+            if fan_speed_0_to_1_str not in ['1', '2']:
+                print("Invalid entry.  Must be '1' for PWM scale, or '2' for 0 to 1 scale\n")
+                fan_speed_0_to_1_str = "99"
+                continue
+            if fan_speed_0_to_1_str == "2":
+                fan_speed_0_to_1 = True
+            else:
+                fan_speed_0_to_1 = False
+
+        fan_0 = "101"
+        while not fan_0.startswith("P") and not fan_0 == "":
+            try:
+                fan_0 = int(input("'Fan Circuit Number Extruder 1 (T0)'\n Of the Layer Cooling Fan of the primary extruder (T0).\n (This is usually '0' but might be different for your machine.) <enter>\n"))
+            except:
+                print("Input error.  Must be an integer from 0 to 99")
+                fan_0 = "101"
+                continue
+            if extruder_count > 1:
+                fan_1 = int(input("'Fan Circuit Number Extruder 2 (T1)'\n of the Layer Cooling Fan of the second extruder (T1)?\n (This is often the same as the primary extruder but can be different on some IDEX and other printers.) <enter>\n"))
+
+            else:
+                fan_1 = ""
+            if not fan_0 >= 0 and fan_0 <= 99:
+                print("Invalid response.  Try again.")
+                continue
+            fan_0 = str(fan_0)
+            if extruder_count >1:
+                fan_1 = str(fan_1)
+            if extruder_count == 1 and fan_0 == "0":
+                fan_0 = ""
+            elif extruder_count == 1 and fan_0 != "0":
+                fan_0 = "P" + fan_0
+            elif extruder_count > 1:
+                if fan_0 == fan_1:
+                    fan_0 = ""
+                    fan_1 = ""
+                else:
+                    fan_0 = "P" + str(fan_0)
+                    fan_1 = "P" + str(fan_1)
+
+        remove_m106 = "r"
+        while not remove_m106 in [True, False]:
+            try:
+                remove_m106 = input("'Remove existing M106 lines'\n If you intend to run more than one instance of this post-processor, the first instance should remove the M106 and M107 lines and succeeding instances should not.  (NOTE: M106/M107 Removal starts at the first layer regardless of your 'Start Layer'.)\n Enter <y> for Remove or <n> for Leave them alone\n").lower()
+                if remove_m106 not in ["y", "n"]:
+                    print("Invalid response.  Must be 'y' or 'n'.")
+                    continue
+                if remove_m106 == "y":
+                    remove_m106 = True
+                else:
+                    remove_m106 = False
+            except:
+                print("Invalid response.  Must be y or n.")
+                remove_m106 = "r"
+
+            fan_mode = ""
+            while fan_mode not in [1, 2]:
+                try:
+                    fan_mode = int(input("'Fan Control'\n Enter <1> for 'By Feature' or <2> for 'By Layer'\n 'By Feature' works better for long prints because the fan takes a bit to react to a command and spin up, or wind down to speed.\n"))
+                except:
+                    print("Input error.  Must be a 1 or a 2.")
+                    fan_mode = ""
+                    continue
+            # Review the user settings
+            input_str = "\nReview your settings to this point:\n\n"
+            input_str += f"Fan Speed Scale 0 to 1.......... {str(fan_speed_0_to_1)}\n"
+            input_str += f"Extruder 1 (T0) Cooling Fan Nr.. {fan_0 if fan_0 != "" else "0"}\n"
+            if extruder_count > 1:
+                input_str += f"Extruder 2 (T1) Cooling Fan Nr.. {fan_1 if fan_1 != "" else "0"}\n"
+            input_str += f"Remove existing fan lines....... {remove_m106}\n"
+            input_str += f"By Feature or By Layer.......... {'By Feature' if fan_mode == 1 else 'By Layer'}"
+            response = input(input_str + "\n\n Enter 'y' to continue or 'n' to try again\n")
+            if response not in ['y', 'n']:
+                print("Invalid response.  Try again. <Enter>")
+                response = "99"
+                continue
+            if response == 'n':
+                response = "99"
+    return remove_m106, fan_0, fan_1, raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, fan_mode, fan_speed_0_to_1
+
+def remove_fan_lines() -> str:
+    # Remove the M106 and M107 lines if requested.
+    for index, line in enumerate(lines):
+        if "LAYER_CHANGE" in line:
+            start_here = index
+            break
+    for index, line in enumerate(lines):
+        if index <= start_here:
+            continue
+        if "M106" in line or "M107" in line:
+            lines[index] = ""
+    return lines
+
+if __name__ == "__main__":
+    main()
