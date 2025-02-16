@@ -9,7 +9,17 @@ sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
-def __init__(self, lines, fan_speed_0_to_1, extruder_count, total_layer_count, draft_shield) -> None:
+control_p2_p3 = None
+p2_fan_list = []
+p3_fan_list = []
+slicer_name = None
+draft_shield = None
+fan_speed_0_to_1 = None
+extruder_count = None
+total_layer_count = None
+
+
+def __init__(self, fan_speed_0_to_1, extruder_count, total_layer_count) -> None:
     self.get_prusa_settings()
     self.get_post_settings()
     self.remove_fan_lines()
@@ -21,16 +31,23 @@ def __init__(self, lines, fan_speed_0_to_1, extruder_count, total_layer_count, d
     self.dual_extruder_ByFeature()
     self.getSettings_ByFeature()
     self.getSettings_ByLayer()
-    lines = final_file.readlines()
+    self.format_string()
+    self.getAliases()
+    self.bambu_extra_fans()
+    self.insert_aux_and_chamber_fans()
+    control_p2_p3
+    p2_fan_list = []
+    p3_fan_list = []
+    slicer_name
+    draft_shield
     fan_speed_0_to_1
     extruder_count
     total_layer_count
-    draft_shield
 
-def main():
+def main(lines):
     response = "q"
     while not response in ["y", "n"]:
-        response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca has started.\n Note: You may run multiple instances of this script.  The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?  (y) or (n).\n").lower()
+        response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca/Bambu has started.\n Note: You may run multiple instances of this script.  The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?  (y) or (n).\n").lower()
         if response not in ["y", "n"]:
             print("Invalid Response.  Must be 'y' or 'n'.")
             continue
@@ -52,15 +69,37 @@ def main():
     extruder_count = my_settings[8]
     fan_mode = my_settings[9]
     fan_speed_0_to_1 = my_settings[10]
-
+    slicer_name = get_prusa_settings(lines)[7]
     # If removing the existing fan lines
     if remove_m106:
-        lines = remove_fan_lines()
-
+        lines = remove_fan_lines(slicer_name)
+    # Get the auxiliary and chamber fan info from Bambu
+    if slicer_name == "Bambu":
+        control_p2_p3_str = "r"
+        while control_p2_p3_str == "r":
+            control_p2_p3_str = input("Do you want to control the Aux and Chamber fans from Bambu Studio, or from here?\n Bambu <b> or From here <h>")
+            if control_p2_p3_str not in ["b", "h"]:
+                response = input("Invalid response.  Must be 'b' or 'h'")
+                control_p2_p3_str = "r"
+                continue
+        if control_p2_p3_str == "h":
+            control_p2_p3 = True
+            bambu_aux_fans = bambu_extra_fans()
+            p2_fan_list = bambu_aux_fans[0]
+            p3_fan_list = bambu_aux_fans[1]
+        else:
+            control_p2_p3 = False
+            p2_fan_list = []
+            p3_fan_list = []
+    else:
+        control_p2_p3 = False
+        p2_fan_list = []
+        p3_fan_list = []
+        
     # The 4 options: Single Extruder By Layer, Singler extruder By Feature, Dual Extruder By Layer, Dual Extruder By Feature
     if fan_mode == 1:
         # Get the By Feature settings
-        feature_settings = getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers)
+        feature_settings = getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers, slicer_name, p2_fan_list, p3_fan_list)
         feature_type_list = feature_settings[0]
         feature_speed_list = feature_settings[1]
         start_layer = feature_settings[2]
@@ -72,6 +111,7 @@ def main():
             # Dual extruder by feature
             lines = dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0, fan_1)
     elif fan_mode == 2:
+
         fan_layer_list = getSettings_ByLayer(fan_speed_0_to_1)
         if extruder_count == 1:
             # Single extruder by layer
@@ -81,9 +121,15 @@ def main():
             lines = dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1)
 
     # Make sure the fan is off at the start and end of the print.
+    if slicer_name == "Bambu":
+        lines = insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list)
     if remove_m106:
-        add_m106_S0_lines = add_starting_ending_fan(extruder_count, fan_0, fan_1)
-
+        add_m106_S0_lines = add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p2_p3)
+    types_of_features = []
+    for index, line in enumerate(lines):
+        if line.startswith(";TYPE") and not line in types_of_features and not "Custom" in line:
+            types_of_features.append(line)
+    lines.insert(5, "\n" + str(types_of_features) + "\n")
     # Send the file back to Prusa/Orca
     dest_file = open(sourceFile, "w")
     for line in lines:
@@ -115,7 +161,7 @@ def getSettings_ByLayer(fan_speed_0_to_1):
             continue
 
     # Add the layer list to the gcode as a record of the settings
-    lines.insert(2, f";\n;     Fan Changes (LAY / %): {fan_layers}\n")
+    lines.insert(2, f";\n;     Fan Changes (LAY / %): {str(fan_layer_list)}\n")
     # Convert the percentages into PWM or 0to1 as required
     fan_layer_list = fan_layers.split(",")
     for index, fan in enumerate(fan_layer_list):
@@ -126,13 +172,14 @@ def getSettings_ByLayer(fan_speed_0_to_1):
     return fan_layer_list
 
 
-def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers):
+def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers, slicer_name, p2_fan_list, p3_fan_list):
     setting_review = "r"
     while setting_review == "r":
         # Get the fan settings for each feature
         start_layer = "a"
         while start_layer == "a":
             try:
+                print("\n\nThe next settings are for 'By Feature'\n\n")
                 start_layer = int(input("'Start Layer'\n Enter the start layer for Fan Control.  Use the preview numbers.\n"))
             except:
                 print("The Start Layer must be an integer > 0.  Try again.")
@@ -152,46 +199,88 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
                 print(f"The end layer must be an integer less than {total_layer_count}.  Try again.\n")
                 end_layer = "z"
                 continue
+        feature_names = getAliases(slicer_name)
+        alias_bed_adhesion_skirt = feature_names[0]
+        alias_bed_adhesion_brim = feature_names[1]
+        alias_supt = feature_names[2]
+        alias_supt_inter = feature_names[3]
+        alias_wall_outer = feature_names[4]
+        alias_wall_inner = feature_names[5]
+        alias_infill = feature_names[6]
+        alias_top_skin = feature_names[7]
+        alias_mid_skin = feature_names[8]
+        alias_btm_skin = feature_names[9]
+        alias_overhang_wall = feature_names[10]
+        alias_bridge = feature_names[11]
+        alias_internal_bridge = feature_names[12]
 
-        type_external_perimeter = fan_speed_feature_type("\n'TYPE:External perimeter'\n Enter the Fan speed (0% to 100%) for the outer walls.\n")
-        type_perimeter = fan_speed_feature_type("\nTYPE:Perimeter'\n Enter the Fan speed (0% to 100%) for the inner walls.\n")
-        type_top_solid_infill = fan_speed_feature_type("\n'TYPE:Top solid infill'\n Enter the Fan speed (0% to 100%) for the top skins.\n")
-        type_solid_infill = fan_speed_feature_type("\n'TYPE:Solid infill'\n Enter the Fan speed (0% to 100%) for the bottom and mid skins.\n")
-        type_bridge_infill = fan_speed_feature_type("\n'TYPE:Bridge infill'\n Enter the Fan speed (0% to 100%) for the first skins over support.\n")
-        type_overhang_perimeter = fan_speed_feature_type("\n'TYPE:Overhang perimeter'\n Enter the Fan speed (0% to 100%) for the walls around overhangs.\n")
-        type_internal_infill = fan_speed_feature_type("\n'TYPE:Internal infill'\n Enter the Fan speed (0% to 100%) for the bottom skins.\n")
-        type_skirt_brim = fan_speed_feature_type("\n'TYPE:Skirt'\n Enter the Fan speed (0% to 100%) for the skirt/brim/draft shield.\n If your StartLayer is above Layer:1 this would only effect a draft shield.\n")
-        type_support = fan_speed_feature_type("\n'TYPE:Support material'\n Enter the Fan speed (0% to 100%) for the support structure.\n")
-        type_support_interface = fan_speed_feature_type("\n'TYPE:Support material interface'\n Enter the Fan speed (0% to 100%) for the support interface.\n")
+        type_skirt = fan_speed_feature_type(f"\n'{alias_bed_adhesion_skirt}'\n Enter the Fan speed (0% to 100%) for the skirt/draft shield (in PrusaSlicer this includes the Brim).\n If your StartLayer is above Layer:1 this would only effect a draft shield.\n")
+        if slicer_name == "Orca":
+            type_brim = fan_speed_feature_type("\n'TYPE:Brim'\n Enter the Fan speed (0% to 100%) for the Brim.\n")
+        else:
+            type_brim = type_skirt
+        type_support = fan_speed_feature_type(f"\n'{alias_supt}'\n Enter the Fan speed (0% to 100%) for the support structure.\n")
+        type_support_interface = fan_speed_feature_type(f"\n'{alias_supt_inter}'\n Enter the Fan speed (0% to 100%) for the support interface.\n")
+        type_wall_outer = fan_speed_feature_type(f"\n'{alias_wall_outer}'\n Enter the Fan speed (0% to 100%) for the outer walls.\n")
+        type_wall_inner = fan_speed_feature_type(f"\n'{alias_wall_inner}'\n Enter the Fan speed (0% to 100%) for the inner walls.\n")
+        type_infill = fan_speed_feature_type(f"\n'{alias_infill}'\n Enter the Fan speed (0% to 100%) for the infill.\n")
+        type_top_skin = fan_speed_feature_type(f"\n'{alias_top_skin}'\n Enter the Fan speed (0% to 100%) for the top skins.\n")
+        type_mid_skin = fan_speed_feature_type(f"\n'{alias_mid_skin}'\n Enter the Fan speed (0% to 100%) for the internal skins.\n")
+        if slicer_name == "Orca":
+            type_btm_skin = fan_speed_feature_type(f"\n'TYPE:Bottom surface'\n Enter the Fan speed (0% to 100%) for the bottom skins.\n")
+        else:
+            type_btm_skin = type_mid_skin
+
+        type_overhang_wall = fan_speed_feature_type(f"\n'{alias_overhang_wall}'\n Enter the Fan speed (0% to 100%) for the walls around overhangs.\n")
+        type_bridge = fan_speed_feature_type(f"\n'{alias_bridge}'\n Enter the Fan speed (0% to 100%) for the outer bridging.\n")
+        if slicer_name == "Orca":
+            type_internal_bridge = fan_speed_feature_type("\n'TYPE:Internal Bridge'\n Enter the Fan speed (0% to 100%) for the internal bridging.\n")
+        elif slicer_name == "Prusa":
+            type_internal_bridge = type_bridge
+        elif slicer_name == "Bambu":
+            type_internal_bridge = type_btm_skin
+
         if end_layer < total_layer_count:
             final_fan_speed = fan_speed_feature_type("\n'Final Fan Speed'\n Your end layer is lower than the print top layer.  Enter the fan speed to use from the End layer to the end of the print.\n Enter the Fan speed (0% to 100%) for the Final Fan Speed.\n")
         else:
             final_fan_speed = 0
 
+        # If there is a draft shield it is subject to the Skirt settings
         draft_shield = get_prusa_settings(lines)[6]
+        # Review the 'By Feature' settings
         input_str = "\nReview your Custom Fan settings:\n\n"
         final_review = "z"
         while final_review == "z":
             if not fan_speed_0_to_1:
-                input_str += "Use normal PWM fan scale (0 to 255)\n"
+                input_str += "Fan Scale is (0 to 255)\n"
             else:
-                input_str += "Use RepRap fan scale (0 to 1)\n"
-            input_str += f"Start Layer (model starts on ';Layer:{1 + raft_layers}' in the Gcode): {start_layer}\n"
-            input_str += "End Layer in the Gcode...............................: " + str(end_layer) + "\n"
-            input_str += "TYPE:External Perimeter..............................: " + str(round(type_external_perimeter / 2.55)) + "%\n"
-            input_str += "TYPE:Perimeter.......................................: " + str(round(type_perimeter / 2.55)) + "%\n"
-            input_str += "TYPE:Top solid infill................................: " + str(round(type_top_solid_infill / 2.55)) + "%\n"
-            input_str += "TYPE:Solid infill....................................: " + str(round(type_solid_infill / 2.55)) + "%\n"
-            input_str += "TYPE:Bridge infill...................................: " + str(round(type_bridge_infill / 2.55)) + "%\n"
-            input_str += "Type:Overhang perimeter..............................; " + str(round(type_overhang_perimeter / 2.55)) + "%\n"
-            input_str += "TYPE:Internal infill.................................: " + str(round(type_internal_infill / 2.55)) + "%\n"
+                input_str += "Fan Scale is (0 to 1)\n"
+            input_str += f"Start Layer (model starts on 'Layer:{1 + raft_layers}' in the Gcode) = {start_layer}\n"
+            input_str += f"End Layer (top layer is {total_layer_count}) = {end_layer}\n"
             if start_layer == 1 or draft_shield:
-                input_str += "TYPE:Skirt/Brim/Draft Shield.........................: " + str(round(type_skirt_brim / 2.55)) + "%\n"
-            input_str += "TYPE:Support.........................................: " + str(round(type_support / 2.55)) + "%\n"
-            input_str += "TYPE:Support interface...............................: " + str(round(type_support_interface / 2.55)) + "%\n"
+                input_str += f"{alias_bed_adhesion_skirt[:-1]} = {round(type_skirt / 2.55)}%\n"
+                if slicer_name == "Orca":
+                    input_str += f"{alias_bed_adhesion_brim[:-1]} = {round(type_brim / 2.55)}%\n"
+            input_str += f"{alias_wall_outer[:-1]} = {round(type_wall_outer / 2.55)}%\n"
+            input_str += f"{alias_wall_inner[:-1]} = {round(type_wall_inner / 2.55)}%\n"
+            input_str += f"{alias_top_skin[:-1]} = {round(type_top_skin / 2.55)}%\n"
+            input_str += f"{alias_mid_skin[:-1]} = {round(type_mid_skin / 2.55)}%\n"
+            if slicer_name == "Orca":
+                input_str += f"{alias_btm_skin[:-1]} = {round(type_btm_skin / 2.55)}%\n"
+            input_str += f"{alias_bridge[:-1]} = {round(type_bridge / 2.55)}%\n"
+            if slicer_name == "Orca":
+                input_str += f"{alias_internal_bridge} = {round(type_internal_bridge / 2.55)}%\n"
+            input_str += f"{alias_overhang_wall[:-1]} = {round(type_overhang_wall / 2.55)}%\n"
+            input_str += f"{alias_infill[:-1]} = {round(type_infill / 2.55)}%\n"
+            input_str += f"{alias_supt[:-1]} = {round(type_support / 2.55)}%\n"
+            input_str += f"{alias_supt_inter[:-1]} = {round(type_support_interface / 2.55)}%\n"
             if end_layer < total_layer_count:
-                input_str += "Final Fan speed......................................: " + str(round(final_fan_speed / 2.55)) + "%\n"
-            setting_review = input(input_str + "\n<Continue(y)  Redo(r)  Quit(x)> ").lower()
+                input_str += f"; Final Fan speed = {round(final_fan_speed / 2.55)}%\n"
+            if slicer_name == "Bambu":
+                input_str += f"; Auxiliary Fan Layer/Speed = {p2_fan_list}\n"
+                input_str += f"; Chamber Fan Layer/Speed = {p3_fan_list}\n"
+            input_str = format_string(input_str)
+            setting_review = input(input_str + "\n  <Continue(y)  Redo(r)  Quit(x)> ").lower()
             if setting_review not in ["y", "r", "x"]:
                 print("Response must be 'y', 'r', or 'x'.  Try again.\n")
                 final_review = "z"
@@ -203,46 +292,56 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
                 exit(0)
 
     feature_type_list = [
-        ";TYPE:External perimeter\n",
-        ";TYPE:Perimeter\n",
-        ";TYPE:Top solid infill\n",
-        ";TYPE:Solid infill\n",
-        ";TYPE:Bridge infill\n",
-        ";TYPE:Overhang perimeter\n",
-        ";TYPE:Internal infill\n",
-        ";TYPE:Skirt/Brim\n",
-        ";TYPE:Support material\n",
-        ";TYPE:Support material interface\n"]
+        alias_wall_outer,
+        alias_wall_inner,
+        alias_top_skin,
+        alias_mid_skin,
+        alias_btm_skin,
+        alias_bridge,
+        alias_internal_bridge,
+        alias_overhang_wall,
+        alias_infill,
+        alias_bed_adhesion_skirt,
+        alias_bed_adhesion_brim,
+        alias_supt,
+        alias_supt_inter]
     if not fan_speed_0_to_1:
         feature_speed_list = [
-            round(type_external_perimeter),
-            round(type_perimeter),
-            round(type_top_solid_infill),
-            round(type_solid_infill),
-            round(type_bridge_infill),
-            round(type_overhang_perimeter),
-            round(type_internal_infill),
-            round(type_skirt_brim),
+            round(type_wall_outer),
+            round(type_wall_inner),
+            round(type_top_skin),
+            round(type_mid_skin),
+            round(type_btm_skin),
+            round(type_bridge),
+            round(type_internal_bridge),
+            round(type_overhang_wall),
+            round(type_infill),
+            round(type_skirt),
+            round(type_brim),
             round(type_support),
             round(type_support_interface),
             round(final_fan_speed)]
+            
     else:
         feature_speed_list = [
-            round(type_external_perimeter / 255, 2),
-            round(type_perimeter / 255, 2),
-            round(type_top_solid_infill / 255, 2),
-            round(type_solid_infill / 255, 2),
-            round(type_bridge_infill / 255, 2),
-            round(type_overhang_perimeter / 255, 2),
-            round(type_internal_infill / 255, 2),
-            round(type_skirt_brim / 255, 2),
+            round(type_wall_outer / 255, 2),
+            round(type_wall_inner / 255, 2),
+            round(type_top_skin / 255, 2),
+            round(type_mid_skin / 255, 2),
+            round(type_btm_skin / 255, 2),
+            round(type_bridge / 255, 2),
+            round(type_internal_bridge / 255,2),
+            round(type_overhang_wall / 255, 2),
+            round(type_infill / 255, 2),
+            round(type_skirt / 255, 2),
+            round(type_brim / 255, 2),
             round(type_support / 255, 2),
             round(type_support_interface / 255, 2),
             round(final_fan_speed / 255, 2)]
     return feature_type_list, feature_speed_list, start_layer, end_layer
 
 def single_extruder_ByLayer(fan_layer_list, fan_0):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca\n")
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu\n")
     for index, line in enumerate(lines):
         if line == ";Layer:1\n":
             start_index = index
@@ -259,7 +358,7 @@ def single_extruder_ByLayer(fan_layer_list, fan_0):
     return lines
 
 def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca\n")
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu\n")
     active_tool = "T0"
     active_fan = fan_0
     off_fan = fan_1
@@ -290,7 +389,7 @@ def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
     return lines
 
 def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca\n")
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n")
     end_index = None
     for index, line in enumerate(lines):
         if line == f";Layer:{start_layer}\n":
@@ -311,7 +410,7 @@ def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer
     return lines
 
 def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0, fan_1):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca\n")
+    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n")
     end_index = None
     for index, line in enumerate(lines):
         if line == f";Layer:{start_layer}\n":
@@ -351,9 +450,15 @@ def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, 
         for num in range(end_index, last_index):
             if fan_0 != fan_1:
                 if line.startswith("T0"):
-                    lines[num] = f"M106 S0 {fan_1}\n{lines[num]}M106 S{cur_speed} {fan_0}\n"
+                    if slicer_name != "Bambu":
+                        lines[num] = f"M106 S0 {fan_1}\n{lines[num]}M106 S{cur_speed} {fan_0}\n"
+                    else:
+                        lines[num] = f"M106 {fan_1} S0\n{lines[num]}M106 {fan_0} S{cur_speed}\n"
                 if line.startswith("T1"):
-                    lines[num] = f"M106 S0 {fan_0}\n{lines[num]}M106 S{cur_speed} {fan_1}\n"
+                    if slicer_name != "Bambu":
+                        lines[num] = f"M106 S0 {fan_0}\n{lines[num]}M106 S{cur_speed} {fan_1}\n"
+                    else:
+                        lines[num] = f"M106 {fan_0} S0\n{lines[num]}M106 {fan_1} S{cur_speed}\n"
     return lines
 
 def fan_speed_feature_type(feature_text):
@@ -371,7 +476,7 @@ def fan_speed_feature_type(feature_text):
             continue
     return feature_type
 
-def add_starting_ending_fan(extruder_count, fan_0, fan_1):
+def add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p2_p3):
     start_index = None
     for index, line in enumerate(lines):
         if line == ";Layer:1\n":
@@ -382,9 +487,16 @@ def add_starting_ending_fan(extruder_count, fan_0, fan_1):
             fan_off_line += f"\n{lines[index - 1]}\n"
             lines[index - 1] = fan_off_line
         if line.startswith("M140 S0") and start_index != None:
-            fan_off_line = f"M106 S0 {fan_0}"
-            if extruder_count > 1:
-                fan_off_line += f"\nM106 S0 {fan_1}"
+            if slicer_name != "Bambu":
+                fan_off_line = f"M106 S0 {fan_0}"
+                if extruder_count > 1:
+                    fan_off_line += f"\nM106 S0 {fan_1}"
+            elif slicer_name == "Bambu":
+                fan_off_line = f"M106 {fan_0} S0"
+                if extruder_count > 1:
+                    fan_off_line += f"\nM106 {fan_1} S0"
+                if control_p2_p3:
+                    fan_off_line += f"\nM106 P2 S0\nM106 P3 S0"
             fan_off_line += f"\n{lines[index]}"
             lines[index] = fan_off_line
     return
@@ -394,6 +506,12 @@ def get_prusa_settings(lines: str) -> str:
     raft_layers = 0
     total_layer_count = 0
     for line in lines:
+        if "; generated by OrcaSlicer" in line:
+            slicer_name = "Orca"
+        if "; generated by PrusaSlicer" in line:
+            slicer_name = "Prusa"
+        if "; BambuStudio" in line:
+            slicer_name = "Bambu"
         if ";Layer:" in line:
             total_layer_count += 1
         if "; raft_layers =" in line:
@@ -415,13 +533,13 @@ def get_prusa_settings(lines: str) -> str:
                 draft_shield = True
 
     raft_cooling_speed = 0
-    return raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield
+    return raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield, slicer_name
 
 # Get user settings
 def get_post_settings() -> str:
     # Get the layer count and number of raft layers
     prusa_settings = get_prusa_settings(lines)
-    raft_layers = prusa_settings[0] #  raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield
+    raft_layers = prusa_settings[0]
     raft_cooling_speed = prusa_settings[1]
     total_layer_count = prusa_settings[2]
     nozzle_size_0 = prusa_settings[3]
@@ -447,7 +565,7 @@ def get_post_settings() -> str:
         fan_0 = "101"
         while not fan_0.startswith("P") and not fan_0 == "":
             try:
-                fan_0 = int(input("'Fan Circuit Number Extruder 1 (T0)'\n Of the Layer Cooling Fan of the primary extruder (T0).\n (This is usually '0' but might be different for your machine.) <enter>\n"))
+                fan_0 = int(input("'Fan Circuit Number Extruder 1 (T0)'\n Of the Layer Cooling Fan of the primary extruder (T0).\n (This is usually '0' but might be different for your machine.  Bambu printers are usually 1.) <enter>\n"))
             except:
                 print("Input error.  Must be an integer from 0 to 99")
                 fan_0 = "101"
@@ -508,6 +626,7 @@ def get_post_settings() -> str:
             input_str += f"By Feature or By Layer.......... {'By Feature' if fan_mode == 1 else 'By Layer'}"
             response = input(input_str + "\n\n Enter 'y' to continue or 'n' to try again\n")
             if response not in ['y', 'n']:
+                print(response)
                 print("Invalid response.  Try again. <Enter>")
                 response = "99"
                 continue
@@ -515,18 +634,195 @@ def get_post_settings() -> str:
                 response = "99"
     return remove_m106, fan_0, fan_1, raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, fan_mode, fan_speed_0_to_1
 
-def remove_fan_lines() -> str:
+def remove_fan_lines(slicer_name) -> str:
     # Remove the M106 and M107 lines if requested.
+    if slicer_name == "Bambu":
+        chg_line = "; CHANGE_LAYER"
+    else:
+        chg_line = ";LAYER_CHANGE"
     for index, line in enumerate(lines):
-        if "LAYER_CHANGE" in line:
+        if chg_line in line:
             start_here = index
             break
     for index, line in enumerate(lines):
         if index <= start_here:
             continue
-        if "M106" in line or "M107" in line:
-            lines[index] = ""
+        if slicer_name != "Bambu":
+            if "M106" in line or "M107" in line:
+                lines[index] = ""
+        elif slicer_name == "Bambu":
+            if control_p2_p3:
+                if "M106" in line and not "P3" in line and not "P2" in line:                
+                    lines[index] = ""
+    return lines
+
+def getAliases(slicer_name):
+    if slicer_name == "Prusa":
+        alias_bed_adhesion_skirt = ";TYPE:Skirt/Brim\n"
+        alias_bed_adhesion_brim = ";Not in Prusa"
+        alias_supt = ";TYPE:Support material\n"
+        alias_supt_inter = ";TYPE:Support material interface\n"
+        alias_wall_outer = ";TYPE:External perimeter\n"
+        alias_wall_inner = ";TYPE:Perimeter\n"
+        alias_infill = ";TYPE:Internal infill\n"
+        alias_top_skin = ";TYPE:Top solid infill\n"
+        alias_mid_skin = ";TYPE:Solid infill\n"
+        alias_btm_skin = ";TYPE:Solid infill\n"
+        alias_overhang_wall = ";TYPE:Overhang perimeter\n"
+        alias_bridge = ";TYPE:Bridge infill\n"
+        alias_internal_bridge = ";Not in Prusa"
+
+    elif slicer_name == "Orca":
+        alias_bed_adhesion_skirt = ";TYPE:Skirt\n"
+        alias_bed_adhesion_brim = ";TYPE:brim\n"
+        alias_supt = ";TYPE:Support\n"
+        alias_supt_inter = ";TYPE:Support interface\n"
+        alias_wall_outer = ";TYPE:Outer wall\n"
+        alias_wall_inner = ";TYPE:Inner wall\n"
+        alias_infill = ";TYPE:Sparse infill\n"
+        alias_top_skin = ";TYPE:Top surface\n"
+        alias_mid_skin = ";TYPE:Internal solid infill\n"
+        alias_btm_skin = ";TYPE:Bottom surface\n"
+        alias_overhang_wall = ";TYPE:Overhang wall\n"
+        alias_bridge = ";TYPE:Bridge\n"
+        alias_internal_bridge = ";TYPE:Internal Bridge\n"
+
+    elif slicer_name == "Bambu":
+        alias_bed_adhesion_skirt = "; FEATURE: Skirt\n"
+        alias_bed_adhesion_brim = "; FEATURE: Brim\n"
+        alias_supt = "; FEATURE: Support\n"
+        alias_supt_inter = "; FEATURE: Support interface\n"
+        alias_wall_outer = "; FEATURE: Outer wall\n"
+        alias_wall_inner = "; FEATURE: Inner wall\n"
+        alias_infill = "; FEATURE: Sparse infill\n"
+        alias_top_skin = "; FEATURE: Top surface\n"
+        alias_mid_skin = "; FEATURE: Internal solid infill\n"
+        alias_btm_skin = "; FEATURE: Bottom surface\n"
+        alias_overhang_wall = "; FEATURE: Overhang wall\n"
+        alias_bridge = "; FEATURE: Bridge\n"
+        alias_internal_bridge = "Not in Bambu"
+    return [alias_bed_adhesion_skirt, alias_bed_adhesion_brim, alias_supt, alias_supt_inter, alias_wall_outer, alias_wall_inner, alias_infill, alias_top_skin, alias_mid_skin, alias_btm_skin, alias_overhang_wall, alias_bridge, alias_internal_bridge]
+
+def format_string(input_str):
+    temp_lines = input_str.split("\n")
+    gap_len = 0
+    for temp_line in temp_lines:
+        if "=" in temp_line:
+            if gap_len - len(temp_line.split("=")[0]) + 1 < 0:
+                gap_len = len(temp_line.split("=")[0]) + 1
+    if gap_len < 30: gap_len = 30
+    for temp_index, temp_line in enumerate(temp_lines):
+        if "=" in temp_line:
+            temp_lines[temp_index] = temp_line.replace(temp_line.split("=")[0], temp_line.split("=")[0] + str(
+                "." * (gap_len - len(temp_line.split("=")[0]))), 1)
+    input_str = "\n".join(temp_lines)
+    return input_str
+
+def bambu_extra_fans():
+    response = input("The next settings are for the Auxiliary Fan and the Chamber fan.\n <enter>\n\n")
+    bambu_p2_str = "r"
+    p2_fan_list = []
+    while bambu_p2_str == "r":
+        bambu_p2_str = input("'Auxiliary Fan (P2)'\n Will the auxiliary fan be used? <y> or <n>\n")
+        if bambu_p2_str not in ["y", "n"]:
+            bambu_p2_str = "r"
+            print("Invalid response.  Must be 'y' or 'n'.\n")
+            continue
+        elif bambu_p2_str == "y":
+            p2_layer_str = input("Enter the layers and fan speed percentages as 'Layer#/Fan%'.  Delimit multiple ranges with commas.\n (Ex: 1/50,75/100,150/0)\n")
+        if "," in p2_layer_str:
+            new_layer_list = p2_layer_str.split(",")
+            for fan_cmd in new_layer_list:
+                p2_fan_list.append(fan_cmd)
+        else:
+            p2_fan_list.append(p2_layer_str)
+        # Check for input errors
+        err_code = 0
+        for fan in p2_fan_list:
+            if "/" not in fan or "." in p2_layer_str:
+                err_code = 1
+                p2_layer_str = "r"
+                P2_fan_list = []
+        if err_code > 0:
+            print("There is an error in the fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
+            p2_layer_str = "r"
+            continue
+    bambu_chamber_fan_str = "r"
+    p3_fan_list = []
+    while bambu_chamber_fan_str == "r":
+        bambu_chamber_fan_str = input("'Chamber Fan (P3)'\n Will the Chamber fan be used? <y> or <n>\n")
+        if bambu_chamber_fan_str not in ["y", "n"]:
+            bambu_chamber_fan_str = "r"
+            print("Invalid response.  Must be 'y' or 'n'.\n")
+            continue
+        elif bambu_chamber_fan_str == "y":
+            p3_layer_str = input("Enter the layers and fan speed percentages as 'Layer#/Fan%'.  Delimit multiple ranges with commas.\n (Ex: 1/50,75/100,150/0)\n")
+            if "," in p3_layer_str:
+                new_layer_list = p3_layer_str.split(",")
+                for fan_cmd in new_layer_list:
+                    p3_fan_list.append(fan_cmd)
+            else:
+                p3_fan_list.append(p3_layer_str)            
+        # Check for input errors
+        err_code = 0
+        for fan in p3_fan_list:
+            if "/" not in fan or "." in p3_layer_str:
+                err_code = 1
+                p3_layer_str = "r"
+                p3_fan_list = []
+        if err_code > 0:
+            print("There is an error in the chamber fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
+            p3_layer_str = "r"
+            continue
+    if p2_fan_list == []:
+        p2_fan_list = ["0/0"]
+    else:
+        for index, fan in enumerate(p2_fan_list):
+            if fan_speed_0_to_1:
+                p2_fan_list[index] = p2_fan_list[index].split("/")[0] + "/" + str(round(int(p2_fan_list[index].split("/")[1]) * .01, 2))
+            else:
+                p2_fan_list[index] = p2_fan_list[index].split("/")[0] + "/" + str(round(int(p2_fan_list[index].split("/")[1]) * 2.55))
+                
+    if p3_fan_list == []:
+        p3_fan_ist = ["0/0"]
+    else:
+        for index, fan in enumerate(p3_fan_list):
+            if fan_speed_0_to_1:
+                p3_fan_list[index] = p3_fan_list[index].split("/")[0] + "/" + str(round(int(p3_fan_list[index].split("/")[1]) * .01, 2))
+            else:
+                p3_fan_list[index] = p3_fan_list[index].split("/")[0] + "/" + str(round(int(p3_fan_list[index].split("/")[1]) * 2.55))
+        
+    return p2_fan_list, p3_fan_list
+
+def insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list):
+    for index, line in enumerate(lines):
+        if line == ";Layer:1\n":
+            start_index = index
+            break
+    for l_index in range(start_index,len(lines) - 1):
+        if ";Layer:" in lines[l_index]:
+            layer_number = str(lines[l_index].split(":")[1][:-1])
+            # If there is a match for the current layer number make the insertion
+            for p2_change in p2_fan_list:
+                fan_split = p2_change.split("/")
+                layer_nr = int(fan_split[0])
+                if layer_number == str(layer_nr):
+                    lines[l_index] += f"M106 P2 S{fan_split[1]} \n"
+    
+    for index, line in enumerate(lines):
+        if line == ";Layer:1\n":
+            start_index = index
+            break
+    for l_index in range(start_index,len(lines) - 1):
+        if ";Layer:" in lines[l_index]:
+            layer_number = str(lines[l_index].split(":")[1][:-1])
+            # If there is a match for the current layer number make the insertion
+            for p3_change in p3_fan_list:
+                fan_split = p3_change.split("/")
+                layer_nr = int(fan_split[0])
+                if layer_number == str(layer_nr):
+                    lines[l_index] += f"M106 P3 S{fan_split[1]}\n"
     return lines
 
 if __name__ == "__main__":
-    main()
+    main(lines)

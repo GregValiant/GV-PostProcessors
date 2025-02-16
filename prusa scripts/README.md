@@ -1,4 +1,4 @@
-# GregValiant's PostProcessors for PrusaSlicer and Orca
+# GregValiant's PostProcessors for PrusaSlicer, OrcaSlicer, and Bambu Studio
 
 As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
 
@@ -6,7 +6,7 @@ PLEASE NOTE:
 - These post-processors are "python scripts" and Python must be installed on your computer. 
 - "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
 
-In both Prusa and Orca, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner...
+In all three slicers, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner...
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
 The quotation marks are necessary on my installtion of Windows 10 Pro.
 The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".
@@ -20,14 +20,14 @@ Github is shortening this but each "path + post processor" should be on a single
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
 
-As each post-processor runs it will open a command window and you will be asked to enter your options.  There will be a final listing of your inputs that will look something like this (Add Layer Numbers does not have a final review):
+As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**
-2/14/2025  The layer numbering for PrusaSlicer.  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers.  The script will make the adjustment when supports are enabled or disabled.
-The script will go through the gcode and look for ";LAYER_CHANGE" and add a line below that ";Layer:XX".  
-The layer numbers will (should) match the Prusa/Orca preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
-Any followup scripts that run will likely require that 'Add Layer Numbers' runs first.  It only needs to be run once.  
+2/14/2025  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers in Prusa, 379 layers in Orca, and 350 layers in Bambu.  Go figure.  The script will make the adjustment when supports are enabled or disabled.  The layer numbering in the gcode will match the slicer preview.
+The script will go through the gcode and look for ";LAYER_CHANGE" ("; CHANGE_LAYER" in Bambu) and add a line below that ";Layer:XX".  
+The layer numbers will match the preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
+Any followup scripts that run will likely require that 'Add Layer Numbers' runs first.  It must only be run once.  
 
 **Search and Replace**
 Requires "Add Layer Numbers" to run before it.
@@ -79,6 +79,7 @@ Top-of-Raft fan speed................................: 80%
  <Continue(y,n) or Redo(r)>  
  
  Entering an "r" will allow you to go back through and change things.
+ There are additional settings for Bambu printers that will allow control of the Aux and Chamber fans.  The settings will come up whether those fans exist on the printer or not.  The script makes no attempt to determine specific printer models.
  
  **Time Lapse Camera**
  This requires 'Add Layer Numbers' to run first.
