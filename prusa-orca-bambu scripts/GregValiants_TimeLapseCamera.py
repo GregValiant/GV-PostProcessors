@@ -30,6 +30,17 @@ if response == "n":
 lines.insert(1, ";   Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca\n")
 
 # Get some settings
+slicer_name = ""
+for line in lines:
+    if "Prusa" in line:
+        slicer_name = "Prusa"
+    if "Orca" in line:
+        slicer_name = "Orca"
+    if "BambuStudio" in line:
+        slicer_name = "Bambu"
+    if slicer_name != "":
+        break
+        
 for index, line in enumerate(lines):
     if "; use_relative_e_distances" in line:
         relative_extrusion_str = line.split("= ")[1]
@@ -37,27 +48,36 @@ for index, line in enumerate(lines):
             relative_extrusion = False
         else:
             relative_extrusion = True
-    if "; retract_speed" in line:
-        retract_speed = int(line.split("= ")[1]) * 60
-    if "; deretract_speed" in line:
-        prime_speed = int(line.split("= ")[1]) * 60
-    if "; retract_length =" in line:
-        retract_dist = round(float(line.split("= ")[1]),2)
-    retract_enabled = True
+            
     if "; use_firmware_retraction" in line:
         firmware_retract_str = int(line.split("= ")[1])
         if firmware_retract_str == 0:
             firmware_retract = False
         elif firmware_retract_str == 1:
             firmware_retract = True
+            
     if "; travel_speed =" in line:
         travel_speed = int(line.split("= ")[1]) * 60
-    if "; bed_shape =" in line:
+      
+    if "; retract_speed" in line or "; retraction_speed =" in line:
+        retract_speed = int(line.split("= ")[1]) * 60
+        
+    if "; deretract_speed" in line or "; deretraction_speed =" in line:
+        prime_speed = int(line.split("= ")[1]) * 60
+        
+    if "; retract_length =" in line or "; retraction_length =" in line:
+        retract_dist = round(float(line.split("= ")[1]),2)
+
+    if "; bed_shape =" in line or "; printable_area =" in line:
         bed_shape = line.split("= ")[1]
         bed_min_x = bed_shape.split(",")[0].split("x")[0]
         bed_max_x = bed_shape.split(",")[2].split("x")[0]
         bed_min_y = bed_shape.split(",")[0].split("x")[1]
         bed_max_y = bed_shape.split(",")[2].split("x")[1]
+if retract_dist > 0:
+    retract_enabled = True
+else:
+    retract_enabled = False
 
 # Get settings from the user
 response = "r"
@@ -150,7 +170,7 @@ while response == "r":
 # Put together a list of the layer changes
 data_list = [0]
 for index, line in enumerate(lines):
-    if ";TYPE:Custom" in line:
+    if ";TYPE:Custom" in line or "; CHANGE_LAYER" in line:
         data_list.append(index)
         break
 
@@ -288,7 +308,7 @@ if ensure_final_image and need_final:
     last_image_str += "G91                          ;Relative Movement\n"
     last_image_str += f"G1 F{retract_speed} E-{retract_dist}               ;Retract\n"
     last_image_str += "G1 F1200 Z1                  ;Move up\n"
-    last_image_str += f"G1 F{travel_speed} X0 Y{bed_max_y}             ;Park Head\n"
+    last_image_str += f"G1 F{travel_speed} X0 Y{bed_max_y-5}             ;Park Head\n"
     last_image_str += "M400                         ;Wait for moves to finish\n"
     last_image_str += trigger_command + "                         ;Snap the final Image\n"
     if pause_length > 0:
