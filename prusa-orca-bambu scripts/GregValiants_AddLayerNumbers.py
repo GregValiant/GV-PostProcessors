@@ -1,9 +1,11 @@
-# By GregValiant (Greg Foresi) February 1, 2025
+# Copyright (c) 2025 GregValiant (Greg Foresi)
+#  Suitable to Prusa, Orca, and Bambu slicers
 # This script will:
-#    Add layer number lines below the "LAYER_CHANGE" lines.  The layer numbers coincide with the preview layers only when supports are turned off.
-#        You may have to slice once with supports off to determine the preview layer numbers you want to act on, and then a second time for the gcode you want to print.
-#    Remove empty lines.
-#    Round the HEIGHT numbers to 3 decimal places and the WIPE numbers to 2 decimal places.
+#    Add layer number lines below the "LAYER_CHANGE" lines.  The layer numbers coincide with the preview layers which can changed depending on whether or not supports are enabled.
+#    Because of the variance in the layer count in the slicers, you should check your gcode to insure it is correct.
+#    In addition to adding 'Layer: lines, the script will:
+#       Remove empty lines.
+#       Round the HEIGHT numbers to 3 decimal places and the WIPE numbers to 2 decimal places.
 
 import sys
 import os

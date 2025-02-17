@@ -1,7 +1,7 @@
-# By GregValiant (Greg Foresi) February 1, 2025
-# This script will:
-#    Add park moves, take an image of the build plate, and return to the print.
-#    Remove empty lines.
+# Copyright (c) 2025 GregValiant (Greg Foresi)
+#  Suitable to Prusa, Orca, and Bambu slicers
+#  Depending on the chosen options, this script can:
+#    <retract> <Lift the nozzle> <park park the head> <pause> <take a image> <pause> <move back> <lower the nozzle> <unretract>.
 
 import sys
 import re

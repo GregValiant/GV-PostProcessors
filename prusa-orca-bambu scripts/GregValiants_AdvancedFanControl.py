@@ -1,6 +1,8 @@
-# By GregValiant
-# This PrusaSlicer/Orca script will:
+# Copyright (c) 2025 GregValiant (Greg Foresi)
+#  Suitable to Prusa, Orca, and Bambu slicers
 #    Add fan speed changes 'By Layer' or 'By Feature'
+#    Supports dual extruders with dual fans
+#    Bambu printers can optionally also control the Auxiliary and Chamber fans P2 and P3.
 
 import sys
 import os
