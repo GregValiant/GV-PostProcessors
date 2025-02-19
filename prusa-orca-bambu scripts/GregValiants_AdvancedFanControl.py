@@ -11,6 +11,16 @@ sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
+# If Add Layer Numbers didn't run first then exit
+layer_numbers_added = False
+for line in lines:
+    if "[Add Layer Numbers]" in line:
+        layer_numbers_added = True
+        break
+if not layer_numbers_added:
+    input("'Advance Fan Control' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
+    exit(0)
+    
 control_p2_p3 = None
 p2_fan_list = []
 p3_fan_list = []
@@ -49,7 +59,7 @@ def __init__(self, fan_speed_0_to_1, extruder_count, total_layer_count) -> None:
 def main(lines):
     response = "q"
     while not response in ["y", "n"]:
-        response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca/Bambu has started.\n Note: You may run multiple instances of this script.  The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?  (y) or (n).\n").lower()
+        response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca/Bambu has started.\n Note: You may run multiple instances of this script.  Example: The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?\n <y> Yes\n <n> No\n").lower()
         if response not in ["y", "n"]:
             print("Invalid Response.  Must be 'y' or 'n'.")
             continue
@@ -57,7 +67,6 @@ def main(lines):
             print("Exiting")
             final_file.close()
             exit(0)
-
     # Get the preliminary settings from both the gcode and the user
     my_settings = get_post_settings()
     remove_m106 = bool(my_settings[0])
@@ -79,12 +88,12 @@ def main(lines):
     if slicer_name == "Bambu":
         control_p2_p3_str = "r"
         while control_p2_p3_str == "r":
-            control_p2_p3_str = input("Do you want to control the Aux and Chamber fans from Bambu Studio, or from here?\n Bambu <b> or From here <h>")
-            if control_p2_p3_str not in ["b", "h"]:
-                response = input("Invalid response.  Must be 'b' or 'h'")
+            control_p2_p3_str = input("Do you want to control the Aux and Chamber fans from Bambu Studio, or from here?\n <y> Yes, Control here\n <n> Control in Bambu\n")
+            if control_p2_p3_str not in ["y", "n"]:
+                response = input("Invalid response.  Must be 'y' or 'n'")
                 control_p2_p3_str = "r"
                 continue
-        if control_p2_p3_str == "h":
+        if control_p2_p3_str == "y":
             control_p2_p3 = True
             bambu_aux_fans = bambu_extra_fans()
             p2_fan_list = bambu_aux_fans[0]
@@ -127,12 +136,16 @@ def main(lines):
         lines = insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list)
     if remove_m106:
         add_m106_S0_lines = add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p2_p3)
-    types_of_features = []
+
+    if fan_mode == 1:
+        by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n"
+    else:
+        by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu\n"
     for index, line in enumerate(lines):
-        if line.startswith(";TYPE") and not line in types_of_features and not "Custom" in line:
-            types_of_features.append(line)
-    lines.insert(5, "\n" + str(types_of_features) + "\n")
-    # Send the file back to Prusa/Orca
+        if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
+            lines.insert(index, by_line)
+            break
+    # Send the file back to the slicer
     dest_file = open(sourceFile, "w")
     for line in lines:
         dest_file.write(line)
@@ -143,7 +156,7 @@ def getSettings_ByLayer(fan_speed_0_to_1):
     fan_layers = "r"
     fan_layer_list = []
     while fan_layers == "r":
-        fan_layers = input("Enter layers and Fan speeds% as 'layer#/speed%'. For multiple changes delimit the settings with commas. The layer numbers must be in 'Ascending' order.\n (EX: 5/35,25/100,35/0)\n")
+        fan_layers = input("\nThese settings are for the layer cooling fan.\nEnter layers and Fan speeds% as 'layer#/speed%'. For multiple changes delimit the settings with commas. The layer numbers must be in 'Ascending' order.\n (EX: 5/35,25/100,35/0)\n Layer/Speed: ")
         if "," in fan_layers:
             new_layer_list = fan_layers.split(",")
             for fan_cmd in new_layer_list:
@@ -162,8 +175,6 @@ def getSettings_ByLayer(fan_speed_0_to_1):
             fan_layers = "r"
             continue
 
-    # Add the layer list to the gcode as a record of the settings
-    lines.insert(2, f";\n;     Fan Changes (LAY / %): {str(fan_layer_list)}\n")
     # Convert the percentages into PWM or 0to1 as required
     fan_layer_list = fan_layers.split(",")
     for index, fan in enumerate(fan_layer_list):
@@ -182,7 +193,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
         while start_layer == "a":
             try:
                 print("\n\nThe next settings are for 'By Feature'\n\n")
-                start_layer = int(input("'Start Layer'\n Enter the start layer for Fan Control.  Use the preview numbers.\n"))
+                start_layer = int(input("'Start Layer'\n Enter the start layer for Fan Control.  Use the preview numbers.\n Start Layer:"))
             except:
                 print("The Start Layer must be an integer > 0.  Try again.")
                 start_layer = "a"
@@ -191,7 +202,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
         end_layer = "z"
         while end_layer == "z":
             try:
-                end_layer = int(input(f"'End Layer'\n Enter the ending layer number.  Fan Control will continue to the end of this layer.  Use the layer numbers from the preview\n (top layer is: {total_layer_count}).\n"))
+                end_layer = int(input(f"'End Layer'\n Enter the ending layer number.  Fan Control will continue to the end of this layer.  Use the layer numbers from the preview\n (top layer is: {total_layer_count}).\n End Layer:"))
                 if end_layer > total_layer_count:
                     print(f"The end layer must be an integer less than {total_layer_count}.  Try again.\n")
                     end_layer = "z"
@@ -282,9 +293,9 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
                 input_str += f"; Auxiliary Fan Layer/Speed = {p2_fan_list}\n"
                 input_str += f"; Chamber Fan Layer/Speed = {p3_fan_list}\n"
             input_str = format_string(input_str)
-            setting_review = input(input_str + "\n  <Continue(y)  Redo(r)  Quit(x)> ").lower()
+            setting_review = input(input_str + "\n <y> Continue\n <r> Redo settings\n <x> Quit\n").lower()
             if setting_review not in ["y", "r", "x"]:
-                print("Response must be 'y', 'r', or 'x'.  Try again.\n")
+                print("Invalid response.  Response must be 'y', 'r', or 'x'.  Try again.\n")
                 final_review = "z"
                 continue
             else:
@@ -343,7 +354,6 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
     return feature_type_list, feature_speed_list, start_layer, end_layer
 
 def single_extruder_ByLayer(fan_layer_list, fan_0):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu\n")
     for index, line in enumerate(lines):
         if line == ";Layer:1\n":
             start_index = index
@@ -360,7 +370,6 @@ def single_extruder_ByLayer(fan_layer_list, fan_0):
     return lines
 
 def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu\n")
     active_tool = "T0"
     active_fan = fan_0
     off_fan = fan_1
@@ -370,6 +379,7 @@ def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
         layer = layer_speed.split("/")[0]
         speed = layer_speed.split("/")[1]
         for index, line in enumerate(lines):
+            # Insert a place holder
             if ";Layer:" + layer.split("/")[0] in line:
                 lines.insert(index, f"M999 S{speed}\n")
                 break
@@ -384,6 +394,7 @@ def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
                 off_fan = fan_0
             if speed_change_started:
                 lines[index] = f"M106 S0 {off_fan}\n{line}M106 S{cur_speed} {active_fan}\n"
+        # Replace the place holder with a fan line
         if line.startswith("M999"):
             cur_speed = int(line.split("S")[1][:-1])
             lines[index] = f"M106 S{cur_speed} {active_fan}\n"
@@ -391,7 +402,6 @@ def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
     return lines
 
 def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n")
     end_index = None
     for index, line in enumerate(lines):
         if line == f";Layer:{start_layer}\n":
@@ -412,7 +422,6 @@ def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer
     return lines
 
 def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0, fan_1):
-    lines.insert(1, "\n;   Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n")
     end_index = None
     for index, line in enumerate(lines):
         if line == f";Layer:{start_layer}\n":
@@ -554,7 +563,7 @@ def get_post_settings() -> str:
         # Should previous M106 lines be removed?  Not doing so will allow changes made by previous instances of PrusaFanControl to remain in the gcode.
         fan_speed_0_to_1 = "99"
         while fan_speed_0_to_1 not in [True, False]:
-            fan_speed_0_to_1_str = input("'Fan Speed Scale'\n Should Fan Speeds be normal PWM (0 to 255) or RepRap (0 to 1)?\n Enter <1> for PWM or <2> for RepRap 0 to 1\n")
+            fan_speed_0_to_1_str = input("'Fan Speed Scale'\n This can be firmware dependent.  Marlin based firmware will use 'PWM' (0 to 255).  Some RepRap firmware might use '0 to 1'\n Regardless, you will enter the fan speeds as a % with 0 being off, and 100 being full speed.\n <1> Normal PWM\n <2> RepRap 0 to 1\n")
             if fan_speed_0_to_1_str not in ['1', '2']:
                 print("Invalid entry.  Must be '1' for PWM scale, or '2' for 0 to 1 scale\n")
                 fan_speed_0_to_1_str = "99"
@@ -567,13 +576,13 @@ def get_post_settings() -> str:
         fan_0 = "101"
         while not fan_0.startswith("P") and not fan_0 == "":
             try:
-                fan_0 = int(input("'Fan Circuit Number Extruder 1 (T0)'\n Of the Layer Cooling Fan of the primary extruder (T0).\n (This is usually '0' but might be different for your machine.  Bambu printers are usually 1.) <enter>\n"))
+                fan_0 = int(input("'Fan Circuit Number Extruder 1 (T0)'\n The Layer Cooling Fan circuit number of the primary extruder (T0).\n (This is usually '0' but might be different for your machine.)\n T0 Fan #: "))
             except:
                 print("Input error.  Must be an integer from 0 to 99")
                 fan_0 = "101"
                 continue
             if extruder_count > 1:
-                fan_1 = int(input("'Fan Circuit Number Extruder 2 (T1)'\n of the Layer Cooling Fan of the second extruder (T1)?\n (This is often the same as the primary extruder but can be different on some IDEX and other printers.) <enter>\n"))
+                fan_1 = int(input("'Fan Circuit Number Extruder 2 (T1)'\n The Layer Cooling Fan circuit number of the second extruder (T1)?\n (This is often the same as the primary extruder but can be different on some IDEX and other printers.)\n T1 Fan #: "))
 
             else:
                 fan_1 = ""
@@ -598,7 +607,7 @@ def get_post_settings() -> str:
         remove_m106 = "r"
         while not remove_m106 in [True, False]:
             try:
-                remove_m106 = input("'Remove existing M106 lines'\n If you intend to run more than one instance of this post-processor, the first instance should remove the M106 and M107 lines and succeeding instances should not.  (NOTE: M106/M107 Removal starts at the first layer regardless of your 'Start Layer'.)\n Enter <y> for Remove or <n> for Leave them alone\n").lower()
+                remove_m106 = input("'Remove existing M106 lines'\n If you intend to run more than one instance of this post-processor, the first instance should remove the M106 and M107 lines and succeeding instances should not.  (NOTE: M106/M107 Removal starts at the first layer regardless of your 'Start Layer'.)\n <y> Yes, Remove M106/M107\n <n> No, leave them be\n").lower()
                 if remove_m106 not in ["y", "n"]:
                     print("Invalid response.  Must be 'y' or 'n'.")
                     continue
@@ -613,7 +622,7 @@ def get_post_settings() -> str:
             fan_mode = ""
             while fan_mode not in [1, 2]:
                 try:
-                    fan_mode = int(input("'Fan Control'\n Enter <1> for 'By Feature' or <2> for 'By Layer'\n 'By Feature' works better for long prints because the fan takes a bit to react to a command and spin up, or wind down to speed.\n"))
+                    fan_mode = int(input("'Fan Control by Layer or by Feature'\n 'By Feature' is good for large or slow prints.  (If the print is quick the fan ddoesn't really get a chance to settle at the speed setting.)\n <1> 'By Feature'\n <2> 'By Layer'\n"))
                 except:
                     print("Input error.  Must be a 1 or a 2.")
                     fan_mode = ""
@@ -626,7 +635,8 @@ def get_post_settings() -> str:
                 input_str += f"Extruder 2 (T1) Cooling Fan Nr.. {fan_1 if fan_1 != "" else "0"}\n"
             input_str += f"Remove existing fan lines....... {remove_m106}\n"
             input_str += f"By Feature or By Layer.......... {'By Feature' if fan_mode == 1 else 'By Layer'}"
-            response = input(input_str + "\n\n Enter 'y' to continue or 'n' to try again\n")
+            input_str += "\n Does that look good?\n"
+            response = input(input_str + "\n 'y' Continue\n 'n' Try again\n")
             if response not in ['y', 'n']:
                 print(response)
                 print("Invalid response.  Try again. <Enter>")
@@ -721,17 +731,17 @@ def format_string(input_str):
     return input_str
 
 def bambu_extra_fans():
-    response = input("The next settings are for the Auxiliary Fan and the Chamber fan.\n <enter>\n\n")
+    response = input("The next settings are for the Auxiliary Fan (and the Chamber fan if it is supported).\n <enter>\n\n")
     bambu_p2_str = "r"
     p2_fan_list = []
     while bambu_p2_str == "r":
-        bambu_p2_str = input("'Auxiliary Fan (P2)'\n Will the auxiliary fan be used? <y> or <n>\n")
+        bambu_p2_str = input("'Auxiliary Fan (P2)'\n Will the auxiliary fan be used?\n <y> Yes\n <n> No\n")
         if bambu_p2_str not in ["y", "n"]:
             bambu_p2_str = "r"
             print("Invalid response.  Must be 'y' or 'n'.\n")
             continue
         elif bambu_p2_str == "y":
-            p2_layer_str = input("Enter the layers and fan speed percentages as 'Layer#/Fan%'.  Delimit multiple ranges with commas.\n (Ex: 1/50,75/100,150/0)\n")
+            p2_layer_str = input("Enter the layers and fan speed percentages for the Auxiliary Fan as 'Layer#/Fan%'.  Delimit multiple ranges with commas.\n (Ex: 1/50,75/100,150/0)\n")
         if "," in p2_layer_str:
             new_layer_list = p2_layer_str.split(",")
             for fan_cmd in new_layer_list:
@@ -749,33 +759,41 @@ def bambu_extra_fans():
             print("There is an error in the fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
             p2_layer_str = "r"
             continue
-    bambu_chamber_fan_str = "r"
-    p3_fan_list = []
-    while bambu_chamber_fan_str == "r":
-        bambu_chamber_fan_str = input("'Chamber Fan (P3)'\n Will the Chamber fan be used? <y> or <n>\n")
-        if bambu_chamber_fan_str not in ["y", "n"]:
-            bambu_chamber_fan_str = "r"
-            print("Invalid response.  Must be 'y' or 'n'.\n")
-            continue
-        elif bambu_chamber_fan_str == "y":
-            p3_layer_str = input("Enter the layers and fan speed percentages as 'Layer#/Fan%'.  Delimit multiple ranges with commas.\n (Ex: 1/50,75/100,150/0)\n")
-            if "," in p3_layer_str:
-                new_layer_list = p3_layer_str.split(",")
-                for fan_cmd in new_layer_list:
-                    p3_fan_list.append(fan_cmd)
-            else:
-                p3_fan_list.append(p3_layer_str)            
-        # Check for input errors
-        err_code = 0
-        for fan in p3_fan_list:
-            if "/" not in fan or "." in p3_layer_str:
-                err_code = 1
+    
+    chamber_temp_control_fan = False
+    for line in lines:
+        if "; support_chamber_temp_control =" in line:
+            chamber_temp_control_fan = bool(int(line.split("= ")[1]))        
+    
+    p3_fan_list = []    
+    if chamber_temp_control_fan:
+        bambu_chamber_fan_str = "r"
+        while bambu_chamber_fan_str == "r":
+            bambu_chamber_fan_str = input("'Chamber Fan (P3)'\n Will the Chamber fan be used? <y> or <n>\n")
+            if bambu_chamber_fan_str not in ["y", "n"]:
+                bambu_chamber_fan_str = "r"
+                print("Invalid response.  Must be 'y' or 'n'.\n")
+                continue
+            elif bambu_chamber_fan_str == "y":
+                p3_layer_str = input("Enter the layers and fan speed percentages for the Chamber Fan as 'Layer#/Fan%'.  Delimit multiple ranges with commas.\n (Ex: 1/50,75/100,150/0)\n")
+                if "," in p3_layer_str:
+                    new_layer_list = p3_layer_str.split(",")
+                    for fan_cmd in new_layer_list:
+                        p3_fan_list.append(fan_cmd)
+                else:
+                    p3_fan_list.append(p3_layer_str)            
+            # Check for input errors
+            err_code = 0
+            for fan in p3_fan_list:
+                if "/" not in fan or "." in p3_layer_str:
+                    err_code = 1
+                    p3_layer_str = "r"
+                    p3_fan_list = []
+            if err_code > 0:
+                print("There is an error in the chamber fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
                 p3_layer_str = "r"
-                p3_fan_list = []
-        if err_code > 0:
-            print("There is an error in the chamber fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
-            p3_layer_str = "r"
-            continue
+                continue
+            
     if p2_fan_list == []:
         p2_fan_list = ["0/0"]
     else:

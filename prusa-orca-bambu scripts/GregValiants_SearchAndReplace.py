@@ -12,30 +12,36 @@ final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 slicer_name = ""
 
+# If Add Layer Numbers didn't run first then exit
+layer_numbers_added = False
+for line in lines:
+    if "[Add Layer Numbers]" in line:
+        layer_numbers_added = True
+        break
+if not layer_numbers_added:
+    input("'Search and Replace' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
+    exit(0)
+
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiants [Search and Replace]\nfor Prusa/Orca/Bambu has started.\nDo you wish to Continue?  (y) or (n).\n").lower()
+    response = input("\nGreg Valiants [Search and Replace]\nfor Prusa/Orca/Bambu has started.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
     if response not in ["y", "n"]:
         print("The response must be 'y' or 'n'.  Try again.")
         response = "r"
         continue
     if response == "n":
         exit(0)
-
-def __init__(self, lines, layer_count, slicer_name) -> None:
-    self.get_slicer_settings()
-    self.get_post_settings()
-    lines = final_file.readlines()
-    layer_count = 0
-    slicer_name = ""
     
-def main(lines):
+def main():
     # Get the layer count and number of raft layers
     slicer_settings = get_slicer_settings()
     layer_count = slicer_settings[0]
     slicer_name = slicer_settings[1]
-    
-    lines.insert(1, ";   Post Processed by Greg Valiant's [Search and Replace] for Prusa/Orca/Bambu\n")
+    by_line = ";     Post Processed by Greg Valiant's [Search and Replace] for Prusa/Orca/Bambu\n"
+    for index, line in enumerate(lines):
+        if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
+            lines.insert(index, by_line)
+            break
     post_settings = get_post_settings(layer_count)
     if post_settings == False:
         exit(0)
@@ -99,14 +105,11 @@ def main(lines):
     for index, line in enumerate(lines):
         if index < start_index or index > end_index:
             continue
-        # First_instance only
         if first_instance_only:
             if re.search(search_regex, line) and replaced_one == False:
                 lines[index] = re.sub(search_regex, replace_string, line, 1)
                 replaced_one = True
                 break
-
-        # All instances
         else:
             if re.search(search_regex, line):
                 lines[index] = re.sub(search_regex, replace_string, line)
@@ -132,7 +135,7 @@ def get_post_settings(layer_count):
             replace_string = ""
 
         try:
-            is_regex = input("\nIs the Search String a 'Regular Expression'? <y,n>\n").lower()
+            is_regex = input("\nIs the Search String a 'Regular Expression'?\n <y> is Regular Expression\n <n> No (normal text search)\n").lower()
             if is_regex == "y":
                 is_regex = True
             else:
@@ -141,7 +144,7 @@ def get_post_settings(layer_count):
             is_regex = False
 
         try:
-            enable_range_search_str = input("\nSearch all the layers? <y>  or a Range of Layers? <n>\n").lower()
+            enable_range_search_str = input("\nSearch all the layers or a Range of Layers\n <y> Yes all layers\n <n> Range of Layers\n").lower()
             if enable_range_search_str == "n":
                 enable_range_search = True
             else:
@@ -162,7 +165,7 @@ def get_post_settings(layer_count):
         ignore_startup = True
         ignore_end = True
         try:
-            first_instance_only_str = input("\nReplace the first instance only? <y,n>\n").lower()
+            first_instance_only_str = input("\nReplace the first instance only?\n <y> Yes\n <n> No\n").lower()
             if first_instance_only_str == "y":
                 first_instance_only = True
             else:
@@ -172,7 +175,7 @@ def get_post_settings(layer_count):
 
         try:
             if not enable_range_search or start_layer == 1:
-                ignore_startup_str = input("\nIgnore StartUp Gcode? <y,n>\n").lower()
+                ignore_startup_str = input("\nIgnore StartUp Gcode?\n <y> Yes\n <n> No\n").lower()
                 if ignore_startup_str == "y":
                     ignore_startup = True
                 else:
@@ -182,7 +185,7 @@ def get_post_settings(layer_count):
 
         try:
             if not enable_range_search and end_layer == layer_count:
-                ignore_end_str = input("\nIgnore the Ending G-Code? <y,n>\n").lower()
+                ignore_end_str = input("\nIgnore the Ending G-Code?\n <y> Yes\n <n> No\n").lower()
                 if ignore_end_str == "y":
                     ignore_end = True
                 else:
@@ -202,11 +205,11 @@ def get_post_settings(layer_count):
             msg_str += "Replace the First Instance only?...: " + str(first_instance_only) + "\n"
             msg_str += "Ignore Startup G-Code?.............: " + str(ignore_startup) + "\n"
             msg_str += "Ignore Ending G-Code?..............: " + str(ignore_end) + "\n\n"
-            response = input("\n" + msg_str + " <Continue?(y)  Redo(r)  Quit(x)\n")
+            response = input("\n" + msg_str + " <y> Continue\n <r> Redo\n <x> Quit\n")
             if response == "x":
                 return False
         except:
-            response = input("There was an error.  The scipt will exit. <enter>\n")
+            response = input("There was an error.  The scipt will exit.\n <enter>\n")
             return False    
     return search_string, replace_string, is_regex, enable_range_search, start_layer, end_layer, first_instance_only, ignore_startup, ignore_end
 
@@ -224,4 +227,4 @@ def get_slicer_settings():
     return layer_count, slicer_name
 
 if __name__ == "__main__":
-    main(lines)
+    main()

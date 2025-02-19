@@ -4,20 +4,26 @@
 #    <retract> <Lift the nozzle> <park park the head> <pause> <take a image> <pause> <move back> <lower the nozzle> <unretract>.
 
 import sys
-import re
 import os
-import logging
-
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 # Get the file from the slicer and read it in
 sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
+# If Add Layer Numbers didn't run first then exit
+layer_numbers_added = False
+for line in lines:
+    if "[Add Layer Numbers]" in line:
+        layer_numbers_added = True
+        break
+if not layer_numbers_added:
+    input("'Time Lapse Camera' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
+    exit(0)
+    
 # Let the user decide to run the script or exit without running.
 try:
-    response = input("\nGreg Valiants [Time Lapse Camera]\nfor Prusa/Orca has started.  This will insert camera trigger commands every so-many layers.  Head park and retractions are options.\nDo you wish to Continue? (y) or (n).\n").lower()
+    response = input("\nGreg Valiants [Time Lapse Camera]\nfor Prusa/Orca has started.  This will insert camera trigger commands every so-many layers.  Head park and retractions are options.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
 except:
     response = "n"
 if response not in ["y", "n"]:
@@ -25,9 +31,13 @@ if response not in ["y", "n"]:
     exit(0)
 if response == "n":
     exit(0)
-    
+
 # Insert the post-processor name
-lines.insert(1, ";   Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca\n")
+by_line = ";     Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca/Bambu\n"
+for index, line in enumerate(lines):
+    if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
+        lines.insert(index, by_line)
+        break
 
 # Get some settings
 slicer_name = ""
@@ -83,23 +93,23 @@ else:
 response = "r"
 while response == "r":
     try:
-        trigger_command = input("Enter the 'Trigger Commmand' you want to use.  This is often M240. <enter>\n").upper()
+        trigger_command = input("Enter the 'Trigger Commmand' you want to use.  This is often M240.\n").upper()
     except:
         trigger_command = "None"
     try:
-        insert_frequency = int(input("How often should the 'Trigger Commmand' be inserted.\n1) Every Layer\n2) Every 2nd layer\n3) Every 3rd layer\netc, etc, etc.<enter>\n"))
+        insert_frequency = int(input("How often should the 'Trigger Commmand' be inserted.\n 1) Every Layer\n 2) Every 2nd layer\n 3) Every 3rd layer\n etc, etc, etc.\n"))
     except:
         insert_frequency = 1
     try:
-        anti_shake_wait = int(input("How long to wait for the printer frame to settle down before taking the image.  (Units is 'micro-seconds' so 500 is 1/2 second.) <enter>\n"))
+        anti_shake_wait = int(input("How long to wait for the printer frame to settle down before taking the image.  (Units is 'micro-seconds' so 500 is 1/2 second.)\n"))
     except:
         anti_shake_wait = 0
     try:
-        pause_length = int(input("How long to wait after taking the image.  (Units is 'micro-seconds'.) <enter>\n"))
+        pause_length = int(input("How long to wait after taking the image.  (Units is 'micro-seconds'.)\n"))
     except:
         pause_length = 0
     try:
-        park_print_head_str = input("Do you want to park the print head? <y,n>\n").lower()
+        park_print_head_str = input("Do you want to park the print head?\n <y< Yes\n <n> No\n").lower()
         if park_print_head_str == "y":
             park_print_head = True
         else:
@@ -122,7 +132,7 @@ while response == "r":
         x_park = 0
         y_park = 0
     try:
-        retract_str = input("Add a retraction when necessary? (The only time this might be <n> is if Retraction is not enabled.) <y,n>\n").lower()
+        retract_str = input("Add a retraction when necessary?\n (The only time this might be <n> is if Retraction is not enabled.)\n <y> Yes\n <n> No\n").lower()
         if retract_str == "y":
             retract = True
         else:
@@ -130,12 +140,12 @@ while response == "r":
     except:
         retract = True
     try:
-        zhop = int(input("Z-hop distance before parking the head. <enter>\n"))
+        zhop = int(input("Z-hop distance before parking the head.\n"))
         if zhop < 0: zhop = 0
     except:
-        zhop = 1
+        zhop = 0
     try:
-        ensure_final_image_str = input("Insure a final image? (Since you can choose not to take an image on every layer, there might not be an end-of-print image.  Choosing <y> here will insure that one is taken when the print ends regardless of the 'Frequency'.) <y,n>\n").lower()
+        ensure_final_image_str = input("Insure a final image?\n (Since you can choose not to take an image on every layer, there might not be an end-of-print image.  Choosing <y> here will insure that one is taken when the print ends regardless of the 'Frequency'.)\n <y> Yes\n <n> No\n").lower()
         if ensure_final_image_str == "y":
             ensure_final_image = True
         else:
@@ -158,7 +168,7 @@ while response == "r":
     input_str += f"Insure final Image.......... {ensure_final_image}\n"
 
     try:
-        response = input(input_str + "\n<Continue(y)  Redo(r)  Quit(x)> ").lower()
+        response = input(input_str + "\n <y> Continue\n <r> Redo\n <x> Quit\n").lower()
         if response not in ["y", "r", "x"]:
             fail_response = input("The response must be either 'y', 'r', or 'x'.  You must input the settings again.")
             response = "r"
@@ -308,7 +318,7 @@ if ensure_final_image and need_final:
     last_image_str += "G91                          ;Relative Movement\n"
     last_image_str += f"G1 F{retract_speed} E-{retract_dist}               ;Retract\n"
     last_image_str += "G1 F1200 Z1                  ;Move up\n"
-    last_image_str += f"G1 F{travel_speed} X0 Y{bed_max_y-5}             ;Park Head\n"
+    last_image_str += f"G1 F{travel_speed} X0 Y{int(bed_max_y)-3}             ;Park Head\n"
     last_image_str += "M400                         ;Wait for moves to finish\n"
     last_image_str += trigger_command + "                         ;Snap the final Image\n"
     if pause_length > 0:
