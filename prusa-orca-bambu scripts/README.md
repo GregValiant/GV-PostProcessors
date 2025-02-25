@@ -22,6 +22,8 @@ Github is shortening this but each "path + post processor" should be on a single
 
 As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.
 
+2/25/2025  Added the Display Layer and ET script.
+
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**
 2/14/2025  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers in Prusa, 379 layers in Orca, and 350 layers in Bambu.  Go figure.  The script will make the adjustment when supports are enabled or disabled.  The layer numbering in the gcode will match the slicer preview.
@@ -113,3 +115,8 @@ Replace the First Instance only?...: (you might only need to replace a single in
 Ignore Startup G-Code?.............: (leave the startup out)  
 Ignore Ending G-Code?..............: (leave the ending out)  
  <Continue?(y)  Redo(r)  Quit(x)\n"  
+ 
+ **Display Layer and ET**
+Requires "Add Layer Numbers" to run before it.
+This uses M117 to send a message to the LCD in the form ' 1/250 | ET 3h45m '.  M118's are also added to send the same string to a print server (for example Octoprint).
+An option is to add M73 with % complete, and Time remaining as ' M73  R322 P0 '.  M75 is added to the start of the file, and M77 is added to the end of the file. Bambu Studio appears to add the M73 lines by default.
