@@ -97,6 +97,17 @@ def main():
     input("\n " + str(lay_num - 1) + " 'Layer:' lines were added.\n <enter> to continue\n")
     # Create the destination file and write the new code to it
 
+    # Send the file back to the slicer as it was received, with each line a separate item in the lines list
+    for index, line in enumerate(lines):
+        if "\n" in line[0:-1]:
+            lines[index] = line[:-1]
+            temp = lines.pop(index)
+            temp1 = temp.split("\n")
+            temp1.reverse()
+            for n_line in temp1:
+                lines.insert(index, n_line + "\n")
+    
+    # Write the file
     dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)

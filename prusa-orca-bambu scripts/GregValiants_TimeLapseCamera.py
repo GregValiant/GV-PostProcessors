@@ -329,6 +329,16 @@ if ensure_final_image and need_final:
     last_image_str += ";----------------------------TimeLapse End\n"    
     lines.insert(data_list[len(data_list)-2] - 1, last_image_str)
 
+# Send the file back to the slicer as it was received, with each line a separate item in the lines list
+for index, line in enumerate(lines):
+    if "\n" in line[0:-1]:
+        lines[index] = line[:-1]
+        temp = lines.pop(index)
+        temp1 = temp.split("\n")
+        temp1.reverse()
+        for n_line in temp1:
+            lines.insert(index, n_line + "\n")
+
 # Write the new file
 dest_file = open(sourceFile, "w+")
 for line in lines:
