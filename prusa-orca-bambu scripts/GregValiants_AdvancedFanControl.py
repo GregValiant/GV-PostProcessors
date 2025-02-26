@@ -20,7 +20,7 @@ for line in lines:
 if not layer_numbers_added:
     input("'Advance Fan Control' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
     exit(0)
-    
+
 control_p2_p3 = None
 p2_fan_list = []
 p3_fan_list = []
@@ -29,32 +29,6 @@ draft_shield = None
 fan_speed_0_to_1 = None
 extruder_count = None
 total_layer_count = None
-
-
-def __init__(self, fan_speed_0_to_1, extruder_count, total_layer_count) -> None:
-    self.get_prusa_settings()
-    self.get_post_settings()
-    self.remove_fan_lines()
-    self.add_starting_ending_fan()
-    self.fan_speed_feature_type()
-    self.single_extruder_ByLayer()
-    self.dual_extruder_ByLayer()
-    self.single_extruder_ByFeature()
-    self.dual_extruder_ByFeature()
-    self.getSettings_ByFeature()
-    self.getSettings_ByLayer()
-    self.format_string()
-    self.getAliases()
-    self.bambu_extra_fans()
-    self.insert_aux_and_chamber_fans()
-    control_p2_p3
-    p2_fan_list = []
-    p3_fan_list = []
-    slicer_name
-    draft_shield
-    fan_speed_0_to_1
-    extruder_count
-    total_layer_count
 
 def main(lines):
     response = "q"
@@ -80,7 +54,7 @@ def main(lines):
     extruder_count = my_settings[8]
     fan_mode = my_settings[9]
     fan_speed_0_to_1 = my_settings[10]
-    slicer_name = get_prusa_settings(lines)[7]
+    slicer_name = get_slicer_settings(lines)[7]
     # If removing the existing fan lines
     if remove_m106:
         lines = remove_fan_lines(slicer_name)
@@ -106,7 +80,7 @@ def main(lines):
         control_p2_p3 = False
         p2_fan_list = []
         p3_fan_list = []
-        
+
     # The 4 options: Single Extruder By Layer, Singler extruder By Feature, Dual Extruder By Layer, Dual Extruder By Feature
     if fan_mode == 1:
         # Get the By Feature settings
@@ -137,6 +111,7 @@ def main(lines):
     if remove_m106:
         add_m106_S0_lines = add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p2_p3)
 
+    # Insert the by line
     if fan_mode == 1:
         by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n"
     else:
@@ -145,7 +120,18 @@ def main(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines.insert(index, by_line)
             break
-    # Send the file back to the slicer
+
+    # Send the file back to the slicer as it was received, with each line a separate item in the lines list
+    for index, line in enumerate(lines):
+        if "\n" in line[0:-1]:
+            lines[index] = line[:-1]
+            temp = lines.pop(index)
+            temp1 = temp.split("\n")
+            temp1.reverse()
+            for n_line in temp1:
+                lines.insert(index, n_line + "\n")
+
+    # Write the file
     dest_file = open(sourceFile, "w")
     for line in lines:
         dest_file.write(line)
@@ -259,7 +245,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
             final_fan_speed = 0
 
         # If there is a draft shield it is subject to the Skirt settings
-        draft_shield = get_prusa_settings(lines)[6]
+        draft_shield = get_slicer_settings(lines)[6]
         # Review the 'By Feature' settings
         input_str = "\nReview your Custom Fan settings:\n\n"
         final_review = "z"
@@ -334,7 +320,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
             round(type_support),
             round(type_support_interface),
             round(final_fan_speed)]
-            
+
     else:
         feature_speed_list = [
             round(type_wall_outer / 255, 2),
@@ -512,8 +498,8 @@ def add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p
             lines[index] = fan_off_line
     return
 
-# Get the settings from Prusa
-def get_prusa_settings(lines: str) -> str:
+# Get the slicer settings from the gcode
+def get_slicer_settings(lines: str) -> str:
     raft_layers = 0
     total_layer_count = 0
     for line in lines:
@@ -549,18 +535,18 @@ def get_prusa_settings(lines: str) -> str:
 # Get user settings
 def get_post_settings() -> str:
     # Get the layer count and number of raft layers
-    prusa_settings = get_prusa_settings(lines)
-    raft_layers = prusa_settings[0]
-    raft_cooling_speed = prusa_settings[1]
-    total_layer_count = prusa_settings[2]
-    nozzle_size_0 = prusa_settings[3]
-    nozzle_size_1 = prusa_settings[4]
-    extruder_count = prusa_settings[5]
-    draft_shield = prusa_settings[6]
+    slicer_settings = get_slicer_settings(lines)
+    raft_layers = slicer_settings[0]
+    raft_cooling_speed = slicer_settings[1]
+    total_layer_count = slicer_settings[2]
+    nozzle_size_0 = slicer_settings[3]
+    nozzle_size_1 = slicer_settings[4]
+    extruder_count = slicer_settings[5]
+    draft_shield = slicer_settings[6]
 
     response = "99"
     while response == "99":
-        # Should previous M106 lines be removed?  Not doing so will allow changes made by previous instances of PrusaFanControl to remain in the gcode.
+        # Should previous M106 lines be removed?  Not doing so will allow changes made by previous instances of AdvancedFanControl to remain in the gcode.
         fan_speed_0_to_1 = "99"
         while fan_speed_0_to_1 not in [True, False]:
             fan_speed_0_to_1_str = input("'Fan Speed Scale'\n This can be firmware dependent.  Marlin based firmware will use 'PWM' (0 to 255).  Some RepRap firmware might use '0 to 1'\n Regardless, you will enter the fan speeds as a % with 0 being off, and 100 being full speed.\n <1> Normal PWM\n <2> RepRap 0 to 1\n")
@@ -664,7 +650,10 @@ def remove_fan_lines(slicer_name) -> str:
                 lines[index] = ""
         elif slicer_name == "Bambu":
             if control_p2_p3:
-                if "M106" in line and not "P3" in line and not "P2" in line:                
+                if "M106" in line:
+                    lines[index] = ""
+            elif not control_p2_p3:
+                if "M106" in line and not "P3" in line and not "P2" in line:
                     lines[index] = ""
     return lines
 
@@ -759,13 +748,13 @@ def bambu_extra_fans():
             print("There is an error in the fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
             p2_layer_str = "r"
             continue
-    
+
     chamber_temp_control_fan = False
     for line in lines:
         if "; support_chamber_temp_control =" in line:
-            chamber_temp_control_fan = bool(int(line.split("= ")[1]))        
-    
-    p3_fan_list = []    
+            chamber_temp_control_fan = bool(int(line.split("= ")[1]))
+
+    p3_fan_list = []
     if chamber_temp_control_fan:
         bambu_chamber_fan_str = "r"
         while bambu_chamber_fan_str == "r":
@@ -781,7 +770,7 @@ def bambu_extra_fans():
                     for fan_cmd in new_layer_list:
                         p3_fan_list.append(fan_cmd)
                 else:
-                    p3_fan_list.append(p3_layer_str)            
+                    p3_fan_list.append(p3_layer_str)
             # Check for input errors
             err_code = 0
             for fan in p3_fan_list:
@@ -793,7 +782,7 @@ def bambu_extra_fans():
                 print("There is an error in the chamber fan list.  Each fan speed indicator must be entered as 'lay#/speed%'.  If more than one - they are separated by commas.\n Try again...")
                 p3_layer_str = "r"
                 continue
-            
+
     if p2_fan_list == []:
         p2_fan_list = ["0/0"]
     else:
@@ -802,7 +791,7 @@ def bambu_extra_fans():
                 p2_fan_list[index] = p2_fan_list[index].split("/")[0] + "/" + str(round(int(p2_fan_list[index].split("/")[1]) * .01, 2))
             else:
                 p2_fan_list[index] = p2_fan_list[index].split("/")[0] + "/" + str(round(int(p2_fan_list[index].split("/")[1]) * 2.55))
-                
+
     if p3_fan_list == []:
         p3_fan_ist = ["0/0"]
     else:
@@ -811,7 +800,7 @@ def bambu_extra_fans():
                 p3_fan_list[index] = p3_fan_list[index].split("/")[0] + "/" + str(round(int(p3_fan_list[index].split("/")[1]) * .01, 2))
             else:
                 p3_fan_list[index] = p3_fan_list[index].split("/")[0] + "/" + str(round(int(p3_fan_list[index].split("/")[1]) * 2.55))
-        
+
     return p2_fan_list, p3_fan_list
 
 def insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list):
@@ -822,13 +811,16 @@ def insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list):
     for l_index in range(start_index,len(lines) - 1):
         if ";Layer:" in lines[l_index]:
             layer_number = str(lines[l_index].split(":")[1][:-1])
+            # This is necessary when layer lines coincide
+            if "\n" in layer_number:
+                layer_number = layer_number.split("\n")[0]
             # If there is a match for the current layer number make the insertion
             for p2_change in p2_fan_list:
                 fan_split = p2_change.split("/")
                 layer_nr = int(fan_split[0])
-                if layer_number == str(layer_nr):
+                if int(layer_number) == layer_nr:
                     lines[l_index] += f"M106 P2 S{fan_split[1]} \n"
-    
+
     for index, line in enumerate(lines):
         if line == ";Layer:1\n":
             start_index = index
