@@ -185,11 +185,12 @@ def main(lines):
             if not layers_started:
                 continue
             # Look for the feed rate of an extrusion instruction
-            if " F" in line and " X" in line and " Y" in line and " E" in line:
-                current_extrusion_f = getValue(line, "F")
-            # If a Z instruction is in the line, read the current Z
-            if getValue(line, "Z") is not None:
-                current_z = getValue(line, "Z")
+            if line.startswith(("G0 ", "G1 ", "G2 ", "G3 ", "G92 ")):
+                if " F" in line and " X" in line and " Y" in line and " E" in line:
+                    current_extrusion_f = getValue(line, "F")
+                # If a Z instruction is in the line, read the current Z
+                if getValue(line, "Z") is not None:
+                    current_z = getValue(line, "Z")
                     
             if not line.startswith(";Layer:"):
                 continue
@@ -217,8 +218,8 @@ def main(lines):
 
             # and also find last X,Y
             for prevLine in reversed(prev_lines):
-                if prevLine.startswith(("G0", "G1", "G2", "G3")):
-                    if getValue(prevLine, "X") is not None and getValue(prevLine, "Y") is not None:
+                if prevLine.startswith(("G0 ", "G1 ", "G2 ", "G3 ")):
+                    if " X" in prevLine and " Y" in prevLine:
                         x = getValue(prevLine, "X")
                         y = getValue(prevLine, "Y")
                         break
@@ -475,7 +476,7 @@ def get_slicer_settings(lines):
                 retract_speed_ext_1 = int(retract_speed_list[1]) * 60
                 retract_enabled_ext_1 = bool(retract_speed_ext_1)
             extruder_count = len(retract_speed_list)
-        if "; deretract_speed =" in line or "; deretraction speed =" in line:
+        if "; deretract_speed =" in line or "; deretraction_speed =" in line:
             deretract_speed_str = line.split("= ")[1]
             deretract_speed_list = deretract_speed_str.split(",")
             deretract_speed_ext_0 = int(deretract_speed_list[0]) * 60
@@ -752,8 +753,29 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                     head_park_enable = False
             
                 if head_park_enable:
-                    park_x = int(input(f"\n 'Head Park X'\n The X location to park the head. (min: {bed_min_x} to max: {bed_max_x})\n"))
-                    park_y = int(input(f"\n 'Head Park Y'\n The Y location to park the head. (min: {bed_min_y} to max: {bed_max_y})\n"))
+                    park_x = input(f"\n 'Head Park X'\n The X location to park the head. (min: {bed_min_x} to max: {bed_max_x})\n")
+                    try:
+                        park_x = int(park_x)                            
+                    except:
+                        print("Invalid response.  Must be a number.")
+                        head_park_enable_str = ""
+                        continue
+                    if park_x < int(bed_min_x) or park_x > int(bed_max_x):
+                        print(f"Invalid response.  Must be a number between {bed_min_x} and {bed_max_x}.")
+                        head_park_enable_str = ""
+                        continue
+                        
+                    park_y = input(f"\n 'Head Park Y'\n The Y location to park the head. (min: {bed_min_y} to max: {bed_max_y})\n")
+                    try:
+                        park_y = int(park_y)                            
+                    except:
+                        print("Invalid response.  Must be a number.")
+                        head_park_enable_str = ""
+                        continue
+                    if park_y < int(bed_min_y) or park_y > int(bed_max_y):
+                        print(f"Invalid response.  Must be a number between {bed_min_y} and {bed_max_y}.")
+                        head_park_enable_str = ""
+                        continue
         
             move_z = ""
             while move_z == "":
@@ -830,7 +852,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
         redo_layer_str = ""
         redo_layer_flow = 100
         while redo_layer_str == "":
-            redo_layer_str = input("\n 'Redo Layer'\n Should the previous layer be redone?  (Some materials require this to enhance layer adhesion.)\n <y> Yes or <n> No\n").lower()
+            redo_layer_str = input("\n 'Redo Layer'\n Should the previous layer be redone?\n  (Some materials require this to enhance layer adhesion.  If you select to do this then next you will pick the flow rate for the 'redo layer'.)\n <y> Yes or <n> No\n").lower()
             if redo_layer_str not in ["y", "n"]:
                 print("Invalid response.  Must be 'y' or 'n'.")
                 redo_layer_str = ""
@@ -841,7 +863,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                 redo_layer = False
 
             if redo_layer:
-                redo_layer_flow = input("'Flow Rate for the Redo Layer'\n Enter the flow rate as a percentage of the normal flow rate.\n <enter>\n")
+                redo_layer_flow = input("'Flow Rate for the Redo Layer'\n This uses M221 to adjust the flow.  Enter the flow rate as a percentage of the normal flow rate.\n <enter>\n")
                 try:
                     redo_layer_flow = int(redo_layer_flow)
                 except:
@@ -926,7 +948,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
     
 def get_m600_params(extruder_count):
     pause_method = "M600"
-    print(" The parameters for M600 are dependent on what your firmware understands.  You will be asked to enter all parameters but your firmware may not accept all of them.\n")
+    print(" The parameters for M600 are dependent on what your firmware understands.\n  You will be asked to enter ALL parameters but your firmware may only accept some of them.\n")
     # M600 [B<beeps>] [E<pos>] [L<pos>] [R<temp>] [T<index>] [U<pos>] [X<pos>] [Y<pos>] [Z<pos>]
     b_param = ""
     while b_param == "":
@@ -1083,7 +1105,7 @@ def getNextXY(s_index):
     is_retracted = None
     for num in range(s_index, 0, -1):
         line = lines[num]    
-        if line.startswith(("G0", "G1", "G2", "G3")):
+        if line.startswith(("G0 ", "G1 ", "G2 ", "G3 ", "G92 ")):
             if " X" in line and x == None:
                 x = getValue(line, "X")
             if " Y" in line and y == None:
@@ -1097,7 +1119,7 @@ def getNextXY(s_index):
                 if e != None:
                     is_retracted = False
         if x != None and y != None and e != None and is_retracted != None:
-            return [x, y, e, is_retracted, line]            
+            return [x, y, e, is_retracted]            
     return [0, 0, 0, False]
     
 if __name__ == "__main__":
