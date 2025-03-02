@@ -499,7 +499,11 @@ def get_slicer_settings(lines):
         if "; travel_speed =" in line:
             speed_travel = int(line.split("= ")[1][:-1]) * 60
         if "; filament_unloading_speed =" in line:
-            speed_unload = int(line.split("= ")[1][:-1]) * 60
+            if "," in line:    
+                filament_unload_speed_list = line.split("= ")[1].split(",")
+                speed_unload = int(filament_unload_speed_list[0]) * 60
+            else:
+                speed_unload = int(line.split("= ")[1][:-1]) * 60
         if "; bed_shape =" in line or "; printable_area =" in line:
             bed_shape = line.split("= ")[1]
             bed_min_x = bed_shape.split(",")[0].split("x")[0]
