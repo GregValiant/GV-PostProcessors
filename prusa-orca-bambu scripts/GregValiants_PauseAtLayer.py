@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GregValiant (Greg Foresi)
 #  Suitable to Prusa, Orca, and Bambu slicers
 #  Depending the the selected options, this script can:
-#    <Retract> <Lift nozzle> <Park> <Quick purge> <Unload filament> <Wait for resume command> <Load filament> <Purge> <Retract> <Move back> <Lower nozzle> <Unretract>
+#    <Retract> <Lift nozzle> <Park> <Quick purge> <Unload filament> <Pause> <Load filament> <Purge> <Retract> <Move back> <Lower nozzle> <Unretract>
 
 import sys
 import re
@@ -18,13 +18,13 @@ for line in lines:
         layer_numbers_added = True
         break
 if not layer_numbers_added:
-    input("'Advance Fan Control' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
+    input("'Pause at Layer' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
     exit(0)
 
 # Run the script or exit?
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiants [Pause at Layer]\nfor Prusa/Orca/Bambu has started.\n  This will insert 'park - pause - resume' code at the indicated layers.  You can make insertions at more than one layer provided that they all use the same general settings (same park position, filament temp's, etc.).\n (There may be as many as 24 settings.)\n  Do you wish to Continue?\n <y> Yes or <n> No\n").lower()
+    response = input("\nGreg Valiants      [Pause at Layer]\nfor Prusa/Orca/Bambu has started.\n  This will insert 'park - pause - resume' code at the indicated layers.  You can make insertions at more than one layer provided that they all use the same general settings (same park position, filament temp's, etc.).\n (There may be as many as 24 settings and then a 'Review'.)\n  Do you wish to Continue?\n <y> Yes or <n> No\n").lower()
     if response not in ["y", "n"]:
         input("Invalid response.  Enter a 'y' for Yes or an 'n' for No.")
         response = "r"
@@ -47,15 +47,15 @@ def main(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines.insert(index, by_line)
             break
-    # Get slicer settings from gcode    
+    # Get slicer settings from gcode
     slicer_settings = get_slicer_settings(lines)
     # Assign to variables
     relative_extrusion = slicer_settings[0]
-    retract_enabled_ext_0 = slicer_settings[1]    
+    retract_enabled_ext_0 = slicer_settings[1]
     retract_length_ext_0 = slicer_settings[24]
     retract_speed_ext_0 = slicer_settings[2]
     deretract_speed_ext_0 = slicer_settings[3]
-    retract_enabled_ext_1 = slicer_settings[4]    
+    retract_enabled_ext_1 = slicer_settings[4]
     retract_length_ext_1 = slicer_settings[25]
     retract_speed_ext_1 = slicer_settings[5]
     deretract_speed_ext_1 = slicer_settings[6]
@@ -78,7 +78,7 @@ def main(lines):
     speed_unload = slicer_settings[22]
     extruder_count = slicer_settings[23]
     speed_z_hop = 1200
-    
+
     # Get settings from the user
     script_settings = get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, speed_unload, nozzle_size, extruder_count)
     # Assign to variables
@@ -107,7 +107,7 @@ def main(lines):
     redo_layer = script_settings[22]
     redo_layer_flow = script_settings[23]
     display_text_list = script_settings[24]
-    
+
     for index, pause_layer in enumerate(pause_layer_list):
         tool_nr = 0
         if extruder_count > 1:
@@ -124,7 +124,7 @@ def main(lines):
         elif tool_nr == 1:
             z_hop_enabled = bool(z_hop_ext_1)
             z_hop_height = z_hop_ext_1
-            
+
         purge_speed = round(nozzle_size * 500) # calculate the purge speed based on the nozzle size.  A 0.4 will be 200 and a 0.8 will be 400 mm/min.
         min_purge_clearance = 15
         layers_started = False
@@ -143,19 +143,19 @@ def main(lines):
             if "," in gcode_before:
                 xtra_cmds = gcode_before.split(",")
                 for index in range(0, len(xtra_cmds)):
-                    xtra_cmds[index] = xtra_cmds[index][0].upper() + xtra_cmds[index][1:]
+                    xtra_cmds[index] = xtra_cmds[index][0].upper() + xtra_cmds[index][1:] + "; Custom code before pause"
                 gcode_before = "\n".join(xtra_cmds)
             else:
-                gcode_before = gcode_before[0].upper() + gcode_before[1:]
+                gcode_before = gcode_before[0].upper() + gcode_before[1:] + "; Custom code before pause"
         gcode_after = custom_gcode_after_pause
         if gcode_after != "":
             if "," in gcode_after:
                 xtra_cmds = gcode_after.split(",")
                 for index in range(0, len(xtra_cmds)):
-                    xtra_cmds[index] = xtra_cmds[index][0].upper() + xtra_cmds[index][1:]
+                    xtra_cmds[index] = xtra_cmds[index][0].upper() + xtra_cmds[index][1:] + " ; Custom code after pause"
                 gcode_after = "\n".join(xtra_cmds)
             else:
-                gcode_after = gcode_after[0].upper() + gcode_after[1:]
+                gcode_after = gcode_after[0].upper() + gcode_after[1:] + " ; Custom code after pause"
         beep_length = 1500
 
         # Follow values in the gcode
@@ -167,7 +167,7 @@ def main(lines):
         prev_layer_index = 0
     for p_index, pause_layer in enumerate(pause_layer_list):
         for index, line in enumerate(lines):
-            # First positive layer reached
+            # Use the tool number to determine the speed and retraction distance at a pause (for dual-extruder printers)
             if line.startswith("T"):
                 current_tool = getValue(line, "T")
             if current_tool == 0:
@@ -191,30 +191,32 @@ def main(lines):
                 # If a Z instruction is in the line, read the current Z
                 if getValue(line, "Z") is not None:
                     current_z = getValue(line, "Z")
-                    
+
             if not line.startswith(";Layer:"):
                 continue
             current_layer = int(line.split(":")[1][:-1])
             if current_layer < int(pause_layer):
                 prev_layer_index = index
                 if str(current_layer)[-2:] in ["00", "20", "40", "60", "80"]:
-                    print("Working..." + str(current_layer) + "\n")
+                    print("Working thru Layer: " + str(current_layer) + "\n")
                 continue
-            
+
             if current_layer == int(pause_layer):
             # Access last layer, browse it backwards to find last extruder absolute position check if it is a retraction
+            # This also becomes the 'redo layer' if the option is chosen
                 prev_lines = lines[prev_layer_index:index]
                 is_retracted = None
                 current_e = None
             for prevLine in reversed(prev_lines):
-                current_e = getValue(prevLine, "E")
-                if re.search(r"G1 F(\d+\.|\d+) E(-?\d+\.|-?\d+)", prevLine) or "G10" in prevLine:
-                    if is_retracted == None:
-                        is_retracted = True
-                if current_e is not None:
-                    if is_retracted is None:
-                        is_retracted = False
-                    break
+                if prevLine.startswith(("G0 ", "G1 ", "G2 ", "G3 ")):
+                    current_e = getValue(prevLine, "E")
+                    if re.search(r"G1 F(\d+\.|\d+) E(-?\d+\.|-?\d+)", prevLine) or "G10" in prevLine:
+                        if is_retracted == None:
+                            is_retracted = True
+                    if current_e is not None:
+                        if is_retracted is None:
+                            is_retracted = False
+                        break
 
             # and also find last X,Y
             for prevLine in reversed(prev_lines):
@@ -235,18 +237,18 @@ def main(lines):
                 temp_list = prev_layer
                 temp_list[0] = temp_list[0] + str(" " * (29 - len(temp_list[0] + ".1"))) + "; Redo layer from PauseAtLayer\n" + redo_layer_flow_cmd
                 prev_layer = "".join(temp_list)
-                    
+
                 # Get the X Y position and the extruder's absolute position at the beginning of the redone layer.
                 start_at = getNextXY(prev_layer_index)
                 start_at_x = start_at[0]
                 start_at_y = start_at[1]
                 start_at_e = start_at[2]
                 start_retracted = start_at[3]
-                prev_layer = f"G1 F{speed_travel}\nG1 X{start_at_x} Y{start_at_y}\nG92 E{start_at_e}\n{prev_layer}"                    
+                prev_layer = f"G1 F{speed_travel}\nG1 X{start_at_x} Y{start_at_y}\nG92 E{start_at_e}\n{prev_layer}"
                 redo_layer_str = prev_layer + redo_layer_flow_reset
-            
+
             # Start putting together the pause string 'prepend_gcode'
-            prepend_gcode = f";TYPE:CUSTOM---------------; Pause before the start of layer {current_layer}\n"            
+            prepend_gcode = f";TYPE:CUSTOM---------------; Pause before the start of layer {current_layer}\n"
             # Retraction
             prepend_gcode += "M83 ; Relative extrusion\n"
             if not is_retracted and retract_enabled_ext_0:
@@ -261,7 +263,7 @@ def main(lines):
                 prepend_gcode += f"G1 F{speed_z_hop} Z{round(current_z + move_z, 2)} ; Move up to clear the print\n"
                 prepend_gcode += f"G1 F{speed_travel} X{park_x} Y{park_y} ; Move to park location\n"
                 if current_z < move_z:
-                    prepend_gcode += f"G1 F{speed_z_hop} Z{current_z + move_z} ; Move up to clear the print\n"
+                    prepend_gcode += f"G1 F{speed_z_hop} Z{round(current_z + move_z, 2)} ; Move up to clear the print\n"
                 if current_z < min_purge_clearance - move_z:
                     prepend_gcode += f"G1 F{speed_z_hop} Z{min_purge_clearance} ; Minimum clearance" + str(" to purge" if purge_amount != 0 and reason_for_pause == 'Filament Change' else "") + " - move up some more\n"
 
@@ -288,7 +290,7 @@ def main(lines):
             # Set extruder standby temperature
             if control_temperatures:
                 prepend_gcode += f"M104 S{round(standby_temperature)} ; Standby temperature\n"
-                
+
             if len(display_text_list) > 0:
                 try:
                     if display_text_list[p_index] != "":
@@ -310,7 +312,7 @@ def main(lines):
 
             # Set a custom GCODE section before pause
             if gcode_before:
-                prepend_gcode += gcode_before + " ; Custom code before pause\n"
+                prepend_gcode += gcode_before + "\n"
 
             if len(display_text_list) > 0:
                 try:
@@ -320,7 +322,7 @@ def main(lines):
                     pass
 
             # Add the pause command
-            temp_cmd = pause_method            
+            temp_cmd = pause_method
             if temp_cmd == "M0 w/message":
                 try:
                     if len(display_text_list) < len(pause_layer_list):
@@ -333,20 +335,20 @@ def main(lines):
                         temp_cmd = "M0"
                 except:
                     temp_cmd = "M0"
-                
+
             prepend_gcode += temp_cmd + "; Do the actual pause\n"
 
             # Set a custom GCODE section after pause
             if gcode_after != "":
-                prepend_gcode += gcode_after + " ; Custom code after pause\n"
-                
+                prepend_gcode += gcode_after + "\n"
+
             # If redoing a layer then move back own to the previous layer height.
             if redo_layer:
                 working_z = current_z - (layer_height if not z_hop_enabled else 0)
                 working_z_txt = "; Move down to redo layer height\n"
             else:
                 working_z = current_z
-                working_z_txt = "; Move down to resume height\n"                    
+                working_z_txt = "; Move down to resume height\n"
 
             # Set extruder resume temperature
             prepend_gcode += f"{resume_temperature_cmd}{resume_print_temperature} ; Resume print temperature\n"
@@ -418,6 +420,14 @@ def main(lines):
                         prepend_gcode += f"M{extrusion_mode_numeric} ; Switch back to {extrusion_mode_string} E values\n"
                 elif redo_layer and reason_for_pause == "All Others":
                     prepend_gcode += f"M{extrusion_mode_numeric} ; Switch back to {extrusion_mode_string} E values\n"
+            else:
+                if head_park_enable:
+                    prepend_gcode += f"G1 F{speed_travel} X{x} Y{y} ; Move to resume location\n"
+                prepend_gcode += f"G1 F{speed_z_hop} Z{working_z} {working_z_txt}"
+                if extra_prime_amount > 0:
+                    prepend_gcode += f"G1 F{deretract_speed} E{extra_prime_amount} ; Extra prime\n"
+                prepend_gcode += f"G92 E{current_e} ; Reset extruder\n"
+                    
             # Format prepend_gcode
             prepend_gcode += f";{'-' * 26}; End of the Pause code\n"
             temp_lines = prepend_gcode.split("\n")
@@ -430,7 +440,7 @@ def main(lines):
             prepend_gcode = ""
             break
 
-    # Send the file back to the slicer as it was received, with each line a separate item in the lines list
+    # Send the file back to the slicer as it was received, with each line a separate item in the lines list and each ending with a newline character
     for index, line in enumerate(lines):
         if "\n" in line[0:-1]:
             lines[index] = line[:-1]
@@ -439,8 +449,9 @@ def main(lines):
             temp1.reverse()
             for n_line in temp1:
                 lines.insert(index, n_line + "\n")
-    print("\nWriting file...")    
-    # Write the new file
+                
+    # Write the file with the changes    
+    print("\nWriting file...")
     dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
@@ -450,7 +461,7 @@ def main(lines):
 def get_slicer_settings(lines):
     layer_count = 0
     speed_unload = None
-    for line in lines:        
+    for line in lines:
         if "Prusa" in line:
             slicer_name = "Prusa"
         if "Orca" in line:
@@ -499,7 +510,7 @@ def get_slicer_settings(lines):
         if "; travel_speed =" in line:
             speed_travel = int(line.split("= ")[1][:-1]) * 60
         if "; filament_unloading_speed =" in line:
-            if "," in line:    
+            if "," in line:
                 filament_unload_speed_list = line.split("= ")[1].split(",")
                 speed_unload = int(filament_unload_speed_list[0]) * 60
             else:
@@ -544,7 +555,7 @@ def get_slicer_settings(lines):
     return [
         relative_extrusion, #0
         retract_enabled_ext_0,
-        retract_speed_ext_0, 
+        retract_speed_ext_0,
         deretract_speed_ext_0,
         retract_enabled_ext_1,
         retract_speed_ext_1, #5
@@ -575,7 +586,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
     # Get the layer count and number of raft layers
     dwell_time = 0
     carry_on = False
-    
+
     while carry_on == False:
         pause_layer_str = ""
         while pause_layer_str == "":
@@ -599,7 +610,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                     print("Invalid response.  The layers must be integers and multiple layers must be delimited with commas.")
                     pause_layer_str = ""
                     continue
-                
+
         pause_method_str = ""
         while pause_method_str == "":
             pause_method_str = input("\n 'The Pause Commmand'\n    NOTE: The command is firmware specific. You must know which one works with your printer.\n\n 1) M0 (Marlin w/message)\n 2) M0 (Marlin w/no message)\n 3) M25 (BQ)\n 4) M226 (RepRap)\n 5) @pause (Repetier/Octoprint)\n 6) M125 (alternate Octoprint)\n 7) M2000 (raise3D)\n 8) PAUSE (Klipper)\n 9) G4 (dwell)\n 10) M600 (filament change)\n 11) Custom Command\n (If you use 'G4', 'M600', or 'Custom' there will be additional settings)\n<enter>\n")
@@ -641,7 +652,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                     pause_method = ""
                     pause_method_str = ""
                     continue
-                
+
         reason_for_pause_int = 0
         while reason_for_pause_int == 0:
             reason_for_pause_int = int(input("\n 'The Reason for the Pause'\n 1) Filament Change\n 2) All others (insert magents or nuts etc.)\n"))
@@ -653,7 +664,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                 reason_for_pause = "Filament Change"
             else:
                 reason_for_pause = "All Others"
-        
+
         unload_amount = 0
         reload_amount = 0
         purge_amount = 0
@@ -691,16 +702,16 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                         print("Invalid response.  You must enter an integer.")
                         reload_amount = ""
                         continue
-
-        purge_amount = None
-        while purge_amount == None:
-            purge_amount = input("\n 'Purge Amount'\n The purge amount of filament (in mm's) to be extruded after the pause. For most printers this is the amount of purge required for a complete a color change at the nozzle.  Changing from white generally requires at least 50mm.  Set this to '0' to disable.\n <enter the amount in mm's>\n")
-            try:
-                purge_amount = int(purge_amount)
-            except:
-                print("Invalid response.  Enter '0' to disable, or the amount to purge.")
-                purge_amount = None
-                continue
+        if reason_for_pause == "Filament Change":
+            purge_amount = None
+            while purge_amount == None:
+                purge_amount = input("\n 'Purge Amount'\n The purge amount of filament (in mm's) to be extruded after the pause. For most printers this is the amount of purge required for a complete a color change at the nozzle.  Changing from white generally requires at least 50mm.  Set this to '0' to disable.\n <enter the amount in mm's>\n")
+                try:
+                    purge_amount = int(purge_amount)
+                except:
+                    print("Invalid response.  Enter '0' to disable, or the amount to purge.")
+                    purge_amount = None
+                    continue
 
         if reason_for_pause == "All Others":
             extra_prime_amount = ""
@@ -727,7 +738,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                 hold_steppers_on = True
             else:
                 hold_steppers_on = False
-        
+
             if hold_steppers_on:
                 disarm_timeout_str = ""
                 while disarm_timeout_str == "":
@@ -738,7 +749,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                         print("Invalid response.  You must enter integer indicating the number of minutes for the timeout.\n")
                         disarm_timeout_str = ""
                         continue
-        
+
         head_park_enable = False
         park_x = 0
         park_y = 0
@@ -755,11 +766,11 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                     head_park_enable = True
                 else:
                     head_park_enable = False
-            
+
                 if head_park_enable:
                     park_x = input(f"\n 'Head Park X'\n The X location to park the head. (min: {bed_min_x} to max: {bed_max_x})\n")
                     try:
-                        park_x = int(park_x)                            
+                        park_x = int(park_x)
                     except:
                         print("Invalid response.  Must be a number.")
                         head_park_enable_str = ""
@@ -768,10 +779,10 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                         print(f"Invalid response.  Must be a number between {bed_min_x} and {bed_max_x}.")
                         head_park_enable_str = ""
                         continue
-                        
+
                     park_y = input(f"\n 'Head Park Y'\n The Y location to park the head. (min: {bed_min_y} to max: {bed_max_y})\n")
                     try:
-                        park_y = int(park_y)                            
+                        park_y = int(park_y)
                     except:
                         print("Invalid response.  Must be a number.")
                         head_park_enable_str = ""
@@ -780,7 +791,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                         print(f"Invalid response.  Must be a number between {bed_min_y} and {bed_max_y}.")
                         head_park_enable_str = ""
                         continue
-        
+
             move_z = ""
             while move_z == "":
                 move_z = input("\n 'Z-up Before Parking'\n The lift of the nozzle (in mm's) above the part prior to parking. Enter '0' to disable. <enter>\n")
@@ -801,7 +812,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                 print("Invalid response.  Must be an integer.")
                 standby_temperature = ""
                 continue
-            
+
         resume_print_temperature = ""
         while resume_print_temperature == "":
             resume_print_temperature = input("\n 'Resume Print Temperature'\n If you change materials you can change the print temperature for resumption of the print. <enter>\n")
@@ -811,7 +822,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
                 print("Invalid response.  Must be an integer.")
                 resume_print_temperature = ""
                 continue
- 
+
         resume_temperature_cmd = ""
         while resume_temperature_cmd == "":
             resume_temperature_cmd = input("\n 'Resume Temperature Command'\n If the standby temperature is the same as the print temperature you can use M104.  If the standy temperature is lower then use M109 to wait for the nozzle before returning to the print.\n 1) M104\n 2) M109\n")
@@ -949,7 +960,7 @@ def get_post_settings(layer_count, bed_max_x, bed_min_x, bed_max_y, bed_min_y, s
         redo_layer,
         redo_layer_flow,
         display_text_list ] #24
-    
+
 def get_m600_params(extruder_count):
     pause_method = "M600"
     print(" The parameters for M600 are dependent on what your firmware understands.\n  You will be asked to enter ALL parameters but your firmware may only accept some of them.\n")
@@ -976,7 +987,7 @@ def get_m600_params(extruder_count):
             print("Invalid Response.  Enter a positive number.")
             e_param = ""
             continue
-            
+
     u_param = ""
     while u_param == "":
         u_param = input(" 'Unload Amount'\n The amount of filament required to pull the filament out of the extruder.  The amount is longer for bowden tubes.\n (enter a positive amount or enter '0' to disable).\n <enter>\n")
@@ -994,7 +1005,7 @@ def get_m600_params(extruder_count):
         except:
             print("Invalid Response.  Enter a number.")
             l_param = ""
-            continue                
+            continue
     r_param = ""
     while r_param == "":
         r_param = input(" 'Resume Temperature'\n The temperature to resume the print.  This is usually the print temperature but you can change it here.\n Enter a positive number.\n <enter>\n")
@@ -1016,7 +1027,7 @@ def get_m600_params(extruder_count):
                 t_param = ""
                 continue
     if t_param == "": t_param = 0
-    
+
     x_param = ""
     while x_param == "":
         x_param = input(" 'X Park Location'\n Enter an integer.\n<enter>\n")
@@ -1034,7 +1045,7 @@ def get_m600_params(extruder_count):
         except:
             print("Invalid Response.  Enter a number.")
             y_param = ""
-            continue    
+            continue
     z_param = ""
     while z_param == "":
         z_param = input(" 'Z hop before parking'\n The height to move the Z above the print before moving to the park position.  Enter an integer.\n<enter>\n")
@@ -1044,43 +1055,43 @@ def get_m600_params(extruder_count):
             print("Invalid Response.  Enter a number.")
             z_param = ""
             continue
-        
+
     if b_param == 0:
         b_param = ""
     else:
         b_param = " B" + str(b_param)
-        
+
     if e_param == 0:
         e_param = ""
     else:
         e_param = " E-" + str(e_param)
-        
+
     if u_param == 0:
         u_param = ""
     else:
         u_param = " U" + str(u_param)
-        
+
     if l_param == 0:
         l_param = ""
     else:
         l_param = " L" + str(l_param)
-        
+
     if r_param == 0:
         r_param = ""
     else:
         r_param = " R" + str(r_param)
-        
+
     if t_param != "":
         t_param = " T" + str(t_param)
-    
+
     if x_param != "":
         x_param = " X" + str(x_param)
 
     if y_param != "":
-        y_param = " Y" + str(y_param)      
+        y_param = " Y" + str(y_param)
 
     if z_param != "":
-        z_param = " Z" + str(z_param)      
+        z_param = " Z" + str(z_param)
     pause_method += b_param + e_param + u_param + l_param + r_param + t_param + x_param + y_param + z_param
     return pause_method
 
@@ -1100,7 +1111,7 @@ def getValue(line, param):
     except:
         return None
     return float(the_value)
-    
+
 #  Get the X and Y values for a layer (will be used to get X and Y of the layer after the pause and of the 'redo' layer if that option is used).
 def getNextXY(s_index):
     x = None
@@ -1108,7 +1119,7 @@ def getNextXY(s_index):
     e = None
     is_retracted = None
     for num in range(s_index, 0, -1):
-        line = lines[num]    
+        line = lines[num]
         if line.startswith(("G0 ", "G1 ", "G2 ", "G3 ", "G92 ")):
             if " X" in line and x == None:
                 x = getValue(line, "X")
@@ -1123,8 +1134,8 @@ def getNextXY(s_index):
                 if e != None:
                     is_retracted = False
         if x != None and y != None and e != None and is_retracted != None:
-            return [x, y, e, is_retracted]            
+            return [x, y, e, is_retracted]
     return [0, 0, 0, False]
-    
+
 if __name__ == "__main__":
     main(lines)
