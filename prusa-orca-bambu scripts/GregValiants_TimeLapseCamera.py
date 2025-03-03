@@ -23,7 +23,7 @@ if not layer_numbers_added:
     
 # Let the user decide to run the script or exit without running.
 try:
-    response = input("\nGreg Valiants [Time Lapse Camera]\nfor Prusa/Orca has started.  This will insert camera trigger commands every so-many layers.  Head park and retractions are options.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
+    response = input("\nGreg Valiants      [Time Lapse Camera]\nfor Prusa/Orca has started.  This will insert camera trigger commands every so-many layers.  Head park and retractions are options.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
 except:
     response = "n"
 if response not in ["y", "n"]:
@@ -75,8 +75,23 @@ for index, line in enumerate(lines):
     if "; deretract_speed" in line or "; deretraction_speed =" in line:
         prime_speed = int(line.split("= ")[1]) * 60
         
-    if "; retract_length =" in line or "; retraction_length =" in line:
-        retract_dist = round(float(line.split("= ")[1]),2)
+    if "; retract_length =" in line or "; retraction_length =" in line or "; filament_retract_length =" in line:
+        retract_length_str = line.split("= ")[1][:-1]
+            retract_length_list = retract_length_str.split(",")
+            if retract_length_list[0] != "nil":
+                retract_length_ext_0 = round(float(retract_length_list[0]), 2)
+                retract_enabled_ext_0 = True
+            else:
+                retract_length_ext_0 = 0.0
+                retract_enabled_ext_0 = False
+            retract_length_ext_1 = 0.0
+            if len(retract_length_list) > 1:
+                if retract_length_list[1] != "nil":
+                    retract_length_ext_1 = round(float(retract_length_list[1]), 2)
+                    retract_enabled_ext_1 = True
+                else:
+                    retract_length_ext_1 = 0.0
+                    retract_enabled_ext_1 = False
 
     if "; bed_shape =" in line or "; printable_area =" in line:
         bed_shape = line.split("= ")[1]

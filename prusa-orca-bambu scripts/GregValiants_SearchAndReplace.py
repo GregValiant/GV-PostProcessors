@@ -24,14 +24,14 @@ if not layer_numbers_added:
 
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiants [Search and Replace]\nfor Prusa/Orca/Bambu has started.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
+    response = input("\nGreg Valiants      [Search and Replace]\nfor Prusa/Orca/Bambu has started.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
     if response not in ["y", "n"]:
         print("The response must be 'y' or 'n'.  Try again.")
         response = "r"
         continue
     if response == "n":
         exit(0)
-    
+
 def main():
     # Get the layer count and number of raft layers
     slicer_settings = get_slicer_settings()
@@ -54,7 +54,7 @@ def main():
     first_instance_only = post_settings[6]
     ignore_startup = post_settings[7]
     ignore_end = post_settings[8]
-    
+
     data_list = [0]
     for index, line in enumerate(lines):
         if ";TYPE:Custom" in line or "; CHANGE_LAYER" in line:
@@ -95,7 +95,7 @@ def main():
             end_index = data_list[end_layer + 1] - 1
     except:
         pass
-        
+
     # Make replacements
     replaced_one = False
     if not is_regex:
@@ -130,7 +130,7 @@ def main():
         dest_file.write(line)
     dest_file.close()
     final_file.close()
-    
+
 def get_post_settings(layer_count):
     response = "r"
     while response == "r":
@@ -145,7 +145,7 @@ def get_post_settings(layer_count):
             replace_string = ""
 
         try:
-            is_regex = input("\nIs the Search String a 'Regular Expression'?\n <y> is Regular Expression\n <n> No (normal text search)\n").lower()
+            is_regex = input("\nIs the Search String a 'Regular Expression'?\n FYI - 'Regular Expressions' are essentially wildcards in the search string to make them independent of actual values.\n <y> Yes, use 'Regular Expression'\n <n> No, use 'Normal Text Search'\n").lower()
             if is_regex == "y":
                 is_regex = True
             else:
@@ -220,7 +220,7 @@ def get_post_settings(layer_count):
                 return False
         except:
             response = input("There was an error.  The scipt will exit.\n <enter>\n")
-            return False    
+            return False
     return search_string, replace_string, is_regex, enable_range_search, start_layer, end_layer, first_instance_only, ignore_startup, ignore_end
 
 def get_slicer_settings():

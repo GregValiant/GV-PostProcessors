@@ -33,7 +33,7 @@ total_layer_count = None
 def main(lines):
     response = "q"
     while not response in ["y", "n"]:
-        response = input("\nGreg Valiants [Advanced Fan Control]\nfor Prusa/Orca/Bambu has started.\n Note: You may run multiple instances of this script.  Example: The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?\n <y> Yes\n <n> No\n").lower()
+        response = input("\nGreg Valiants      [Advanced Fan Control]\nfor Prusa/Orca/Bambu has started.\n Note: You may run multiple instances of this script.  Example: The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?\n <y> Yes\n <n> No\n").lower()
         if response not in ["y", "n"]:
             print("Invalid Response.  Must be 'y' or 'n'.")
             continue
@@ -481,7 +481,7 @@ def add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p
             fan_off_line = f"M106 S0 {fan_0}"
             if extruder_count > 1:
                 fan_off_line += f"\nM106 S0 {fan_1}"
-            fan_off_line += f"\n{lines[index - 1]}\n"
+            fan_off_line += f"\n{lines[index - 1]}"
             lines[index - 1] = fan_off_line
         if line.startswith("M140 S0") and start_index != None:
             if slicer_name != "Bambu":

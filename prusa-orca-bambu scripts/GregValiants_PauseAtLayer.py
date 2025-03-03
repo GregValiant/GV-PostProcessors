@@ -7,6 +7,7 @@ import sys
 import re
 import os
 
+#sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
 sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
@@ -450,8 +451,9 @@ def main(lines):
             for n_line in temp1:
                 lines.insert(index, n_line + "\n")
                 
-    # Write the file with the changes    
-    print("\nWriting file...")
+    # Write the new file
+    print("Writing File...")
+    #dest_file = open("C:/Users/grego/Documents/Creality/gcode/DisplayInfoB.gcode", "w+")
     dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
@@ -495,12 +497,22 @@ def get_slicer_settings(lines):
             if len(deretract_speed_list) > 1:
                 deretract_speed_ext_1 = int(deretract_speed_list[1]) * 60
         if "; filament_retract_length =" in line or "; retraction_length =" in line:
-            retract_length_str = line.split("= ")[1]
+            retract_length_str = line.split("= ")[1][:-1]
             retract_length_list = retract_length_str.split(",")
-            retract_length_ext_0 = round(float(retract_length_list[0]), 2)
+            if retract_length_list[0] != "nil":
+                retract_length_ext_0 = round(float(retract_length_list[0]), 2)
+                retract_enabled_ext_0 = True
+            else:
+                retract_length_ext_0 = 0.0
+                retract_enabled_ext_0 = False
             retract_length_ext_1 = 0.0
             if len(retract_length_list) > 1:
-                retract_length_ext_1 = round(float(retract_length_list[1]), 2)
+                if retract_length_list[1] != "nil":
+                    retract_length_ext_1 = round(float(retract_length_list[1]), 2)
+                    retract_enabled_ext_1 = True
+                else:
+                    retract_length_ext_1 = 0.0
+                    retract_enabled_ext_1 = False
         if "; use_firmware_retraction" in line:
             firmware_retract_str = int(line.split("= ")[1])
             if firmware_retract_str == 0:
