@@ -12,8 +12,8 @@ import os
 
 # Get the file information from the slicer
 
-sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
-#sourceFile = sys.argv[1]
+#sourceFile = "C:/Users/grego/Documents/Creality/gcode/OrcaShape.gcode"
+sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 slicer_name = ""
@@ -54,7 +54,7 @@ def main(lines):
 
     insert_frequency_str = ""
     while insert_frequency_str == "":
-        insert_frequency_str = input(" 'Insertion Frequence'\n How often to insert the command.\n <enter an integer indicating: 0 for single insertion only, 1 for every layer, 2 for every other layer, 3 for every third layer, etc.\n <enter>\n")
+        insert_frequency_str = input(" 'Insertion Frequency'\n How often to insert the command.\n <enter an integer indicating: 0 for single insertion only, 1 for every layer, 2 for every other layer, 3 for every third layer, etc.\n <enter>\n")
         try:
             insert_frequency = int(insert_frequency_str)
         except:
@@ -64,7 +64,7 @@ def main(lines):
     if insert_frequency > 0:        
         start_layer = 0
         while start_layer == 0:
-            start_layer_str = input(f" 'The start layer'\n What layer should the insertions start at.  (the first layer is '1' and there are {layer_count} layers in the print.\n <enter>")
+            start_layer_str = input(f" 'The start layer'\n What layer should the insertions start at.  (the first layer is '1' and there are {layer_count} layers in the print.\n <enter>\n")
             try:
                 start_layer = int(start_layer_str)
                 if start_layer < 1:
@@ -76,17 +76,17 @@ def main(lines):
                 print("Invalid response.  Try again.")
                 continue
                 
-        end_layer = 0
-        while end_layer == 0:
-            end_layer_str = input(f" 'The end layer'\n What layer should the insertions end at.\n  (there are {layer_count} layers in the print.\n <enter>")
+        end_layer_str = ""
+        while end_layer_str == "":
+            end_layer_str = input(f" 'The end layer'\n What layer should the insertions end at.\n  (there are {layer_count} layers in the print.\n <enter>\n")
             try:
                 end_layer = int(end_layer_str)
-                if end_layer > layer_count:
-                    end_layer_str = 0
-                    print(f"Invalid response.  The layers end at layer {layer_count}.")
+                if end_layer > layer_count or end_layer <= start_layer:
+                    end_layer_str = ""
+                    print(f"Invalid response.  The entry must be > start layer ({start_layer}) and < top layer ({layer_count}).")
                     continue
             except:
-                end_layer_str = 0
+                end_layer_str = ""
                 print("Invalid response.  Try again.")
                 continue
                 
@@ -115,7 +115,8 @@ def main(lines):
         else:
             gcode_to_add_list.append(gcode_to_add_str)
         for index, gcode_cmd in enumerate(gcode_to_add_list):
-            gcode_to_add += gcode_cmd.upper() + "\n"    
+            gcode_to_add += gcode_cmd.upper() + "\n"
+    
        
     #Initialize variables
     start_here = False
@@ -150,8 +151,8 @@ def main(lines):
                 lines.insert(index, n_line + "\n")
 
     # Write the new file
-    dest_file = open("C:/Users/grego/Documents/Creality/gcode/OrcaB.gcode", "w+")
-    #dest_file = open(sourceFile, "w+")
+    #dest_file = open("C:/Users/grego/Documents/Creality/gcode/OrcaB.gcode", "w+")
+    dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
     dest_file.close()
