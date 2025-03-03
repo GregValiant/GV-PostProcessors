@@ -1,17 +1,14 @@
 # Copyright (c) 2025 GregValiant (Greg Foresi)
 #  Suitable to Prusa, Orca, and Bambu slicers
 # This script will:
-#    Add layer number lines below the "LAYER_CHANGE" lines.  The layer numbers coincide with the preview layers which can changed depending on whether or not supports are enabled.
-#    Because of the variance in the layer count in the slicers, you should check your gcode to insure it is correct.
-#    In addition to adding 'Layer: lines, the script will:
-#       Remove empty lines.
-#       Round the HEIGHT numbers to 3 decimal places and the WIPE numbers to 2 decimal places.
+#    Add additional Gcode commands at layer changes.
+#    Add Layer Numbers must run first.
+#    Delimit multiple commands with commas (EX:  M999,G92 E0,M221 S95)
 
 import sys
 import os
 
 # Get the file information from the slicer
-
 #sourceFile = "C:/Users/grego/Documents/Creality/gcode/OrcaShape.gcode"
 sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
@@ -115,8 +112,7 @@ def main(lines):
         else:
             gcode_to_add_list.append(gcode_to_add_str)
         for index, gcode_cmd in enumerate(gcode_to_add_list):
-            gcode_to_add += gcode_cmd.upper() + "\n"
-    
+            gcode_to_add += gcode_cmd.upper() + "\n"    
        
     #Initialize variables
     start_here = False
@@ -130,7 +126,7 @@ def main(lines):
             if ";Layer:" + str(single_insert_layer) + "\n" in line:
                 lines.insert(index + 1, gcode_to_add)
                 break
-        #Multiple insertions
+    #Multiple insertions
     else:
         layer_number = 0
         for l_index, line in enumerate(lines):
@@ -140,7 +136,8 @@ def main(lines):
                     real_num = layer_number - int(start_layer)
                     if int(real_num / insert_frequency) - (real_num / insert_frequency) == 0:
                         lines[l_index] += gcode_to_add                
-
+    
+    # Split lines that have mid-line "\n" and insert them as their own item in "lines".
     for index, line in enumerate(lines):
         if "\n" in line[0:-1]:
             lines[index] = line[:-1]
@@ -157,6 +154,7 @@ def main(lines):
         dest_file.write(line)
     dest_file.close()
     final_file.close()
-   
+
+# Define "main" so it will run.
 if __name__ == "__main__":
     main(lines)
