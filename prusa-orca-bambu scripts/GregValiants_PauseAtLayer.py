@@ -25,7 +25,7 @@ if not layer_numbers_added:
 # Run the script or exit?
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiants      [Pause at Layer]\nfor Prusa/Orca/Bambu has started.\n  This will insert 'park - pause - resume' code at the indicated layers.  You can make insertions at more than one layer provided that they all use the same general settings (same park position, filament temp's, etc.).\n (There may be as many as 24 settings and then a 'Review'.)\n  Do you wish to Continue?\n <y> Yes or <n> No\n").lower()
+    response = input("\nGreg Valiants      [Pause at Layer]\nfor Prusa/Orca/Bambu has started.\n  This will insert 'park - pause - resume' code at the indicated layers.  You can make insertions at more than one layer provided that they all use the same general settings (same park position, filament temp's, etc.).\n (There may be as many as 24 settings and then a 'Review'.)\n  Do you wish to Continue?\n <y> Yes\n <n> No\n").lower()
     if response not in ["y", "n"]:
         input("Invalid response.  Enter a 'y' for Yes or an 'n' for No.")
         response = "r"
