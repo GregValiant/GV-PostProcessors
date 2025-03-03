@@ -17,7 +17,8 @@ import datetime
 import math
 
 # Read the slicer gcode into memory
-sourceFile = sys.argv[1]
+sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
+#sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
@@ -180,7 +181,8 @@ def main(lines):
                 lines.insert(index, n_line + "\n")
 
     # Write the new file
-    dest_file = open(sourceFile, "w+")
+    dest_file = open("C:/Users/grego/Documents/Creality/gcode/DisplayInfoB.gcode", "w+")
+    #dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
     dest_file.close()
@@ -303,9 +305,16 @@ def display_progress(lines, percentage_list):
 
 def convert_time_string(print_time: str) -> int:
     print_time_list = print_time.split(" ")
-    h = int(print_time_list[0][:-1]) * 3600
-    m = int(print_time_list[1][:-1]) * 60
-    s = int(print_time_list[2][:-1])
+    h = 0
+    m = 0
+    s = 0
+    for t_line in print_time_list:
+        if "h" in t_line:
+            h = int(t_line[:-1]) * 3600
+        elif "m" in t_line:
+            m = int(t_line[:-1]) * 60
+        elif "s" in t_line:
+            s = int(t_line[:-1])
     new_time = h + m + s
     return new_time
 
