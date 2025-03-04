@@ -6,24 +6,26 @@ PLEASE NOTE:
 - These post-processors are "python scripts" and Python must be installed on your computer. 
 - "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
 
-In all three slicers, the post processors need to be entered into the "Output Options" "Post-processing scripts" text box in this manner...
+PrusaSlicer, OrcaSlicer, and Bambu Studio require that the post processors are entered into the "Output Options" "Post-processing scripts" text box in this manner...
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
 The quotation marks are necessary on my installtion of Windows 10 Pro.
+
 The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".
 The second part is the path and file name of the post-processor followed by a semi-colon.
-Each post-processor requires the same form and must be separate.
+Each post-processor requires the same form and must be on separate lines in the text box.
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
 
-<path\python.exe><1space><path\post-processor file name><;>
+*<path\python.exe><1space><path\post-processor file name><;>*
 Github is shortening this but each "path + post processor" should be on a single line.
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
+"C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
+"C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
+"C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
 
 As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.
 
 2/25/2025  Added the Display Layer and ET script.
 3/1/2025   Added Pause at Layer.
+3/4/2025   Added Insert at Layer Change
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**
@@ -116,6 +118,17 @@ Replace the First Instance only?...: (you might only need to replace a single in
 Ignore Startup G-Code?.............: (leave the startup out)  
 Ignore Ending G-Code?..............: (leave the ending out)  
  <Continue?(y)  Redo(r)  Quit(x)\n"  
+ 
+**Insert at Layer Change**
+This requires 'Add Layer Numbers' to run first.  
+ The script will search the gcode complete, or a range of layers, and add gcode commands at layer changes replacements.  
+ The setting options are.  
+  'Insertion Frequency'  You may insert the commands every so many layers.  Entering a '0' will make a single insertion at a specific layer.
+  'Start Layer' The layer to start the insertions at
+  'End Layer' The last layer for insertions
+  if Insertion Frequency is 0:
+  'Single Insertion Layer Number' The layer to put a single instance of the insert code
+  'Gcode to Add' The commands to insert.  Delimit multiple commands with commas.  EX: G92 E0,M221 S100,M117 GoodBye.  
  
  **Display Layer and ET**
 Requires "Add Layer Numbers" to run before it.
