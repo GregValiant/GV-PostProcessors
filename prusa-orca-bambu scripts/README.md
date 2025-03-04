@@ -29,10 +29,10 @@ As each post-processor runs it will open a command window and you will be asked 
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**  
-2/14/2025  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers in Prusa, 379 layers in Orca, and 350 layers in Bambu.  Go figure.  The script will make the adjustment when supports are enabled or disabled.  The layer numbering in the gcode will match the slicer preview.
+2/14/2025  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers in Prusa, 379 layers in Orca, and 350 layers in Bambu.  Go figure.  The script will make the adjustment when supports are enabled or disabled.  The layer numbering in the gcode will match the slicer preview.  
 The script will go through the gcode and look for ";LAYER_CHANGE" ("; CHANGE_LAYER" in Bambu) and add a line below that ";Layer:XX".  
-The layer numbers will match the preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
-Any followup scripts that run will likely require that 'Add Layer Numbers' runs first.  It must only be run once.  
+The layer numbers will match the preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.  
+*All of my other scripts require that 'Add Layer Numbers' runs first.*  It must only be run once.  
 
 **Search and Replace**  
 Requires "Add Layer Numbers" to run before it.
