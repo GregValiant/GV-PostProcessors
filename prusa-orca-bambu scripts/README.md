@@ -23,9 +23,9 @@ Github is shortening this but each "path + post processor" should be on a single
 
 As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.
 
-2/25/2025  Added the Display Layer and ET script.
-3/1/2025   Added Pause at Layer.
-3/4/2025   Added Insert at Layer Change
+2/25/2025  Added the Display Layer and ET script.  
+3/1/2025   Added Pause at Layer.  
+3/4/2025   Added Insert at Layer Change  
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**  
