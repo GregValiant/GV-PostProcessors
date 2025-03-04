@@ -17,8 +17,8 @@ import datetime
 import math
 
 # Read the slicer gcode into memory
-sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
-#sourceFile = sys.argv[1]
+#sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
+sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
@@ -181,8 +181,8 @@ def main(lines):
                 lines.insert(index, n_line + "\n")
 
     # Write the new file
-    dest_file = open("C:/Users/grego/Documents/Creality/gcode/DisplayInfoB.gcode", "w+")
-    #dest_file = open(sourceFile, "w+")
+    #dest_file = open("C:/Users/grego/Documents/Creality/gcode/DisplayInfoB.gcode", "w+")
+    dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
     dest_file.close()
