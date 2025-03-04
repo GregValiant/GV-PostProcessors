@@ -16,7 +16,7 @@ Each post-processor requires the same form and must be on separate lines in the 
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
 
 *<path\python.exe><1space><path\post-processor file name><;>*
-Github is shortening this but each "path + post processor" should be on a single line.
+Github is shortening this but each "path + post processor" should be on a single line.  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
@@ -28,13 +28,13 @@ As each post-processor runs it will open a command window and you will be asked 
 3/4/2025   Added Insert at Layer Change
 
 -----------------------------------------------------------------------------
-**Add Layer Numbers:**
+**Add Layer Numbers:**  
 2/14/2025  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers in Prusa, 379 layers in Orca, and 350 layers in Bambu.  Go figure.  The script will make the adjustment when supports are enabled or disabled.  The layer numbering in the gcode will match the slicer preview.
 The script will go through the gcode and look for ";LAYER_CHANGE" ("; CHANGE_LAYER" in Bambu) and add a line below that ";Layer:XX".  
 The layer numbers will match the preview.  ";Layer:1" might be the first layer of the model, or might be the first layer of a raft with the model up higher.
 Any followup scripts that run will likely require that 'Add Layer Numbers' runs first.  It must only be run once.  
 
-**Search and Replace**
+**Search and Replace**  
 Requires "Add Layer Numbers" to run before it.
 The review will include the settings:  
 - *Search String......................: YourString* >>> Enter the string to search for.  This can be a simple string like ";LAYER_CHANGE" or can be a regular expression like  ";Layer:(\d+)\n"  
@@ -49,7 +49,7 @@ The review will include the settings:
 
 * <Continue?(y)  Redo(r)  Quit(x)* >>> selecting "r" will allow you to go back and make changes to your settings.  
  
-**Advanced Fan Control**
+**Advanced Fan Control**  
 Requires "Add Layer Numbers" to run before it.
 Currently this is set up for single fans.  If there is interest, additional fan circuits could be added.  That is a PITA.
 The two main options are "By Feature" (works well for large models) and "By Layer".
@@ -86,7 +86,7 @@ Top-of-Raft fan speed................................: 80%
  Entering an "r" will allow you to go back through and change things.
  There are additional settings for Bambu printers that will allow control of the Aux and Chamber fans.  The settings will come up whether those fans exist on the printer or not.  The script makes no attempt to determine specific printer models.
  
- **Time Lapse Camera**
+ **Time Lapse Camera**  
  This requires 'Add Layer Numbers' to run first.
  The script will add camera trigger commands at the ends of layers.  The setting options are.  
 
@@ -101,7 +101,7 @@ Retract when necessary...... (add a retraction and prime if there wasn't one bef
 Z-hop before parking........ (the height to move the nozzle up from the print before parking)  
 Insure final Image.......... (if the insertion frequency was such that there was no image taken at the end of the last layer - this will do that) 
 
-**Search and Replace**
+**Search and Replace**  
 This requires 'Add Layer Numbers' to run first.
  The script will search the gcode complete, or a range of layers, and make replacements.  Regular Expressions are an option as is ignoring the StartUp and Ending gcodes.  
  The setting options are. 
@@ -119,7 +119,7 @@ Ignore Startup G-Code?.............: (leave the startup out)
 Ignore Ending G-Code?..............: (leave the ending out)  
  <Continue?(y)  Redo(r)  Quit(x)\n"  
  
-**Insert at Layer Change**
+**Insert at Layer Change**  
 This requires 'Add Layer Numbers' to run first.  
  The script will search the gcode complete, or a range of layers, and add gcode commands at layer changes replacements.  
  The setting options are.  
@@ -130,12 +130,12 @@ This requires 'Add Layer Numbers' to run first.
   'Single Insertion Layer Number' The layer to put a single instance of the insert code
   'Gcode to Add' The commands to insert.  Delimit multiple commands with commas.  EX: G92 E0,M221 S100,M117 GoodBye.  
  
- **Display Layer and ET**
+ **Display Layer and ET**  
 Requires "Add Layer Numbers" to run before it.
 This uses M117 to send a message to the LCD in the form ' 1/250 | ET 3h45m '.  M118's are also added to send the same string to a print server (for example Octoprint).
 An option is to add M73 with % complete, and Time remaining as ' M73  R322 P0 '.  M75 is added to the start of the file, and M77 is added to the end of the file. Bambu Studio appears to add the M73 lines by default.
 
-**Pause at Layer**
+**Pause at Layer**  
 Much like the Pause at Height in Cura, it asks several questions so the pause and return can be set up.  The settings include 10 pause options including M600.
 Users won't be asked for all of these, but a lot of these.
 
