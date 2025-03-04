@@ -1,15 +1,16 @@
-# Copyright (c) 2025 GregValiant (Greg Foresi)
-#  Suitable to Prusa, Orca, and Bambu slicers
-# This script will:
-#    Add additional Gcode commands at layer changes.
-#    Add Layer Numbers must run first.
-#    Delimit multiple commands with commas (EX:  M999,G92 E0,M221 S95)
+"""
+    Copyright (c) 2025 GregValiant (Greg Foresi)
+    Suitable to Prusa, Orca, and Bambu slicers
+    This script will:
+        Add additional Gcode commands at layer changes.
+        Delimit multiple commands with commas (EX:  M999,G92 E0,M221 S95)
+    NOTE: Greg Valiant's "Add Layer Numbers" must run first.
+"""
 
 import sys
 import os
 
 # Get the file information from the slicer
-#sourceFile = "C:/Users/grego/Documents/Creality/gcode/OrcaShape.gcode"
 sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
@@ -148,7 +149,6 @@ def main(lines):
                 lines.insert(index, n_line + "\n")
 
     # Write the new file
-    #dest_file = open("C:/Users/grego/Documents/Creality/gcode/OrcaB.gcode", "w+")
     dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)

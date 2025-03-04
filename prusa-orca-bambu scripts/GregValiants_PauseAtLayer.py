@@ -7,7 +7,6 @@ import sys
 import re
 import os
 
-#sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
 sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
@@ -453,7 +452,6 @@ def main(lines):
                 
     # Write the new file
     print("Writing File...")
-    #dest_file = open("C:/Users/grego/Documents/Creality/gcode/DisplayInfoB.gcode", "w+")
     dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
