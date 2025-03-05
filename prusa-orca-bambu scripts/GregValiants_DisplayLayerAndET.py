@@ -43,12 +43,30 @@ for line in lines:
         slicer_name = "Bambu"
     if slicer_name != "":
         break
+if slicer_name == "":
+    response = ""
+    while response == "":    
+        response = input("The script was not able to determine the name of the slicer app.  The script should handle any of the three.\n Please enter a:\n<p> for PrusaSlicer\n <o> for OrcaSlicer\n <b> for Bambu Studio\n").lower()
+        if response not in ["p","o","b"]:
+            print("Invalid response.  Must be <b>, <o>, or <p>")
+            response = ""
+            continue
+    if response == "b":
+        slicer_name = "Bambu"
+    elif response == "o":
+        slicer_name = "Orca"
+    else:
+        slicer_name = "Prusa"
+        
 # some local variables
 all_at_once = True
 layer_count = 0
 layer_change_index_list = []
 startup_end_list = []
+allow_m73 = True
 for index, line in enumerate(lines):
+    if line.startswith("M73"):
+        allow_m73 = False
     if ";TYPE:Custom" in line or "; EXECUTABLE_BLOCK_START" in line:
         startup_end_list.append(index)
         # Layer lines are added by the AddLayerNumbers post-processor
@@ -89,52 +107,55 @@ while carry_on == True:
     add_m118_line = True
     enable_countdown = False
     display_remaining_time = True
-    display_total_layers = True
-
-    add_m73_line = "r"
-    while add_m73_line == "r" and carry_on == True:
-        add_m73_line = input("'Add M73 line Adds M73 in addition to the M117.  For some firmware this will set the printers time and or percentage.  M75 is added to the beginning of the file and M77 is added to the end of the file.  You must select one or both of the Time and Percentage options that follow.\n <y> Yes\n <n> No\n").lower()
-        if add_m73_line not in ["y", "n", "q"]:
-            print("Invalid response.  Must be a 1 or 2 or 'q'\n")
-            add_m73_line = "r"
-            continue
-        if add_m73_line == "q":
-            carry_on = False
-            break
-        if add_m73_line == "y":
-            add_m73_line = True
-        elif add_m73_line == "n":
-            add_m73_line = False
-            continue
-        if add_m73_line:
-            add_m73_percent = "r"
-            while add_m73_percent == "r" and carry_on == True:
-                add_m73_percent = input("'Add M73 Print Percentage'\n <y> Yes\n <n> No\n").lower()
-                if add_m73_percent not in ["y", "n", "q"]:
-                    print("Invalid response.  Must be a 1 or 2 or 'q'\n")
-                    add_m73_percent = "r"
-                    continue
-                if add_m73_percent == "q":
-                    carry_on = False
-                    break
-                if add_m73_percent == "y":
-                    add_m73_percent = True
-                else:
-                    add_m73_percent = False
-            add_m73_time = "r"
-            while add_m73_time == "r" and carry_on == True:
-                add_m73_time = input("'Add M73 Print Time'\n <y> Yes\n <n> No\n").lower()
-                if add_m73_time not in ["y", "n", "q"]:
-                    print("Invalid response.  Must be a 'y' or 'n' or 'q'\n")
-                    add_m73_time = "r"
-                    continue
-                if add_m73_time == "q":
-                    carry_on = False
-                    break
-                if add_m73_time == "y":
-                    add_m73_time = True
-                else:
-                    add_m73_time = False
+    display_total_layers = True    
+    add_m73_line = False
+    add_m73_percent = False
+    add_m73_time = False
+    if allow_m73:
+        add_m73_line = "r"
+        while add_m73_line == "r" and carry_on == True:
+            add_m73_line = input("'Add M73 line Adds M73 in addition to the M117.  For some firmware this will set the printers time and or percentage.  M75 is added to the beginning of the file and M77 is added to the end of the file.  You must select one or both of the Time and Percentage options that follow.\n <y> Yes\n <n> No\n").lower()
+            if add_m73_line not in ["y", "n", "q"]:
+                print("Invalid response.  Must be a 1 or 2 or 'q'\n")
+                add_m73_line = "r"
+                continue
+            if add_m73_line == "q":
+                carry_on = False
+                break
+            if add_m73_line == "y":
+                add_m73_line = True
+            elif add_m73_line == "n":
+                add_m73_line = False
+                continue
+            if add_m73_line:
+                add_m73_percent = "r"
+                while add_m73_percent == "r" and carry_on == True:
+                    add_m73_percent = input("'Add M73 Print Percentage'\n <y> Yes\n <n> No\n").lower()
+                    if add_m73_percent not in ["y", "n", "q"]:
+                        print("Invalid response.  Must be a 1 or 2 or 'q'\n")
+                        add_m73_percent = "r"
+                        continue
+                    if add_m73_percent == "q":
+                        carry_on = False
+                        break
+                    if add_m73_percent == "y":
+                        add_m73_percent = True
+                    else:
+                        add_m73_percent = False
+                add_m73_time = "r"
+                while add_m73_time == "r" and carry_on == True:
+                    add_m73_time = input("'Add M73 Print Time'\n <y> Yes\n <n> No\n").lower()
+                    if add_m73_time not in ["y", "n", "q"]:
+                        print("Invalid response.  Must be a 'y' or 'n' or 'q'\n")
+                        add_m73_time = "r"
+                        continue
+                    if add_m73_time == "q":
+                        carry_on = False
+                        break
+                    if add_m73_time == "y":
+                        add_m73_time = True
+                    else:
+                        add_m73_time = False
     time_fudge_factor = "r"
     while time_fudge_factor == "r" and carry_on == True:
         time_fudge_factor = input("'Time Factor Adjustment'\n  Enter a fudge factor as a percentage.  The formula is 'Slicer Estimated Print Time * Fudge Factor'.  With some practice you can get the actual print time to display on the LCD very close to reality.\n If the slicer under-estimates the print time the fudge factor will be > 100.\n If the slicer over-estimates the print time the fudge factor will be < 100.\n  If the estimated print times are very close to the real print time then enter 100.\n  Enter an integer.\n  Fudge Factor %:\n").lower()
