@@ -471,13 +471,13 @@ def get_slicer_settings(lines):
         if ";Layer:" in line:
             layer_count += 1
         if "; use_relative_e_distances =" in line:
-            relative_extrusion_str = line.split("= ")[1]
+            relative_extrusion_str = line.split("= ")[1][:-1]
             if relative_extrusion_str == "0":
                 relative_extrusion = False
             else:
                 relative_extrusion = True
         if "; retract_speed =" in line or "; retraction_speed =" in line:
-            retract_speed_str = line.split("= ")[1]
+            retract_speed_str = line.split("= ")[1][:-1]
             retract_speed_list = retract_speed_str.split(",")
             retract_speed_ext_0 = int(retract_speed_list[0]) * 60
             retract_enabled_ext_0 = bool(retract_speed_ext_0)
@@ -488,7 +488,7 @@ def get_slicer_settings(lines):
                 retract_enabled_ext_1 = bool(retract_speed_ext_1)
             extruder_count = len(retract_speed_list)
         if "; deretract_speed =" in line or "; deretraction_speed =" in line:
-            deretract_speed_str = line.split("= ")[1]
+            deretract_speed_str = line.split("= ")[1][:-1]
             deretract_speed_list = deretract_speed_str.split(",")
             deretract_speed_ext_0 = int(deretract_speed_list[0]) * 60
             deretract_speed_ext_1 = 0
@@ -512,7 +512,7 @@ def get_slicer_settings(lines):
                     retract_length_ext_1 = 0.0
                     retract_enabled_ext_1 = False
         if "; use_firmware_retraction" in line:
-            firmware_retract_str = int(line.split("= ")[1])
+            firmware_retract_str = int(line.split("= ")[1][:-1])
             if firmware_retract_str == 0:
                 firmware_retract = False
             elif firmware_retract_str == 1:
@@ -534,22 +534,22 @@ def get_slicer_settings(lines):
         if "; max_print_height =" in line or "; printable_height =" in line:
             bed_max_z = int(line.split("= ")[1][:-1])
         if "; nozzle_diameter =" in line:
-            nozzle_size_str = line.split("= ")[1]
+            nozzle_size_str = line.split("= ")[1][:-1]
             nozzle_size_list = nozzle_size_str.split(",")
             nozzle_size = float(nozzle_size_list[0])
         if "; first_layer_height =" in line or "; initial_layer_print_height =" in line:
             initial_layer_height = float(line.split("= ")[1])
         if "; layer_height =" in line:
-            layer_height = float(line.split("= ")[1])
+            layer_height = float(line.split("= ")[1][:-1])
         if "; retract_lift =" in line or "; z_hop =" in line:
-            z_hop_str = line.split("= ")[1]
+            z_hop_str = line.split("= ")[1][:-1]
             z_hop_list = z_hop_str.split(",")
             z_hop_ext_0 = float(z_hop_list[0])
             z_hop_ext_1 = 0.0
             if len(z_hop_list) > 1:
                 z_hop_ext_1 = float(z_hop_list[1])
         if "; temperature =" in line or "; nozzle_temperature =" in line:
-            temperature_str = line.split("= ")[1]
+            temperature_str = line.split("= ")[1][:-1]
             temperature_list = temperature_str.split(",")
             temperature_ext_0 = round(float(temperature_list[0]))
             temperature_ext_1 = 0

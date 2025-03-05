@@ -53,28 +53,28 @@ for line in lines:
         break
         
 for index, line in enumerate(lines):
-    if "; use_relative_e_distances" in line:
-        relative_extrusion_str = line.split("= ")[1]
+    if "; use_relative_e_distances =" in line:
+        relative_extrusion_str = line.split("= ")[1][:-1]
         if relative_extrusion_str == "0":
             relative_extrusion = False
         else:
             relative_extrusion = True
             
     if "; use_firmware_retraction" in line:
-        firmware_retract_str = int(line.split("= ")[1])
+        firmware_retract_str = int(line.split("= ")[1][:-1])
         if firmware_retract_str == 0:
             firmware_retract = False
         elif firmware_retract_str == 1:
             firmware_retract = True
             
     if "; travel_speed =" in line:
-        travel_speed = int(line.split("= ")[1]) * 60
+        travel_speed = int(line.split("= ")[1][:-1]) * 60
       
     if "; retract_speed" in line or "; retraction_speed =" in line:
-        retract_speed = int(line.split("= ")[1]) * 60
+        retract_speed = int(line.split("= ")[1][:-1]) * 60
         
     if "; deretract_speed" in line or "; deretraction_speed =" in line:
-        prime_speed = int(line.split("= ")[1]) * 60
+        prime_speed = int(line.split("= ")[1][:-1]) * 60
         
     if "; retraction_length =" in line or "; filament_retract_length =" in line:
         retract_length_str = line.split("= ")[1][:-1]
