@@ -8,6 +8,7 @@ import os
 
 # Get the file from the slicer and read it in
 sourceFile = sys.argv[1]
+#sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
@@ -75,23 +76,23 @@ for index, line in enumerate(lines):
     if "; deretract_speed" in line or "; deretraction_speed =" in line:
         prime_speed = int(line.split("= ")[1]) * 60
         
-    if "; retract_length =" in line or "; retraction_length =" in line or "; filament_retract_length =" in line:
+    if "; retraction_length =" in line or "; filament_retract_length =" in line:
         retract_length_str = line.split("= ")[1][:-1]
-            retract_length_list = retract_length_str.split(",")
-            if retract_length_list[0] != "nil":
-                retract_length_ext_0 = round(float(retract_length_list[0]), 2)
-                retract_enabled_ext_0 = True
+        retract_length_list = retract_length_str.split(",")
+        if retract_length_list[0] != "nil":
+            retract_length_ext_0 = round(float(retract_length_list[0]), 2)
+            retract_enabled_ext_0 = True
+        else:
+            retract_length_ext_0 = 0.0
+            retract_enabled_ext_0 = False
+        retract_length_ext_1 = 0.0
+        if len(retract_length_list) > 1:
+            if retract_length_list[1] != "nil":
+                retract_length_ext_1 = round(float(retract_length_list[1]), 2)
+                retract_enabled_ext_1 = True
             else:
-                retract_length_ext_0 = 0.0
-                retract_enabled_ext_0 = False
-            retract_length_ext_1 = 0.0
-            if len(retract_length_list) > 1:
-                if retract_length_list[1] != "nil":
-                    retract_length_ext_1 = round(float(retract_length_list[1]), 2)
-                    retract_enabled_ext_1 = True
-                else:
-                    retract_length_ext_1 = 0.0
-                    retract_enabled_ext_1 = False
+                retract_length_ext_1 = 0.0
+                retract_enabled_ext_1 = False
 
     if "; bed_shape =" in line or "; printable_area =" in line:
         bed_shape = line.split("= ")[1]
@@ -99,74 +100,132 @@ for index, line in enumerate(lines):
         bed_max_x = bed_shape.split(",")[2].split("x")[0]
         bed_min_y = bed_shape.split(",")[0].split("x")[1]
         bed_max_y = bed_shape.split(",")[2].split("x")[1]
-if retract_dist > 0:
+if retract_length_ext_0 > 0:
     retract_enabled = True
+    retract_dist = retract_length_ext_0
 else:
     retract_enabled = False
+    retract_dist = 0.0
 
 # Get settings from the user
 response = "r"
 while response == "r":
-    try:
-        trigger_command = input("Enter the 'Trigger Commmand' you want to use.  This is often M240.\n").upper()
-    except:
-        trigger_command = "None"
-    try:
-        insert_frequency = int(input("How often should the 'Trigger Commmand' be inserted.\n 1) Every Layer\n 2) Every 2nd layer\n 3) Every 3rd layer\n etc, etc, etc.\n"))
-    except:
-        insert_frequency = 1
-    try:
-        anti_shake_wait = int(input("How long to wait for the printer frame to settle down before taking the image.  (Units is 'micro-seconds' so 500 is 1/2 second.)\n"))
-    except:
-        anti_shake_wait = 0
-    try:
-        pause_length = int(input("How long to wait after taking the image.  (Units is 'micro-seconds'.)\n"))
-    except:
-        pause_length = 0
-    try:
+    trigger_command = None
+    while trigger_command == None:
+        trigger_command = input("Enter the 'Trigger Commmand' you want to use.\n  This is often M240. Use do care in your capitalization.  Some firmware does not respond to lowercase commands.\n")
+        if trigger_command == "":
+            trigger_command = None
+            print("Invalid response.  You must enter a command to trigger the camera.")
+            continue
+    
+    insert_frequency_str = ""
+    while insert_frequency_str == "":
+        insert_frequency_str = input("How often should the 'Trigger Commmand' be inserted.\n 1) Every Layer\n 2) Every 2nd layer\n 3) Every 3rd layer\n etc, etc, etc.\n")
+        try:
+            insert_frequency = int(insert_frequency_str)
+            if insert_frequency < 1:
+                raise ValueError
+        except:
+            insert_frequency_str = ""
+            print("Invalid response.  Must be an integer.")
+            continue
+
+    anti_shake_wait_str = ""
+    while anti_shake_wait_str == "":
+        anti_shake_wait_str = input("How long to wait for the printer frame to settle down before taking the image.  (Units is 'micro-seconds' so 500 is 1/2 second.)\n")
+        try:
+            anti_shake_wait = int(anti_shake_wait_str)
+            if anti_shake_wait < 0:
+                raise ValueError
+        except:                
+            anti_shake_wait_str = ""
+            print("Invalid response.  Must be an integer >= 0")
+            continue
+            
+    pause_length_str = ""
+    while pause_length_str == "":
+        pause_length_str = input("How long to wait after taking the image.  (Units is 'micro-seconds'.  750 (3/4 second) is often sufficient.)\n")
+        try:
+            pause_length = int(pause_length_str)
+            if pause_length < 0:
+                raise ValueError
+        except:                
+            pause_length_str = ""
+            print("Invalid response.  Must be an integer >= 0")
+            continue
+    
+    park_print_head_str = ""
+    while park_print_head_str == "":
         park_print_head_str = input("Do you want to park the print head?\n <y< Yes\n <n> No\n").lower()
+        if park_print_head_str not in ["y", "n"]:
+            park_print_head_str = ""
+            print("Invalid response.  Must be 'y' or 'n'")
+            continue
         if park_print_head_str == "y":
             park_print_head = True
         else:
             park_print_head = False
-    except:
-        park_print_head = True
-    try:
-        if park_print_head:
-            x_park = int(input(f"Park head 'X'. (min: {bed_min_x} to max: {bed_max_x}) <enter>\n"))
-            y_park = int(input(f"Park head 'Y'. (min: {bed_min_y} to max: {bed_max_y}) <enter>\n"))
-            if x_park < int(bed_min_x):
-                x_park = int(bed_min_x)
-            if x_park > int(bed_max_x):
-                x_park = int(bed_max_x)
-            if y_park < int(bed_min_y):
-                y_park = int(bed_min_y)
-            if y_park > int(bed_max_y):
-                y_park = int(bed_max_y)
-    except:
-        x_park = 0
-        y_park = 0
-    try:
+            
+    if park_print_head:
+        x_park_str = ""
+        while x_park_str == "":
+            x_park_str = input(f"Park head 'X'. (min: {bed_min_x} to max: {bed_max_x}) <enter>\n")
+            try:
+                x_park = int(x_park_str)
+                if int(x_park) < int(bed_min_x) or int(x_park) > int(bed_max_x):
+                    raise ValueError
+            except:
+                x_park_str = ""
+                print(f"Invalid response.  Must be from {bed_min_x} to {bed_max_x} inclusive.")
+                continue                
+        
+        y_park_str = ""
+        while y_park_str == "":
+            y_park_str = input(f"Park head 'Y'. (min: {bed_min_y} to max: {bed_max_y}) <enter>\n")
+            try:
+                y_park = int(y_park_str)
+                if int(y_park) < int(bed_min_y) or int(y_park) > int(bed_max_y):
+                    raise ValueError
+            except:
+                y_park_str = ""
+                print(f"Invalid response.  Must be from {bed_min_y} to {bed_max_y} inclusive.")
+                continue
+            
+    retract_str = ""
+    while retract_str == "":
         retract_str = input("Add a retraction when necessary?\n (The only time this might be <n> is if Retraction is not enabled.)\n <y> Yes\n <n> No\n").lower()
+        if retract_str not in ["y", "n"]:
+            retract_str = ""
+            print("Invalid response.  Must be 'y' or 'n'.")
+            continue
         if retract_str == "y":
             retract = True
         else:
             retract = False
-    except:
-        retract = True
-    try:
-        zhop = int(input("Z-hop distance before parking the head.\n"))
-        if zhop < 0: zhop = 0
-    except:
-        zhop = 0
-    try:
+            
+    zhop_str = ""
+    while zhop_str == "":
+        zhop_str = input("Z-hop height before parking the head.\n  (This is the clearance above the print to maintain while the image is taken.)\n")
+        try:
+            zhop = int(zhop_str)
+            if zhop < 0:
+                raise ValueError
+        except:
+            zhop_str = ""
+            print("Invalid response.")
+            continue
+            
+    ensure_final_image_str = ""
+    while ensure_final_image_str == "":
         ensure_final_image_str = input("Insure a final image?\n (Since you can choose not to take an image on every layer, there might not be an end-of-print image.  Choosing <y> here will insure that one is taken when the print ends regardless of the 'Frequency'.)\n <y> Yes\n <n> No\n").lower()
+        if ensure_final_image_str not in ["y", "n"]:
+            ensure_final_image_str = ""
+            print("Invalid response")
+            continue
         if ensure_final_image_str == "y":
             ensure_final_image = True
         else:
             ensure_final_image = False
-    except:
-        ensure_final_image = True
 
 # Review the user settings
     input_str = "\nReview your camera settings:\n\n"
@@ -242,10 +301,34 @@ if pause_length > 0:
 
 # Use the insert_frequency to index through the layers
 current_lines_index = 2
+cur_tool = "0"
 while current_lines_index < len(data_list) - 2:
     for num in range(data_list[current_lines_index], data_list[current_lines_index + 1]):
-        if lines[num].startswith("G1"):
-            temp = lines[num].split(" ")
+        if line.startswith("T"):
+            cur_tool = line.split(":")[1].split(" ")[0]
+            if cur_tool.endswith("\n"):
+                cur_tool = cur_tool[:-1]
+        if cur_tool == "0":
+            if retract_enabled_ext_0:
+                retract_enabled = True
+                retract_dist = retract_length_ext_0
+            else:
+                retract_enabled = False
+                retract_dist = 0.0
+                continue
+        elif cur_tool == "1":
+            if retract_enabled_ext_1:
+                retract_enabled = True
+                retract_dist = retract_length_ext_1
+            else:
+                retract_enabled = False
+                retract_dist = 0.0
+                continue
+        if lines[num].startswith(("G1 ", "G2 ", "G3 ")):
+            line = lines[num]
+            if ";" in line:
+                line = line.split(";")[0]
+            temp = line.split(" ")
             for param in temp:
                 if param.startswith("X"):
                     last_x = float(param[1:])
@@ -356,6 +439,7 @@ for index, line in enumerate(lines):
 
 # Write the new file
 dest_file = open(sourceFile, "w+")
+#dest_file = open("C:/Users/grego/Documents/Creality/gcode/PrusaOutput.gcode", "w+")
 for line in lines:
     dest_file.write(line)
 dest_file.close()
