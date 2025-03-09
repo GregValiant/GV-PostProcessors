@@ -1,32 +1,35 @@
-# Copyright (c) 2023 GregValiant (Greg Foresi) - Last change: Oct. 15, 2024
-#     1) Move the Tool Changes - "Enable Prime Tower" must be checked for this to run.  Cura adds tool changes just prior to the nozzle moving to the prime tower.  This script moves the tool change to just past the move to the prime tower so the change occurs above the prime tower rather than above the model.
-#     2) Remove Comments - Remove semi-colons and everything to the right of a semi-colon.  There are options.  (Thanks to @Torgeir)
-#     3) Add Extruder End code - A bug fix - this adds any 'Extruder End Gcode' of the last extruder used to the end of the file.
-#     4) One-at-a-Time Final Z - A bug fix that adds a move up to the transit (print MAXZ) height before the ending Gcode.  Prevents a crash if the last print is shorter than others.
-#     5) Lift Head Parking - adds a park move to the "Lift Head" cooling option for small layers.  The move is to just off the print.  It returns to the print after the G4 dwell is complete.
-#     6) Very Cool FanPath - Raise 1mm and follow a zigzag path across the print with just the Layer Cooling Fan running.
-#     7) Renumber Layers - For One-At-A-Time prints renumbering to "all at once" style can provide additional options for PauseAtHeight and Filament Change.
-#     8) Change Printer Settings - Max Feedrate, Max Accel, Home Offsets, Steps/mm.  (There is no Max for Jerk)
+""" Copyright (c) 2023 GregValiant (Greg Foresi) - Last change: Jan. 28, 2025
+    1) Move the Tool Changes - "Enable Prime Tower" must be checked for this to run.  Cura adds tool changes just prior to the nozzle moving to the prime tower.  This script moves the tool change to just past the move to the prime tower so the change occurs above the prime tower rather than above the model.
+    2) Remove Comments - Remove semi-colons and everything to the right of a semi-colon.  There are options.  (Thanks to @Torgeir)
+    3) Add Extruder End code - A bug fix - this adds any 'Extruder End Gcode' of the last extruder used to the end of the file.
+    4) One-at-a-Time Final Z - A bug fix that adds a move up to the transit (print MAXZ) height before the ending Gcode.  Prevents a crash if the last print is shorter than others.
+    5) Lift Head Parking - adds a park move to the "Lift Head" cooling option for small layers.  The move is to just off the print.  It returns to the print after the G4 dwell is complete.
+    6) Very Cool FanPath - Raise 1mm and follow a zigzag path across the print with just the Layer Cooling Fan running.
+    7) Renumber Layers - For One-At-A-Time prints renumbering to "all at once" style can provide additional options for PauseAtHeight and Filament Change.
+    8) Change Printer Settings - Max Feedrate, Max Accel, Home Offsets, Steps/mm.  (There is no Max for Jerk)
 #     Debugging Tools:
-#         9) Add Data Headers - A debugging utility, it adds comments between the data sections
-#         10) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
-#         11) Debug Gcode File - A debug tool that removes all the extrusions and heating lines from a range of layers or the whole file.  The result is a 'Movement Only' file so users can check a toolpath.  There is an option to leave the Hot End heating commands or comment them out.
-#         12) Add data item and line numbers for each layer - Debugging tool that addes a layer and line number as a comment.
-#     13) Gcode Line Numbering - Numbers the lines in the gcode.  A prefix is an option.  (authored by: Slashee the Cow)
-#     14) Disable ABL for small models.  The user defines 'small' and models that fall below that area on the build plate cause G29 and M420 to be commented out of the StartUp Gcode.  There is also a 'minimum time' option.
-#     15) One-at-a-Time Adjust Print Temperatures - Enter a list of temperatures and each succesive model will print at the assigned temperature.
-#     16) Enable Speed Enforcement - If Flow Rate Compensation alters some print speeds to very high values this script will reset them to the speeds in the Cura settings.  The speeds are checked per feature and per extruder.  Speeds might be lowered, never raised.
-#     17) Adjust the layer height of the Initial Layer Walls.  Adjust the second layer Wall Flow to account for the adjusted layer height.
-#     --) This is disabled: Kill Wipe at layer - Negates the wipe move for 'Outer-Wall, Infill, or Both' within a layer range.
-#     --) This is disabled: 2X Print Temperatures (must be enabled in this script) - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
+        9) Add Data Headers - A debugging utility, it adds comments between the data sections
+        10) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
+        11) Debug Gcode File - A debug tool that removes all the extrusions and heating lines from a range of layers or the whole file.  The result is a 'Movement Only' file so users can check a toolpath.  There is an option to leave the Hot End heating commands or comment them out.
+        12) Add data item and line numbers for each layer - Debugging tool that addes a layer and line number as a comment.
+    13) Gcode Line Numbering - Numbers the lines in the gcode.  A prefix is an option.  (authored by: Slashee the Cow)
+    14) Disable ABL for small models.  The user defines 'small' and models that fall below that area on the build plate cause G29 and M420 to be commented out of the StartUp Gcode.  There is also a 'minimum time' option.
+    15) One-at-a-Time Adjust Print Temperatures - Enter a list of temperatures and each succesive model will print at the assigned temperature.
+    16) Enable Speed Enforcement - If Flow Rate Compensation alters some print speeds to very high values this script will reset them to the speeds in the Cura settings.  The speeds are checked per feature and per extruder.  Speeds might be lowered, never raised.
+    17) Adjust the layer height of the Initial Layer Walls.  Adjust the second layer Wall Flow to account for the adjusted layer height.
+    18) Alter StartUp Gcode - Currently this only affects M92 lines in the startup and changes the Esteps/mm based on user input for each material.
+    --) This is disabled: Kill Wipe at layer - Negates the wipe move for 'Outer-Wall, Infill, or Both' within a layer range.
+    --) This is disabled: 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
+"""
 
 from ..Script import Script
 from UM.Application import Application
 from UM.Message import Message
+import math
 import re
 import os
 
-class LittleUtilities_v17(Script):
+class LittleUtilities_v18(Script):
 
     def initialize(self) -> None:
         super().initialize()
@@ -46,6 +49,7 @@ class LittleUtilities_v17(Script):
         self._instance.setProperty("very_cool_feed", "value", str(round(int(extruder[0].getProperty("speed_print", "value"))/2,0)))
         self._purge_end_loc = None
         self._instance.setProperty("adjust_e_loc_to", "value", round(float(extruder[0].getProperty("retraction_amount", "value")) * -1), 1)
+        self._instance.setProperty("wipe_before_hop_distance", "value", str(extruder[0].getProperty("wall_0_wipe_dist", "value")))
 
         machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
         if machine_extruder_count > 1:
@@ -55,8 +59,8 @@ class LittleUtilities_v17(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Little Utilities v17",
-            "key": "LittleUtilities_v17",
+            "name": "Little Utilities v18",
+            "key": "LittleUtilities_v18",
             "metadata": {},
             "version": 2,
             "settings":
@@ -68,6 +72,46 @@ class LittleUtilities_v17(Script):
                     "type": "bool",
                     "default_value": true,
                     "enabled": true
+                },
+                "alter_startup_enable":
+                {
+                    "label": "0) Alter Startup Gcode",
+                    "description": "There must be an M92 line in your Startup Gcode.  This will change the M92 line to show the E steps/mm for each material.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
+                },
+                "alter_startup_PLA":
+                {
+                    "label": "    Steps/mm PLA",
+                    "description": "",
+                    "type": "int",
+                    "default_value": 97,
+                    "enabled": "enable_little_utilities and alter_startup_enable"
+                },
+                "alter_startup_PETG":
+                {
+                    "label": "    Steps/mm PETG",
+                    "description": "",
+                    "type": "int",
+                    "default_value": 102,
+                    "enabled": "enable_little_utilities and alter_startup_enable"
+                },
+                "alter_startup_TPU":
+                {
+                    "label": "    Steps/mm TPU",
+                    "description": "",
+                    "type": "int",
+                    "default_value": 119,
+                    "enabled": "enable_little_utilities and alter_startup_enable"
+                },
+                "alter_startup_default":
+                {
+                    "label": "    Steps/mm all others",
+                    "description": "The default printer steps/mm.",
+                    "type": "int",
+                    "default_value": 97,
+                    "enabled": "enable_little_utilities and alter_startup_enable"
                 },
                 "move_tool_changes":
                 {
@@ -590,9 +634,34 @@ class LittleUtilities_v17(Script):
                     "default_value": "all_speeds",
                     "enabled": "speed_limit_enable and enable_little_utilities"
                 },
+                "wipe_before_hop":
+                {
+                    "label": "17) Wipe before Z-hop",
+                    "description": "Whether to add a wipe before a Z-hop.  Distance is 'Outer Wall Wipe Distance' and is always in the '+X' direction.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
+                },
+                "wipe_before_hop_distance":
+                {
+                    "label": "    Wipe distance",
+                    "description": "The length of the 'Wipe before Hop'.  If the travel move is shorter than 'wipe_distance x 2' there won't be a wipe.",
+                    "type": "float",
+                    "default_value": 1.0,
+                    "enabled": "enable_little_utilities and wipe_before_hop"
+                },
+                "wipe_before_hop_min_travel":
+                {
+                    "label": "    Minimum Travel Distance",
+                    "description": "The minimum travel distance to enforce a wipe. The minimum allowed is 'wipe distance + 1'.",
+                    "type": "float",
+                    "default_value": 2,
+                    "minimum_value": "wipe_before_hop_distance",
+                    "enabled": "enable_little_utilities and wipe_before_hop"
+                },
                 "kill_wipe":
                 {
-                    "label": "17) Kill wiping at layer",
+                    "label": "18) Kill wiping at layer",
                     "description": "This will comment out the first move after the last extrusion at the end of: TYPE:OUTER-WALL or TYPE:FILL or BOTH.  Only extruder 1 is checked to see if Wipe is enabled.  There can be issues if Wipe is enabled for some extruders and not for others.",
                     "type": "bool",
                     "default_value": false,
@@ -629,7 +698,7 @@ class LittleUtilities_v17(Script):
                 },
                 "temp_override_enable":
                 {
-                    "label": "18) 2X Print Temperatures",
+                    "label": "19) 2X Print Temperatures",
                     "description": "This provides an override to the 365° hot end temperature limit in Cura.  This script will DOUBLE the Cura temperature settings within the gcode.  EX: A print temperature of 225° in Cura will become 450° in the gcode.  For single extruder printers, all the hot end temperatures will be affected.  For multi-extruder printers, you may select to change the temperatures of 'T0', 'T1', or 'Both'.  Printers with mixing hot ends ('extruders share heater' and 'extruders share nozzle') and printers with more than 2 extruders are not supported.  This script allows print temperatures in the gcode for materials like PEEK.  The printer must be capable of handling such high temperatures.",
                     "type": "bool",
                     "default_value": false,
@@ -658,11 +727,11 @@ class LittleUtilities_v17(Script):
                 },
                 "init_walls_z_adjust_enable":
                 {
-                    "label": "17) Adjust the 'Initial Layer Height' for Walls",
+                    "label": "18) Adjust the 'Initial Layer Height' for Walls",
                     "description": "Enables the 'Initial Layer Height' for just the Inner and Outer Walls.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": true
+                    "enabled": "enable_little_utilities"
                 },
                 "init_walls_z_adjust":
                 {
@@ -671,7 +740,7 @@ class LittleUtilities_v17(Script):
                     "type": "float",
                     "unit": "mm ",
                     "default_value": -0.05,
-                    "enabled": "init_walls_z_adjust_enable"
+                    "enabled": "enable_little_utilities and init_walls_z_adjust_enable"
                 }
             }
         }"""
@@ -723,8 +792,12 @@ class LittleUtilities_v17(Script):
             self._data_num_and_line_nums(data)
         if self.getSettingValueByKey("temp_override_enable"):
             data = self._print_temp_change(data)
-        if self.getSettingValueByKey("init_walls_z_adjust"):
+        if self.getSettingValueByKey("init_walls_z_adjust_enable"):
             data = self._init_walls_z_adjust(data)
+        if self.getSettingValueByKey("alter_startup_enable"):
+            data = self._adjust_startup_gcode(data)
+        if self.getSettingValueByKey("wipe_before_hop"):
+            data = self._wipe_before_z_hop(data)
         data[1] = self.format_string(data[1])
         data[len(data) - 1] = self.format_string(data[len(data) - 1])
         return data
@@ -1944,4 +2017,106 @@ class LittleUtilities_v17(Script):
                 if line.startswith(";MESH:NONMESH"):
                     lines.insert(index+1,"M221 S100 ; Reset flow")
             data[layer_0 + 1] = "\n".join(lines)
-        return
+        return data
+
+    def _adjust_startup_gcode(self, data: str) -> str:
+        material = self.extruder[0].material.getMetaDataEntry("material", "")
+        if "TPU" in material:
+            steps = self.getSettingValueByKey("alter_startup_TPU")
+            matl = " ; Steps/mm for TPU"
+        elif material == "PETG":
+            steps = self.getSettingValueByKey("alter_startup_PETG")
+            matl = " ; Steps/mm for PETG"
+        elif material == "PLA":
+            steps = self.getSettingValueByKey("alter_startup_PLA")
+            matl = " ; Steps/mm for PLA"
+        else:
+            steps = self.getSettingValueByKey("alter_startup_default")
+            matl = " ; Steps/mm for All others"
+        if steps == None:
+            steps = self.getSettingValueByKey("alter_startup_default")
+            matl = " ; Steps/mm for Unknown matl"
+        build_plate_temp = self.global_stack.getProperty("material_bed_temperature_layer_0", "value")
+        lines = data[1].split("\n")
+        for index, line in enumerate(lines):
+            if "M92" in line:
+                lines[index] = f"M92 E{steps} {matl}"
+            if int(build_plate_temp) > 65:
+                if "M140" in line:
+                    lines.insert(index + 1, f"M104 S200 ; Standby Temp\nM190 S{build_plate_temp} ; Wait for build plate")
+        data[1] = "\n".join(lines)
+        return data
+
+    def _wipe_before_z_hop(self, data: str) -> str:
+        x_location = 0
+        y_location = 0
+        z_location = 0.2
+        # z_prev is used to ignore z-hop down moves.
+        z_prev = 0
+        regular_z_index = None
+        x_destination = None
+        y_destination = None
+        wipe_dist = self.getSettingValueByKey("wipe_before_hop_distance")
+        min_travel_dist = self.getSettingValueByKey("wipe_before_hop_min_travel")
+        if min_travel_dist < wipe_dist + 1:
+            min_travel_distance = wipe_dist + 1
+        for index, layer in enumerate(data):
+            lines = layer.split("\n")
+            for num, line in enumerate(lines):
+                if " X" in line and " Y" in line:
+                    # last_xy_index is the 'move from' location
+                    last_xy_index = num
+                    # last_loc_index is the input index for the wipe move
+                    last_loc_index = num
+                if " Z" in line:
+                    z_location = self.getValue(line, "Z")
+                if re.search("G1 F(\d+|\d.+) E(\d+)", line):
+                    # when there is a retraction the input location will be immediately after the retract line
+                    last_loc_index = num
+                if re.search("G1 F(\d+|\d.+) Z(\d+)", line):
+                    # when the z-hop is up then the wipe move will be inserted
+                    if z_location > z_prev:
+                        new_num = num + 1
+                        # keep checking to get the 'go to' location
+                        while x_destination is None or y_destination is None:
+                            if new_num > len(lines) - 1:
+                                break
+                            if " X" in lines[new_num]:
+                                x_destination = self.getValue(lines[new_num], "X")
+                            if " Y" in lines[new_num]:
+                                y_destination = self.getValue(lines[new_num], "Y")
+                            # if there is a Z in the line then ignore the X Y because they won't provide a vector.  Note the index so the line can be updated with the wipe-end X Y.
+                            if " Z" in lines[new_num]:
+                                regular_z_index = new_num
+                                x_destination = None
+                                y_destination = None                            
+                            new_num += 1
+                        # once we have the go to location then the wipe line can be calculated
+                        if x_destination and y_destination:
+                            x_location = self.getValue(lines[last_xy_index], "X")
+                            y_location = self.getValue(lines[last_xy_index], "Y")
+                            # get the sides of the triangle
+                            x_delta = x_destination - x_location
+                            y_delta = y_destination - y_location
+                            # calculate the hypotenuse
+                            hypotenuse = math.sqrt((x_delta**2) + (y_delta**2))
+                            # don't add a wipe if the travel is very short
+                            if hypotenuse < min_travel_dist:
+                                x_destination = None
+                                y_destination = None
+                                regular_z_index = None
+                                continue
+                            # Get the absolute points
+                            x_wipe = round(x_location + ((x_delta / hypotenuse) * wipe_dist), 3)
+                            y_wipe = round(y_location + ((y_delta / hypotenuse) * wipe_dist), 3)
+                            # Add the wipe move to the gcode just after the retraction.
+                            lines[last_loc_index] += f"\nG0 X{x_wipe} Y{y_wipe} ; Wipe before hop"
+                            # change the x y of the regular z-up line to the x y of the end of the wipe move so the nozzle doesn't shuffle back and forth
+                            if regular_z_index is not None:
+                                lines[regular_z_index] = re.sub("X(\d+.\d+) Y(\d+.\d+)", f"X{x_wipe} Y{y_wipe}", lines[regular_z_index])
+                                regular_z_index = None
+                            x_destination = None
+                            y_destination = None
+                z_prev = z_location
+            data[index] = "\n".join(lines)
+        return data
