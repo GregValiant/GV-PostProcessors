@@ -32,6 +32,8 @@ class DiscoverSettings(Script):
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
+                        "qidi": "QIDI Print",
+                        "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
                         "v5_72": "5.7.2",
@@ -41,7 +43,8 @@ class DiscoverSettings(Script):
                         "v5_5": "5.5.0",
                         "v5_4": "5.4.0",
                         "v5_2": "5.2.2",
-                        "v4_13": "4.13.1"
+                        "v4_13": "4.13.1",
+                        "v4_20_26": "4.20.26"
                         },
                     "default_value": "v5_6"
                 },
@@ -52,6 +55,8 @@ class DiscoverSettings(Script):
                     "type": "enum",
                     "options": {
                         "no_compare": "No Compare",
+                        "qidi": "QIDI Print",                        
+                        "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
                         "v5_72": "5.7.2",
                         "v5_71": "5.7.1",
@@ -60,7 +65,8 @@ class DiscoverSettings(Script):
                         "v5_5": "5.5.0",
                         "v5_4": "5.4.0",
                         "v5_2": "5.2.2",
-                        "v4_13": "4.13.1"
+                        "v4_13": "4.13.1",
+                        "v4_20_26": "4.20.26"
                         },
                     "default_value": "no_compare"
                 }
@@ -69,6 +75,10 @@ class DiscoverSettings(Script):
 
     def execute(self, data): #Application.getInstance().getPrintInformation().
         init_version = self.getSettingValueByKey("cura_version")
+        if init_version == "qidi":
+            init_path = r"C:\Program Files\Qidi Print 5.6\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_91":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_90":
             init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_81":
@@ -91,10 +101,16 @@ class DiscoverSettings(Script):
             init_path = r"C:\Program Files\Ultimaker Cura 4.13.1\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_7b":
             init_path = r"C:\Program Files\UltiMaker Cura 5.7.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
+        elif init_version == "v4_20_26":
+            init_path = r"C:\Program Files\Ultimaker Cura 4.20.26\resources\definitions\fdmprinter.def.json"
 
         compare_to_version = self.getSettingValueByKey("compare_to_version")
         if compare_to_version == "no_compare":
             ct_init_path = ""
+        elif compare_to_version == "qidi":
+            ct_init_path = r"C:\Program Files\Qidi Print 5.6\resources\definitions\fdmprinter.def.json"
+        if compare_to_version == "v5_90":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_81":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_72":
@@ -115,6 +131,8 @@ class DiscoverSettings(Script):
             ct_init_path = r"C:\Program Files\Ultimaker Cura 4.13.1\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_7b":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.7.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
+        elif compare_to_version == "v4_20_26":
+            ct_init_path = r"C:\Program Files\Ultimaker Cura 4.20.26\resources\definitions\fdmprinter.def.json"
 
         data[0] = "Cura Settings in version: " + str(init_version) + "\n"
         versions = [init_version]
