@@ -41,6 +41,7 @@ def main(lines):
             print("Exiting")
             final_file.close()
             exit(0)
+            
     # Get the preliminary settings from both the gcode and the user
     my_settings = get_post_settings()
     remove_m106 = bool(my_settings[0])
@@ -218,6 +219,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
             type_brim = fan_speed_feature_type("\n'TYPE:Brim'\n Enter the Fan speed (0% to 100%) for the Brim.\n")
         else:
             type_brim = type_skirt
+            
         type_support = fan_speed_feature_type(f"\n'{alias_supt}'\n Enter the Fan speed (0% to 100%) for the support structure.\n")
         type_support_interface = fan_speed_feature_type(f"\n'{alias_supt_inter}'\n Enter the Fan speed (0% to 100%) for the support interface.\n")
         type_wall_outer = fan_speed_feature_type(f"\n'{alias_wall_outer}'\n Enter the Fan speed (0% to 100%) for the outer walls.\n")
