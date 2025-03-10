@@ -70,7 +70,7 @@ def main():
         chg_line = "; CHANGE_LAYER"
         zee_line = "; Z_HEIGHT:"
 
-    # Prusa shows different layer counts depending on whether or not Supports are generated.
+    # The slicers show different layer counts depending on whether or not Supports are generated.
     if support_enabled:
         lay_num = with_supports_enabled(initial_layer_height, layer_height, chg_line)
     elif not support_enabled or support_enabled == None:
