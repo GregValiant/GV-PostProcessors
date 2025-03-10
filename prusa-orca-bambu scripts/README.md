@@ -8,7 +8,7 @@ PLEASE NOTE:
 
 PrusaSlicer, OrcaSlicer, and Bambu Studio require that the post processors are entered into the "Output Options" "Post-processing scripts" text box in this manner...
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
-The quotation marks are necessary on my installtion of Windows 10 Pro.
+The quotation marks are necessary on my installation of Windows 10 Pro.  For Linux or Mac you will need to adjust as needed.
 
 The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".
 The second part is the path and file name of the post-processor followed by a semi-colon.
@@ -16,7 +16,7 @@ Each post-processor requires the same form and must be on separate lines in the 
 For multiple post-processors the "Post-processing scripts" textbox would look something like this...
 
 *<path\python.exe><1space><path\post-processor file name><;>*
-Github is shortening this but each "path + post processor" should be on a single line.  
+Github is shortening this but each "path + post processor" should be on a single line.  (It will look odd in the short textboxes of Orca and Bambu.)
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
@@ -52,40 +52,43 @@ The review will include the settings:
  
 **Advanced Fan Control**  
 Requires "Add Layer Numbers" to run before it.
-Currently this is set up for single fans.  If there is interest, additional fan circuits could be added.  That is a PITA.
+For multi-extruders two fan circuits are supported.
 The two main options are "By Feature" (works well for large models) and "By Layer".
-The first option is "Fan speed by PWM or by RepRap scale 0-1".  Most printers us PWM.
+The first option is "Fan speed by PWM or by RepRap scale 0-1".  Most printers use PWM.
 *By Layer*
 Enter the layer numbers and corresponding fan speeds as "5/35" where 5 would be the layer number and 35 would be the fan percentage.  Multiple layers and speeds may be entered by delimiting with a comma.  For example:  5/35,20/100,35/50,75/100 would bounce the fan speed from 35% to 100% to 50% to 75% at the various layers.  This works well with smaller models as the fans don't react instanteously.
 *By Feature*
 Allows you to set fan speeds starting at a layer of your choice, and continuing to a layer of your choice.  Each defined "TYPE" in the gcode can have a different fan speed.
 The top of a raft can be cooled and then the fan will shut off when the top surface of the raft finished.
-The fan can be shut off for "wipes" but doing so will add a _LOT_ of lines to the gcode file.
-If your fan control ends before the top layer of the print, you can select the "final fan speed" that will carry through to the end.
+If your fan control ends before the top layer of the print, you can select the "final fan speed" that will carry through to the end of the print.
 
-This settings example is from "By Feature"
+This example of the settings is from "By Feature"
 
 Review your fan settings:  
 
-Use normal PWM fan scale (0 to 255)  
-Start Layer (model starts on ';Layer:1' in the Gcode): 5  
-End Layer in the Gcode...............................: 32  
-TYPE:External Perimeter..............................: 100%  
-TYPE:Perimeter.......................................: 35%  
-TYPE:Top solid infill................................: 50%  
-TYPE:Solid infill....................................: 35%  
-TYPE:Bridge infill...................................: 100%  
-TYPE:Internal infill.................................: 50%  
-TYPE:Skirt/Brim......................................: 0%  
-TYPE:Support.........................................: 35%  
-TYPE:Support interface...............................: 100%  
-Fan off during travel................................: False  
-Final Fan speed (above the End Layer)................: 75%  
-Top-of-Raft fan speed................................: 80%  
+"Fan Scale (PMW 0 to 255 or RepRap 0 to 1)"
+"Start Layer"
+"End Layer"
+"alias_bed_adhesion_skirt"
+"alias_bed_adhesion_brim"
+"alias_wall_outer"
+"alias_wall_inner"
+"alias_top_skin"
+"alias_mid_skin"
+"alias_btm_skin"
+"alias_bridge"
+"alias_internal_bridge"
+"alias_overhang_wall"
+"alias_infill"
+"alias_support"
+"alias_support_interface"
+"Final Fan speed"
+"Bambu Auxiliary Fan"
+"Bambu Chamber Fan"
  <Continue(y,n) or Redo(r)>  
  
  Entering an "r" will allow you to go back through and change things.
- There are additional settings for Bambu printers that will allow control of the Aux and Chamber fans.  The settings will come up whether those fans exist on the printer or not.  The script makes no attempt to determine specific printer models.
+The script makes no attempt to determine specific printer models but the Aux Fan and Chamber fan are available in Bambu Studio.
  
  **Time Lapse Camera**  
  This requires 'Add Layer Numbers' to run first.
