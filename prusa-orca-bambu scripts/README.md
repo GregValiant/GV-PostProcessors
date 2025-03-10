@@ -66,28 +66,28 @@ This example of the settings is from "By Feature"
 
 Review your fan settings:  
 
-"Fan Scale (PMW 0 to 255 or RepRap 0 to 1)"
-"Start Layer"
-"End Layer"
-"alias_bed_adhesion_skirt"
-"alias_bed_adhesion_brim"
-"alias_wall_outer"
-"alias_wall_inner"
-"alias_top_skin"
-"alias_mid_skin"
-"alias_btm_skin"
-"alias_bridge"
-"alias_internal_bridge"
-"alias_overhang_wall"
-"alias_infill"
-"alias_support"
-"alias_support_interface"
-"Final Fan speed"
-"Bambu Auxiliary Fan"
-"Bambu Chamber Fan"
+"Fan Scale (PMW 0 to 255 or RepRap 0 to 1)"  
+"Start Layer"  
+"End Layer"  
+"alias_bed_adhesion_skirt"  
+"alias_bed_adhesion_brim"  
+"alias_wall_outer"  
+"alias_wall_inner"  
+"alias_top_skin"  
+"alias_mid_skin"  
+"alias_btm_skin"  
+"alias_bridge"  
+"alias_internal_bridge"  
+"alias_overhang_wall"  
+"alias_infill"  
+"alias_support"  
+"alias_support_interface"  
+"Final Fan speed"  
+"Bambu Auxiliary Fan"  
+"Bambu Chamber Fan"  
  <Continue(y,n) or Redo(r)>  
  
- Entering an "r" will allow you to go back through and change things.
+Entering an "r" will allow you to go back through and change things.  
 The script makes no attempt to determine specific printer models but the Aux Fan and Chamber fan are available in Bambu Studio.
  
  **Time Lapse Camera**  
