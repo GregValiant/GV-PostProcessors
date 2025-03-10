@@ -87,8 +87,9 @@ for index, line in enumerate(lines):
     if "; estimated printing time (normal mode) =" in line:
         print_time = line.split("= ")[1].strip()
     # Get the end of the print
-    if "M84" in line or "M18" in line:
+    if ("M84" in line or "M18" in line) and not "end_gcode" in line:
         startup_end_list.append(index)
+        lines[index] += ";End of Gcode\n"
 
 enable_script = "r"
 while enable_script == "r":
@@ -177,7 +178,7 @@ def main(lines):
     by_line = ";     Post Processed by Greg Valiant's [Display Info] for Prusa/Orca/Bambu\n"
     for index, line in enumerate(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
-            lines.insert(index, by_line)
+            lines[index - 1] += by_line
             break
     slice_time = convert_time_string(print_time)
     slice_time = round(slice_time * time_fudge_factor)
@@ -218,7 +219,7 @@ def display_progress(lines, percentage_list):
         m73_percent = True
     if add_m73_line:
         lines[startup_end_list[0]] = "M75\n" + lines[startup_end_list[0]]
-        lines[startup_end_list[len(startup_end_list) - 2]] += "M77\n"
+        lines[startup_end_list[len(startup_end_list) - 3]] += "M77\n"
 
     # Initialize some variables
     first_layer_index = start_index
@@ -246,7 +247,7 @@ def display_progress(lines, percentage_list):
             m73_str += " R{}".format(mins)
         if m73_percent:
             m73_str += " P0"
-        lines.insert(tindex + 4, "M73" + m73_str + "\n")
+        lines[tindex + 3] += "M73" + m73_str + "\n"
     # If Countdown to pause is enabled then count the pauses
     pause_str = ""
     if enable_countdown:
@@ -268,7 +269,7 @@ def display_progress(lines, percentage_list):
         else:
             pause_str = ""
             # This line goes in to convert seconds to hours and minutes
-            lines.insert(tindex + 1, f";Cura Time Estimate: {orig_hr}hr {orig_mmm}min {pause_str}")
+            lines[tindex] += f";{slicer_name} Time Estimate: {orig_hr}hr {orig_mmm}min {pause_str}"
             lines[0] = "\n".join(lines)
             if add_m117_line:
                 lines[len(lines)-1] += "M117 Orig Cura Est " + str(orig_hr) + "hr " + str(orig_mmm) + "min\n"
@@ -278,8 +279,7 @@ def display_progress(lines, percentage_list):
         base_display_text = "layer "
     else:
         base_display_text = ""
-    lines[layer_change_index_list[len(layer_change_index_list) - 1]] += ";End of Gcode" + "\n"
-    #current_layer = 0
+    
     for index, layer in enumerate(layer_change_index_list):
         current_layer = index + 1
         display_text = base_display_text
@@ -302,7 +302,6 @@ def display_progress(lines, percentage_list):
             else:
                 time_remaining_display += str(m) + "m"
             display_text += time_remaining_display
-            # find time_elapsed at the end of the layer (used to calculate the remaining time of the next layer)
 
         if add_m117_line and index < len(layer_change_index_list):
             lines[layer] += "M117 " + display_text + "\n"
@@ -318,10 +317,6 @@ def display_progress(lines, percentage_list):
             if m73_percent:
                 m73_str += " P" + str(round(int(current_layer) / int(layer_count) * 100))
             lines[layer] = "M73 " + m73_str + "\n" + lines[layer]
-
-    # If enabled then change the ET to TP for 'Time To Pause'
-    #if enable_countdown:
-
     return lines
 
 def convert_time_string(print_time: str) -> int:
