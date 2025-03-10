@@ -21,6 +21,8 @@ Github is shortening this but each "path + post processor" should be on a single
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
 
+*I keep a simple text file with the above lines in it.  When I need to use a script, I open that file and copy the line and paste it into the post-processor box of the slicer.*  
+
 As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.
 
 2/25/2025  Added the Display Layer and ET script.  
