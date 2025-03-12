@@ -45,31 +45,26 @@ def main():
             break
 
     # Start to do the actual post-processing
-    if slicer_name != "Bambu":
-        for line in lines:
-            if "; first_layer_height =" in line:
-                initial_layer_height = line.split("= ")[1]
-            if "; layer_height =" in line:
-                layer_height = line.split("= ")[1]
-            if "; support_material =" in line or "; enable_support =" in line:
-                support_enabled = bool(int(line.split("= ")[1][:-1]))
+    if slicer_name in ["Prusa", "Orca"]:
         hgt_line = ";HEIGHT:"
         wdt_line = ";WIDTH:"
         chg_line = ";LAYER_CHANGE"
         zee_line = ";Z:"
     elif slicer_name == "Bambu":
-        for line in lines:
-            if "; initial_layer_print_height =" in line:
-                initial_layer_height = line.split("= ")[1]
-            if "; layer_height =" in line:
-                layer_height = line.split("= ")[1]
-            if "; enable_support =" in line:
-                support_enabled = bool(int(line.split("= ")[1][:-1]))
         hgt_line = "; Z_HEIGHT:"
         wdt_line = "; LINE_WIDTH:"
         chg_line = "; CHANGE_LAYER"
-        zee_line = "; Z_HEIGHT:"
+        zee_line = "; Z_HEIGHT:"       
 
+    if slicer_name == "Prusa":
+        initial_layer_height = float(os.environ["SLIC3R_FIRST_LAYER_HEIGHT"])
+        layer_height = float(os.environ["SLIC3R_LAYER_HEIGHT"])
+        support_enabled = bool(int(os.environ["SLIC3R_SUPPORT_MATERIAL"]))
+    else:
+        initial_layer_height = float(os.environ["SLIC3R_INITIAL_LAYER_PRINT_HEIGHT"])
+        layer_height = float(os.environ["SLIC3R_LAYER_HEIGHT"])
+        support_enabled = bool(int(os.environ["SLIC3R_ENABLE_SUPPORT"]))
+                
     # The slicers show different layer counts depending on whether or not Supports are generated.
     if support_enabled:
         lay_num = with_supports_enabled(initial_layer_height, layer_height, chg_line)
@@ -86,7 +81,7 @@ def main():
             wdt = float(line.split(":")[1])
             lines[index] = f"{wdt_line}{round(wdt, 2)}\n"
         # Remove blank lines
-        if line == "\n":
+        if line == "\n" or line == "\n\n":
             lines[index] = ""
     for index, line in enumerate(lines):
         if chg_line in line:
@@ -94,7 +89,7 @@ def main():
             break
             
     # Inform the user of the layer count
-    input("\n " + str(lay_num - 1) + " 'Layer:' lines were added.\n <enter> to continue\n")
+    input("\n " + str(lay_num - 1) + " 'Layer:' lines were added.\n <enter to continue>\n")
     # Create the destination file and write the new code to it
 
     # Send the file back to the slicer as it was received, with each line a separate item in the lines list
