@@ -416,7 +416,7 @@ def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, 
             start_index = index
         if line == f";Layer:{int(end_layer) + 1}\n":
             end_index = index
-        if "end gcode" in line:
+        if "; EXECUTABLE_BLOCK_END" in line or "M84" in line:
             last_index = index
     if end_index == None:
         end_index = last_index
