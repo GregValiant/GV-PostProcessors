@@ -1,12 +1,14 @@
-# Copyright (c) 2025 GregValiant (Greg Foresi)
-#  Suitable to Prusa, Orca, and Bambu slicers
-# This script will:
-#    Add layer number lines below the "LAYER_CHANGE" lines.  The layer numbers coincide with the preview layers which can changed depending on whether or not supports are enabled.
-#    Because of the variance in the layer count in the slicers, you should check your gcode to insure it is correct.
-#    In addition to adding 'Layer: lines, the script will:
-#       Remove empty lines.
-#       Round the HEIGHT numbers to 3 decimal places and the WIPE numbers to 2 decimal places.
+'''
+        Copyright (c) 2025 GregValiant (Greg Foresi)
+    Suitable to Prusa, Orca, and Bambu slicers
+    This script will:
+    Add layer number lines below the "LAYER_CHANGE" lines or ("CHANGE_LAYER" lines in Bambu).  The layer numbers coincide with the preview layers which can changed depending on whether or not supports are enabled.
+    NOTE:  Some printer profiles have ";Layer{layer_number+1}" in the layer change code in the slicer.  That should be removed.  Those numbers are added after post-processing and so this script must be used in stead.
 
+    In addition to adding 'Layer: lines, the script will:
+        Remove empty lines.
+        Round the HEIGHT numbers to 3 decimal places and the WIPE numbers to 2 decimal places.
+'''
 import sys
 import os
 

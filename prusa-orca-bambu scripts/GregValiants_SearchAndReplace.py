@@ -57,7 +57,7 @@ def main():
 
     data_list = [0]
     for index, line in enumerate(lines):
-        if ";TYPE:Custom" in line or "; CHANGE_LAYER" in line:
+        if ";TYPE:Custom" in line or "; EXECUTABLE_BLOCK_START" in line:
             data_list.append(index)
             break
 
@@ -71,12 +71,14 @@ def main():
         if ";Layer:" in lines[num]:
             data_list.append(num + 1)
             continue
-        elif ";END gcode" in lines[num] or "; filament end gcode" in lines[num]:
+        elif "; EXECUTABLE_BLOCK_END" in lines[num] or "M84" in lines[num]:
             data_list.append(num + 1)
-            continue
-        elif "M84" in lines[num] or "printer finish" in lines[num]:
-            data_list.append(num + 2)
             break
+    for num in range(data_list[len(data_list)-1], data_list[len(data_list) -2], -1):
+        if ";TYPE:Custom" in lines[num] or "; FEATURE: Custom" in lines[num]:
+            data_list.insert(len(data_list)-1, num)
+            break
+
     try:
         if start_layer == 1:
             if ignore_startup:

@@ -531,11 +531,30 @@ def get_slicer_settings(lines):
     
     speed_unload = int(os.environ[machine_max_speed_e_var]) * 60
     
-    bed_shape = str(os.environ[machine_bed_size_var])
-    bed_min_x = int(bed_shape.split(",")[0].split("x")[0])
-    bed_max_x = int(bed_shape.split(",")[2].split("x")[0])
-    bed_min_y = int(bed_shape.split(",")[0].split("x")[1])
-    bed_max_y = int(bed_shape.split(",")[2].split("x")[1])
+    bed_size = str(os.environ[machine_bed_size_var])
+    bed_list = bed_size.split(",")
+    if len(bed_list) > 4:
+        bed_shape = "elliptic"
+        prev_x = 0
+        prev_y = 0
+        for coord in bed_list:
+            x = float(coord.split("x")[0])
+            y = float(coord.split("x")[1])
+            if x > prev_x:
+                prev_x = x
+            if y > prev_y:
+                prev_y = y
+        bed_min_x = -abs(prev_x)
+        bed_max_x = abs(prev_x)
+        bed_min_y = -abs(prev_y)
+        bed_max_y = abs(prev_y)
+    else:
+        bed_shape = "rectangle"
+        bed_min_x = bed_size.split(",")[0].split("x")[0]
+        bed_max_x = bed_size.split(",")[2].split("x")[0]
+        bed_min_y = bed_size.split(",")[0].split("x")[1]
+        bed_max_y = bed_size.split(",")[2].split("x")[1]
+    
     bed_max_z = int(os.environ[machine_max_z_var])
 
     z_hop_ext_0 = float(os.environ[z_hop_height_var].split(",")[0])

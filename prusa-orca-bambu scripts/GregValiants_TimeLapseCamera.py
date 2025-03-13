@@ -75,11 +75,29 @@ if len(retract_length_list) > 1:
         retract_length_ext_1 = 0.0
         retract_enabled_ext_1 = False
 
-bed_shape = (str(os.environ["SLIC3R_BED_SHAPE"])) if slicer_name == "Prusa" else (str(os.environ["SLIC3R_PRINTABLE_AREA"]))
-bed_min_x = bed_shape.split(",")[0].split("x")[0]
-bed_max_x = bed_shape.split(",")[2].split("x")[0]
-bed_min_y = bed_shape.split(",")[0].split("x")[1]
-bed_max_y = bed_shape.split(",")[2].split("x")[1]
+bed_size = (str(os.environ["SLIC3R_BED_SHAPE"])) if slicer_name == "Prusa" else (str(os.environ["SLIC3R_PRINTABLE_AREA"]))
+bed_list = bed_size.split(",")
+if len(bed_list) > 4:
+    bed_shape = "elliptic"
+    prev_x = 0
+    prev_y = 0
+    for coord in bed_list:
+        x = float(coord.split("x")[0])
+        y = float(coord.split("x")[1])
+        if x > prev_x:
+            prev_x = x
+        if y > prev_y:
+            prev_y = y
+    bed_min_x = -abs(prev_x)
+    bed_max_x = abs(prev_x)
+    bed_min_y = -abs(prev_y)
+    bed_max_y = abs(prev_y)
+else:
+    bed_shape = "rectangle"
+    bed_min_x = bed_size.split(",")[0].split("x")[0]
+    bed_max_x = bed_size.split(",")[2].split("x")[0]
+    bed_min_y = bed_size.split(",")[0].split("x")[1]
+    bed_max_y = bed_size.split(",")[2].split("x")[1]
     
 if retract_length_ext_0 > 0:
     retract_enabled = True
@@ -223,7 +241,7 @@ while response == "r":
 data_list = [0]
 # Startup
 for index, line in enumerate(lines):
-    if ";TYPE:Custom" in line or "; FEATURE: Custom" in line:
+    if ";TYPE:Custom" in line or "; EXECUTABLE_BLOCK_START" in line:
         data_list.append(index)
         break
 # Initial layer
@@ -234,13 +252,15 @@ for num in range(data_list[1], len(lines) - 1):
         
 layers_index = data_list[2] + 1
 for num in range(layers_index, len(lines) - 1):
-    # The other layers
     if ";Layer:" in lines[num]:
         data_list.append(num + 1)
         continue
-    # The last line of the actual gcode.
-    elif lines[num].startswith("M84"):
-        data_list.append(num + 2)
+    elif "; EXECUTABLE_BLOCK_END" in lines[num] or "M84" in lines[num]:
+        data_list.append(num + 1)
+        break
+for num in range(data_list[len(data_list)-1], data_list[len(data_list) -2], -1):
+    if ";TYPE:Custom" in lines[num] or "; FEATURE: Custom" in lines[num]:
+        data_list.insert(len(data_list)-1, num)
         break
 
 # Initialize some variables
