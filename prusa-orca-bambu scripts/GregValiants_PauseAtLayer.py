@@ -8,6 +8,7 @@ import re
 import os
 
 sourceFile = sys.argv[1]
+#sourceFile = "C:/Users/grego/Documents/Creality/gcode/PrusaShape.gcode"
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 
@@ -30,7 +31,7 @@ while response == "r":
         response = "r"
 if response == "n":
     final_file.close()
-    exit(0)
+    exit(0)    
 
 # Initialize some variables
 fan_speed_0_to_1 = False
@@ -47,8 +48,9 @@ def main(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines.insert(index, by_line)
             break
-    # Get slicer settings from gcode
-    slicer_settings = get_slicer_settings(lines)
+            
+    # Get slicer settings from slicer   
+    slicer_settings = get_slicer_settings(lines)    
     # Assign to variables
     relative_extrusion = slicer_settings[0]
     retract_enabled_ext_0 = slicer_settings[1]
@@ -158,7 +160,7 @@ def main(lines):
                 gcode_after = gcode_after[0].upper() + gcode_after[1:] + " ; Custom code after pause"
         beep_length = 1500
 
-        # Follow values in the gcode
+        # Track values in the gcode
         current_z = initial_layer_height
         current_layer = 1
         got_first_g_cmd_on_layer_0 = False
@@ -246,16 +248,16 @@ def main(lines):
                 start_retracted = start_at[3]
                 prev_layer = f"G1 F{speed_travel}\nG1 X{start_at_x} Y{start_at_y}\nG92 E{start_at_e}\n{prev_layer}"
                 redo_layer_str = prev_layer + redo_layer_flow_reset
-
+                
             # Start putting together the pause string 'prepend_gcode'
             prepend_gcode = f";TYPE:CUSTOM---------------; Pause before the start of layer {current_layer}\n"
             # Retraction
             prepend_gcode += "M83 ; Relative extrusion\n"
-            if not is_retracted and retract_enabled_ext_0:
+            if not is_retracted and retract_enabled:
                 if firmware_retract:
                     prepend_gcode += "G10\n"
                 else:
-                    prepend_gcode += f"G1 F{retract_speed_ext_0} E-{retract_length} ; Retract\n"
+                    prepend_gcode += f"G1 F{retract_speed} E-{retract_length} ; Retract\n"
             if head_park_enable:
                 # Move the head to the park location
                 if current_z + move_z > bed_max_z:
@@ -265,8 +267,8 @@ def main(lines):
                 if current_z < move_z:
                     prepend_gcode += f"G1 F{speed_z_hop} Z{round(current_z + move_z, 2)} ; Move up to clear the print\n"
                 if current_z < min_purge_clearance - move_z:
-                    prepend_gcode += f"G1 F{speed_z_hop} Z{min_purge_clearance} ; Minimum clearance" + str(" to purge" if purge_amount != 0 and reason_for_pause == 'Filament Change' else "") + " - move up some more\n"
-
+                    prepend_gcode += f"G1 F{speed_z_hop} Z{min_purge_clearance} ; Minimum clearance" + str(" to purge" if purge_amount != 0 and reason_for_pause == 'Filament Change' else "") + " - move up some more\n"            
+            
             # 'Unload' and 'purge' are only available if there is a filament change.
             if reason_for_pause == "reason_filament" and int(unload_amount) > 0:
                 # If it's a filament change then insert any 'unload' commands
@@ -286,7 +288,7 @@ def main(lines):
                         prepend_gcode += f"G1 F{int(speed_unload)} E-{temp_unload} ; Unload the remainder\n"
                 else:
                     prepend_gcode += f"G1 E{-unload_amount} F{int(speed_unload)} ; Unload\n"
-
+            
             # Set extruder standby temperature
             if control_temperatures:
                 prepend_gcode += f"M104 S{round(standby_temperature)} ; Standby temperature\n"
@@ -296,8 +298,8 @@ def main(lines):
                     if display_text_list[p_index] != "":
                         prepend_gcode += f"M117 {display_text_list[p_index]} ; Message to LCD\n"
                 except:
-                    pass
-
+                    pass            
+           
             # Set the disarm timeout
             if hold_steppers_on:
                 prepend_gcode += f"M84 S{disarm_timeout}"
@@ -320,7 +322,7 @@ def main(lines):
                         prepend_gcode += f"M118 {display_text_list[p_index]} ; Message to print server\n"
                 except:
                     pass
-
+                    
             # Add the pause command
             temp_cmd = pause_method
             if temp_cmd == "M0 w/message":
@@ -453,6 +455,7 @@ def main(lines):
     # Write the new file
     print("Writing File...")
     dest_file = open(sourceFile, "w+")
+    #dest_file = open("C:/Users/grego/Documents/Creality/gcode/PrusaOutput.gcode", "w+")
     for line in lines:
         dest_file.write(line)
     dest_file.close()
@@ -470,91 +473,82 @@ def get_slicer_settings(lines):
             slicer_name = "Bambu"
         if ";Layer:" in line:
             layer_count += 1
-        if "; use_relative_e_distances =" in line:
-            relative_extrusion_str = line.split("= ")[1][:-1]
-            if relative_extrusion_str == "0":
-                relative_extrusion = False
-            else:
-                relative_extrusion = True
-        if "; retract_speed =" in line or "; retraction_speed =" in line:
-            retract_speed_str = line.split("= ")[1][:-1]
-            retract_speed_list = retract_speed_str.split(",")
-            retract_speed_ext_0 = int(retract_speed_list[0]) * 60
-            retract_enabled_ext_0 = bool(retract_speed_ext_0)
-            retract_enabled_ext_1 = False
-            retract_speed_ext_1 = 0
-            if len(retract_speed_list) > 1:
-                retract_speed_ext_1 = int(retract_speed_list[1]) * 60
-                retract_enabled_ext_1 = bool(retract_speed_ext_1)
-            extruder_count = len(retract_speed_list)
-        if "; deretract_speed =" in line or "; deretraction_speed =" in line:
-            deretract_speed_str = line.split("= ")[1][:-1]
-            deretract_speed_list = deretract_speed_str.split(",")
-            deretract_speed_ext_0 = int(deretract_speed_list[0]) * 60
-            deretract_speed_ext_1 = 0
-            if len(deretract_speed_list) > 1:
-                deretract_speed_ext_1 = int(deretract_speed_list[1]) * 60
-        if "; filament_retract_length =" in line or "; retraction_length =" in line:
-            retract_length_str = line.split("= ")[1][:-1]
-            retract_length_list = retract_length_str.split(",")
-            if retract_length_list[0] != "nil":
-                retract_length_ext_0 = round(float(retract_length_list[0]), 2)
-                retract_enabled_ext_0 = True
-            else:
-                retract_length_ext_0 = 0.0
-                retract_enabled_ext_0 = False
-            retract_length_ext_1 = 0.0
-            if len(retract_length_list) > 1:
-                if retract_length_list[1] != "nil":
-                    retract_length_ext_1 = round(float(retract_length_list[1]), 2)
-                    retract_enabled_ext_1 = True
-                else:
-                    retract_length_ext_1 = 0.0
-                    retract_enabled_ext_1 = False
-        if "; use_firmware_retraction" in line:
-            firmware_retract_str = int(line.split("= ")[1][:-1])
-            if firmware_retract_str == 0:
-                firmware_retract = False
-            elif firmware_retract_str == 1:
-                firmware_retract = True
-        if "; travel_speed =" in line:
-            speed_travel = int(line.split("= ")[1][:-1]) * 60
-        if "; filament_unloading_speed =" in line:
-            if "," in line:
-                filament_unload_speed_list = line.split("= ")[1].split(",")
-                speed_unload = int(filament_unload_speed_list[0]) * 60
-            else:
-                speed_unload = int(line.split("= ")[1][:-1]) * 60
-        if "; bed_shape =" in line or "; printable_area =" in line:
-            bed_shape = line.split("= ")[1]
-            bed_min_x = bed_shape.split(",")[0].split("x")[0]
-            bed_max_x = bed_shape.split(",")[2].split("x")[0]
-            bed_min_y = bed_shape.split(",")[0].split("x")[1]
-            bed_max_y = bed_shape.split(",")[2].split("x")[1]
-        if "; max_print_height =" in line or "; printable_height =" in line:
-            bed_max_z = int(line.split("= ")[1][:-1])
-        if "; nozzle_diameter =" in line:
-            nozzle_size_str = line.split("= ")[1][:-1]
-            nozzle_size_list = nozzle_size_str.split(",")
-            nozzle_size = float(nozzle_size_list[0])
-        if "; first_layer_height =" in line or "; initial_layer_print_height =" in line:
-            initial_layer_height = float(line.split("= ")[1])
-        if "; layer_height =" in line:
-            layer_height = float(line.split("= ")[1][:-1])
-        if "; retract_lift =" in line or "; z_hop =" in line:
-            z_hop_str = line.split("= ")[1][:-1]
-            z_hop_list = z_hop_str.split(",")
-            z_hop_ext_0 = float(z_hop_list[0])
-            z_hop_ext_1 = 0.0
-            if len(z_hop_list) > 1:
-                z_hop_ext_1 = float(z_hop_list[1])
-        if "; temperature =" in line or "; nozzle_temperature =" in line:
-            temperature_str = line.split("= ")[1][:-1]
-            temperature_list = temperature_str.split(",")
-            temperature_ext_0 = round(float(temperature_list[0]))
-            temperature_ext_1 = 0
-            if len(temperature_list) > 1:
-                temperature_ext_1 = round(float(temperature_list[1]))
+            
+    retract_enabled_ext_0 = False
+    retract_enabled_ext_1 = False
+    retract_speed_ext_1 = 0
+    deretract_speed_ext_1 = 0
+    retract_length_ext_1 = 0
+    z_hop_ext_1 = 0
+    z_hop_enabled_ext_1 = False
+    temperature_ext_1 = 0
+    relative_extrusion = bool(int(os.environ["SLIC3R_USE_RELATIVE_E_DISTANCES"]))
+    firmware_retract = bool(int(os.environ["SLIC3R_USE_FIRMWARE_RETRACTION"]))
+    speed_travel = int(os.environ["SLIC3R_TRAVEL_SPEED"]) * 60
+    layer_height = float(os.environ["SLIC3R_LAYER_HEIGHT"])        
+    nozzle_size = float(os.environ["SLIC3R_NOZZLE_DIAMETER"].split(",")[0])
+
+    if slicer_name == "Prusa":
+        retract_dist_var = "SLIC3R_RETRACT_LENGTH"
+        retract_speed_var = "SLIC3R_RETRACT_SPEED"
+        deretract_speed_var = "SLIC3R_DERETRACT_SPEED"
+        initial_layer_height_var = "SLIC3R_FIRST_LAYER_HEIGHT"
+        machine_max_z_var = "SLIC3R_MAX_PRINT_HEIGHT"
+        print_temp_var = "SLIC3R_TEMPERATURE"
+        machine_max_speed_e_var = "SLIC3R_MACHINE_MAX_FEEDRATE_E"
+        machine_bed_size_var = "SLIC3R_BED_SHAPE"
+        machine_max_z_var = "SLIC3R_MAX_PRINT_HEIGHT"
+        z_hop_height_var = "SLIC3R_RETRACT_LIFT"
+    else:
+        retract_dist_var = "SLIC3R_RETRACTION_SPEED"
+        retract_speed_var = "SLIC3R_RETRACTION_SPEED"
+        deretract_speed_var = "SLIC3R_DERETRACTION_SPEED"
+        initial_layer_height_var = "SLIC3R_INITIAL_LAYER_PRINT_HEIGHT"
+        machine_max_z_var = "SLIC3R_PRINTABLE_HEIGHT"
+        print_temp_var = "SLIC3R_NOZZLE_TEMPERATURE"
+        machine_max_speed_e_var = "SLIC3R_MACHINE_MAX_SPEED_E"
+        machine_bed_size_var = "SLIC3R_PRINTABLE_AREA"
+        machine_max_z_var = "SLIC3R_PRINTABLE_HEIGHT"
+        z_hop_height_var = "SLIC3R_Z_HOP"
+        
+    retract_speed_ext_0 = os.environ[retract_speed_var].split(",")[0]
+    extruder_count = 1
+    if retract_speed_ext_0 != 0:
+        retract_enabled_ext_0 = True
+    if "," in os.environ[retract_speed_var]:
+        retract_speed_ext_1 = os.environ[retract_speed_var].split(",")[1]
+        extruder_count = 2
+        if retract_speed_ext_1 != 0:
+            retract_enabled_ext_1 = True
+
+    retract_length_ext_0 = float(os.environ[retract_dist_var].split(",")[0])
+    if "," in os.environ[retract_dist_var]:
+        retract_length_ext_1 = float(os.environ[retract_dist_var].split(",")[1])
+    
+    deretract_speed_ext_0 = int(os.environ[deretract_speed_var].split(",")[0]) * 60
+    if "," in os.environ[deretract_speed_var]:
+        deretract_speed_ext_1 = int(os.environ[deretract_speed_var].split(",")[0]) * 60
+    
+    speed_unload = int(os.environ[machine_max_speed_e_var]) * 60
+    
+    bed_shape = str(os.environ[machine_bed_size_var])
+    bed_min_x = int(bed_shape.split(",")[0].split("x")[0])
+    bed_max_x = int(bed_shape.split(",")[2].split("x")[0])
+    bed_min_y = int(bed_shape.split(",")[0].split("x")[1])
+    bed_max_y = int(bed_shape.split(",")[2].split("x")[1])
+    bed_max_z = int(os.environ[machine_max_z_var])
+
+    z_hop_ext_0 = float(os.environ[z_hop_height_var].split(",")[0])
+    z_hop_enabled_ext_0 = False if z_hop_ext_0 == 0.0 else True
+    if "," in os.environ[z_hop_height_var]:
+        z_hop_ext_1 = float(os.environ[z_hop_height_var].split(",")[1])
+        z_hop_enabled_ext_1 = False if z_hop_ext_1 == 0.0 else True
+    temperature_ext_0 = str(os.environ[print_temp_var]).split(",")[0]
+    if "," in os.environ[print_temp_var]:
+        temperature_ext_1 = str(os.environ[print_temp_var]).split(",")[1]
+    
+    initial_layer_height = float(os.environ[initial_layer_height_var])
+
     if retract_length_ext_0 > 0:
         retract_enabled = True
     else:
@@ -562,6 +556,7 @@ def get_slicer_settings(lines):
     if speed_unload == None:
         speed_unload = 3000
     speed_z_hop = 1200
+
     return [
         relative_extrusion, #0
         retract_enabled_ext_0,
