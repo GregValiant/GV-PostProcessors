@@ -28,6 +28,7 @@ As each post-processor runs it will open a command window and you will be asked 
 2/25/2025  Added the Display Layer and ET script.  
 3/1/2025   Added Pause at Layer.  
 3/4/2025   Added Insert at Layer Change  
+3/12 and 3/13/2025  Adjusted scripts to utilize variables from the slicers (instead of parsing the gcode).  Improved performance.  
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**  
