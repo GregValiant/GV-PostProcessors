@@ -511,12 +511,12 @@ def get_slicer_settings(lines):
         machine_max_z_var = "SLIC3R_PRINTABLE_HEIGHT"
         z_hop_height_var = "SLIC3R_Z_HOP"
         
-    retract_speed_ext_0 = os.environ[retract_speed_var].split(",")[0]
+    retract_speed_ext_0 = int(os.environ[retract_speed_var].split(",")[0]) * 60
     extruder_count = 1
     if retract_speed_ext_0 != 0:
         retract_enabled_ext_0 = True
     if "," in os.environ[retract_speed_var]:
-        retract_speed_ext_1 = os.environ[retract_speed_var].split(",")[1]
+        retract_speed_ext_1 = int(os.environ[retract_speed_var].split(",")[1]) * 60
         extruder_count = 2
         if retract_speed_ext_1 != 0:
             retract_enabled_ext_1 = True
