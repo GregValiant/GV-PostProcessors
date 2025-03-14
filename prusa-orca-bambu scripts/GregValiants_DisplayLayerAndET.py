@@ -70,7 +70,7 @@ for index, line in enumerate(lines):
     if ";TYPE:Custom" in line or "; EXECUTABLE_BLOCK_START" in line:
         startup_end_list.append(index)
         # Layer lines are added by the AddLayerNumbers post-processor
-    if ";Layer:" in line:
+    if ";Layer#:" in line:
         layer_count += 1
         layer_change_index_list.append(index)
         continue

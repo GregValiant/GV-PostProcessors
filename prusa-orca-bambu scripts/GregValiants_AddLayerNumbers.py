@@ -3,7 +3,7 @@
     Suitable to Prusa, Orca, and Bambu slicers
     This script will:
     Add layer number lines below the "LAYER_CHANGE" lines or ("CHANGE_LAYER" lines in Bambu).  The layer numbers coincide with the preview layers which can changed depending on whether or not supports are enabled.
-    NOTE:  Some printer profiles have ";Layer{layer_number+1}" in the layer change code in the slicer.  That should be removed.  Those numbers are added after post-processing and so this script must be used in stead.
+    NOTE:  Some printer profiles have ";Layer{layer_number+1}" in the layer change code in the slicer.  That will not interfere, but it won't work.  Those numbers are added after post-processing and so this script must be used instead.  This script will add ";Layer#:X" to the gcode at layer changes.
 
     In addition to adding 'Layer: lines, the script will:
         Remove empty lines.
@@ -120,7 +120,7 @@ def with_supports_disabled(initial_layer_height, layer_height, chg_line, zee_lin
         if chg_line in lines[index] and zee_line in lines[index + 1]:
             z_value = lines[index + 1].split(":")[1][:-1]
             if round(float(z_value), 2) >= round(theory_z, 2):
-                lines.insert(index + 1, ";Layer:" + str(lay_num) + "\n")
+                lines.insert(index + 1, ";Layer#:" + str(lay_num) + "\n")
                 lay_num += 1
                 theory_z = round(theory_z, 2) + lay_z
     return lay_num
@@ -130,7 +130,7 @@ def with_supports_enabled(initial_layer_height, layer_height, chg_line):
     # Add the ';layer:#' lines below the 'LAYER_CHANGE' lines.
     for index, line in enumerate(lines):
         if chg_line in lines[index]:
-            lines.insert(index + 1, ";Layer:" + str(lay_num) + "\n")
+            lines.insert(index + 1, ";Layer#:" + str(lay_num) + "\n")
             lay_num += 1
     return lay_num
 

@@ -343,11 +343,11 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
 
 def single_extruder_ByLayer(fan_layer_list, fan_0):
     for index, line in enumerate(lines):
-        if line == ";Layer:1\n":
+        if line == ";Layer#:1\n":
             start_index = index
             break
     for l_index in range(start_index,len(lines) - 1):
-        if ";Layer:" in lines[l_index]:
+        if ";Layer#:" in lines[l_index]:
             layer_number = str(lines[l_index].split(":")[1][:-1])
             # If there is a match for the current layer number make the insertion
             for fan_change in fan_layer_list:
@@ -368,7 +368,7 @@ def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
         speed = layer_speed.split("/")[1]
         for index, line in enumerate(lines):
             # Insert a place holder
-            if ";Layer:" + layer.split("/")[0] in line:
+            if ";Layer#:" + layer.split("/")[0] in line:
                 lines.insert(index, f"M999 S{speed}\n")
                 break
     speed_change_started = False
@@ -392,9 +392,9 @@ def dual_extruder_ByLayer(fan_layer_list, fan_0, fan_1):
 def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0):
     end_index = None
     for index, line in enumerate(lines):
-        if line == f";Layer:{start_layer}\n":
+        if line == f";Layer#:{start_layer}\n":
             start_index = index
-        if line == f";Layer:{int(end_layer) + 1}\n":
+        if line == f";Layer#:{int(end_layer) + 1}\n":
             end_index = index
         if "end gcode" in line:
             last_index = index
@@ -412,9 +412,9 @@ def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer
 def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, end_layer, fan_0, fan_1):
     end_index = None
     for index, line in enumerate(lines):
-        if line == f";Layer:{start_layer}\n":
+        if line == f";Layer#:{start_layer}\n":
             start_index = index
-        if line == f";Layer:{int(end_layer) + 1}\n":
+        if line == f";Layer#:{int(end_layer) + 1}\n":
             end_index = index
         if "; EXECUTABLE_BLOCK_END" in line or "M84" in line:
             last_index = index
@@ -478,7 +478,7 @@ def fan_speed_feature_type(feature_text):
 def add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p2_p3):
     start_index = None
     for index, line in enumerate(lines):
-        if line == ";Layer:1\n":
+        if line == ";Layer#:1\n":
             start_index = index
             fan_off_line = f"M106 S0 {fan_0}"
             if extruder_count > 1:
@@ -511,7 +511,7 @@ def get_slicer_settings(lines: str) -> str:
             slicer_name = "Prusa"
         if "; BambuStudio" in line:
             slicer_name = "Bambu"
-        if ";Layer:" in line:
+        if ";Layer#:" in line:
             total_layer_count += 1
         if "; raft_layers =" in line:
             raft_layers = int(line.split("= ")[1])
@@ -807,11 +807,11 @@ def bambu_extra_fans():
 
 def insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list):
     for index, line in enumerate(lines):
-        if line == ";Layer:1\n":
+        if line == ";Layer#:1\n":
             start_index = index
             break
     for l_index in range(start_index,len(lines) - 1):
-        if ";Layer:" in lines[l_index]:
+        if ";Layer#:" in lines[l_index]:
             layer_number = str(lines[l_index].split(":")[1][:-1])
             # This is necessary when layer lines coincide
             if "\n" in layer_number:
@@ -824,11 +824,11 @@ def insert_aux_and_chamber_fans(p2_fan_list, p3_fan_list):
                     lines[l_index] += f"M106 P2 S{fan_split[1]} \n"
 
     for index, line in enumerate(lines):
-        if line == ";Layer:1\n":
+        if line == ";Layer#:1\n":
             start_index = index
             break
     for l_index in range(start_index,len(lines) - 1):
-        if ";Layer:" in lines[l_index]:
+        if ";Layer#:" in lines[l_index]:
             layer_number = str(lines[l_index].split(":")[1][:-1])
             # If there is a match for the current layer number make the insertion
             for p3_change in p3_fan_list:

@@ -62,13 +62,13 @@ def main():
             break
 
     for num in range(data_list[1], len(lines) - 1):
-        if ";Layer:" in lines[num]:
+        if ";Layer#:" in lines[num]:
             data_list.append(num + 1)
             break
 
     layers_index = data_list[2] + 1
     for num in range(layers_index, len(lines) - 1):
-        if ";Layer:" in lines[num]:
+        if ";Layer#:" in lines[num]:
             data_list.append(num + 1)
             continue
         elif "; EXECUTABLE_BLOCK_END" in lines[num] or "M84" in lines[num]:
@@ -234,7 +234,7 @@ def get_slicer_settings():
             slicer_name = "Orca"
         if "Bambu" in line:
             slicer_name = "Bambu"
-        if ";Layer:" in line:
+        if ";Layer#:" in line:
             layer_count += 1
     return layer_count, slicer_name
 

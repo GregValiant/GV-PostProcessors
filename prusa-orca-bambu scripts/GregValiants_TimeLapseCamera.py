@@ -246,13 +246,13 @@ for index, line in enumerate(lines):
         break
 # Initial layer
 for num in range(data_list[1], len(lines) - 1):
-    if ";Layer:" in lines[num]:
+    if ";Layer#:" in lines[num]:
         data_list.append(num + 1)
         break
         
 layers_index = data_list[2] + 1
 for num in range(layers_index, len(lines) - 1):
-    if ";Layer:" in lines[num]:
+    if ";Layer#:" in lines[num]:
         data_list.append(num + 1)
         continue
     elif "; EXECUTABLE_BLOCK_END" in lines[num] or "M84" in lines[num]:

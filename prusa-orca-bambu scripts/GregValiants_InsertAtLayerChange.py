@@ -29,7 +29,7 @@ while response == "r":
 
 layer_count = 0        
 for line in lines:
-    if line.startswith(";Layer:"):
+    if line.startswith(";Layer#:"):
         layer_count += 1
 
 def main(lines):
@@ -124,14 +124,14 @@ def main(lines):
     #Single insertion
     if insert_frequency == 0:    
         for index, line in enumerate(lines):
-            if ";Layer:" + str(single_insert_layer) + "\n" in line:
+            if ";Layer#:" + str(single_insert_layer) + "\n" in line:
                 lines.insert(index + 1, gcode_to_add)
                 break
     #Multiple insertions
     else:
         layer_number = 0
         for l_index, line in enumerate(lines):
-            if ";Layer:" in line:
+            if ";Layer#:" in line:
                 layer_number = int(line.split(":")[1][:-1])
                 if layer_number >= int(start_layer) and layer_number <= int(end_layer):
                     real_num = layer_number - int(start_layer)

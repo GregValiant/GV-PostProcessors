@@ -114,7 +114,7 @@ def main(lines):
         tool_nr = 0
         if extruder_count > 1:
             for l_index, line in enumerate(lines):
-                if line == f";Layer:{pause_layer}\n":
+                if line == f";Layer#:{pause_layer}\n":
                     pause_index = l_index
                     break
             for num in range(1, pause_index):
@@ -182,7 +182,7 @@ def main(lines):
                 retract_speed = retract_speed_ext_1
                 deretract_speed = deretract_speed_ext_1
                 retract_enabled = retract_enabled_ext_1
-            if ";Layer:1" in line:
+            if ";Layer#:1" in line:
                 layers_started = True
             if not layers_started:
                 continue
@@ -194,7 +194,7 @@ def main(lines):
                 if getValue(line, "Z") is not None:
                     current_z = getValue(line, "Z")
 
-            if not line.startswith(";Layer:"):
+            if not line.startswith(";Layer#:"):
                 continue
             current_layer = int(line.split(":")[1][:-1])
             if current_layer < int(pause_layer):
@@ -233,8 +233,8 @@ def main(lines):
             if redo_layer and reason_for_pause == "Filament Change":
                 prev_layer = lines[prev_layer_index:index]
                 for z_index, line in enumerate(prev_layer):
-                    if line.startswith(";Layer:"):
-                        prev_layer[z_index] = re.sub(";Layer:", ";Redo_Layer:", line)[:-1]
+                    if line.startswith(";Layer#:"):
+                        prev_layer[z_index] = re.sub(";Layer#:", ";Redo_Layer#:", line)[:-1]
                         break
                 temp_list = prev_layer
                 temp_list[0] = temp_list[0] + str(" " * (29 - len(temp_list[0] + ".1"))) + "; Redo layer from PauseAtLayer\n" + redo_layer_flow_cmd
@@ -471,7 +471,7 @@ def get_slicer_settings(lines):
             slicer_name = "Orca"
         if "Bambu" in line:
             slicer_name = "Bambu"
-        if ";Layer:" in line:
+        if ";Layer#:" in line:
             layer_count += 1
             
     retract_enabled_ext_0 = False
