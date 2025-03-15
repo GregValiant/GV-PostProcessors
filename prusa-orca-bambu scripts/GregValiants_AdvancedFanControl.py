@@ -28,7 +28,7 @@ slicer_name = None
 draft_shield = None
 fan_speed_0_to_1 = None
 extruder_count = None
-total_layer_count = None
+layer_count = None
 
 def main(lines):
     response = "q"
@@ -49,7 +49,7 @@ def main(lines):
     fan_1 = my_settings[2]
     raft_layers = my_settings[3]
     raft_cooling_speed = my_settings[4]
-    total_layer_count = my_settings[5]
+    layer_count = my_settings[5]
     nozzle_size_0 = my_settings[6]
     nozzle_size_1 = my_settings[7]
     extruder_count = my_settings[8]
@@ -85,7 +85,7 @@ def main(lines):
     # The 4 options: Single Extruder By Layer, Singler extruder By Feature, Dual Extruder By Layer, Dual Extruder By Feature
     if fan_mode == 1:
         # Get the By Feature settings
-        feature_settings = getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers, slicer_name, p2_fan_list, p3_fan_list)
+        feature_settings = getSettings_ByFeature(fan_speed_0_to_1, layer_count, extruder_count, fan_0, fan_1, raft_layers, slicer_name, p2_fan_list, p3_fan_list)
         feature_type_list = feature_settings[0]
         feature_speed_list = feature_settings[1]
         start_layer = feature_settings[2]
@@ -172,7 +172,7 @@ def getSettings_ByLayer(fan_speed_0_to_1):
     return fan_layer_list
 
 
-def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, fan_0, fan_1, raft_layers, slicer_name, p2_fan_list, p3_fan_list):
+def getSettings_ByFeature(fan_speed_0_to_1, layer_count, extruder_count, fan_0, fan_1, raft_layers, slicer_name, p2_fan_list, p3_fan_list):
     setting_review = "r"
     while setting_review == "r":
         # Get the fan settings for each feature
@@ -189,14 +189,14 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
         end_layer = "z"
         while end_layer == "z":
             try:
-                end_layer = int(input(f"'End Layer'\n Enter the ending layer number.  Fan Control will continue to the end of this layer.  Use the layer numbers from the preview\n (top layer is: {total_layer_count}).\n End Layer:"))
-                if end_layer > total_layer_count:
-                    print(f"The end layer must be an integer less than {total_layer_count}.  Try again.\n")
+                end_layer = int(input(f"'End Layer'\n Enter the ending layer number.  Fan Control will continue to the end of this layer.  Use the layer numbers from the preview\n (top layer is: {layer_count}).\n End Layer:"))
+                if end_layer > layer_count:
+                    print(f"The end layer must be an integer less than {layer_count}.  Try again.\n")
                     end_layer = "z"
                     continue
 
             except:
-                print(f"The end layer must be an integer less than {total_layer_count}.  Try again.\n")
+                print(f"The end layer must be an integer less than {layer_count}.  Try again.\n")
                 end_layer = "z"
                 continue
         feature_names = getAliases(slicer_name)
@@ -241,7 +241,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
         elif slicer_name == "Bambu":
             type_internal_bridge = type_btm_skin
 
-        if end_layer < total_layer_count:
+        if end_layer < layer_count:
             final_fan_speed = fan_speed_feature_type("\n'Final Fan Speed'\n Your end layer is lower than the print top layer.  Enter the fan speed to use from the End layer to the end of the print.\n Enter the Fan speed (0% to 100%) for the Final Fan Speed.\n")
         else:
             final_fan_speed = 0
@@ -257,7 +257,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
             else:
                 input_str += "Fan Scale is (0 to 1)\n"
             input_str += f"Start Layer (model starts on 'Layer:{1 + raft_layers}' in the Gcode) = {start_layer}\n"
-            input_str += f"End Layer (top layer is {total_layer_count}) = {end_layer}\n"
+            input_str += f"End Layer (top layer is {layer_count}) = {end_layer}\n"
             if start_layer == 1 or draft_shield:
                 input_str += f"{alias_bed_adhesion_skirt[:-1]} = {round(type_skirt / 2.55)}%\n"
                 if slicer_name == "Orca":
@@ -275,7 +275,7 @@ def getSettings_ByFeature(fan_speed_0_to_1, total_layer_count, extruder_count, f
             input_str += f"{alias_infill[:-1]} = {round(type_infill / 2.55)}%\n"
             input_str += f"{alias_supt[:-1]} = {round(type_support / 2.55)}%\n"
             input_str += f"{alias_supt_inter[:-1]} = {round(type_support_interface / 2.55)}%\n"
-            if end_layer < total_layer_count:
+            if end_layer < layer_count:
                 input_str += f"; Final Fan speed = {round(final_fan_speed / 2.55)}%\n"
             if slicer_name == "Bambu":
                 input_str += f"; Auxiliary Fan Layer/Speed = {p2_fan_list}\n"
@@ -503,7 +503,8 @@ def add_starting_ending_fan(extruder_count, fan_0, fan_1, slicer_name, control_p
 # Get the slicer settings from the gcode
 def get_slicer_settings(lines: str) -> str:
     raft_layers = 0
-    total_layer_count = 0
+    layer_count = 0
+    slicer_name = ""
     for line in lines:
         if "; generated by OrcaSlicer" in line:
             slicer_name = "Orca"
@@ -511,28 +512,22 @@ def get_slicer_settings(lines: str) -> str:
             slicer_name = "Prusa"
         if "; BambuStudio" in line:
             slicer_name = "Bambu"
+        if slicer_name != "":
+            break
+    for line in lines:
         if ";Layer#:" in line:
-            total_layer_count += 1
-        if "; raft_layers =" in line:
-            raft_layers = int(line.split("= ")[1])
-        if "; nozzle_diameter =" in line:
-            nozzle_size_str = line.split("= ")[1]
-            nozzle_size_list = nozzle_size_str.split(",")
-            nozzle_size_0 = float(nozzle_size_list[0])
-            if len(nozzle_size_list) > 1:
-                nozzle_size_1 = float(nozzle_size_list[1])
-            else:
-                nozzle_size_1 = None
-
-            extruder_count = len(nozzle_size_list)
-        if "; draft_shield =" in line:
-            if "disabled" in line:
-                draft_shield = False
-            else:
-                draft_shield = True
-
+            layer_count += 1
+        
+    raft_layers = int(os.environ["SLIC3R_RAFT_LAYERS"])
+    nozzle_size_0 = float(os.environ["SLIC3R_NOZZLE_DIAMETER"].split(",")[0])
+    nozzle_size_1 = 0.0
+    if "," in os.environ["SLIC3R_NOZZLE_DIAMETER"]:
+        nozzle_size_1 = float(os.environ["SLIC3R_NOZZLE_DIAMETER"].split(",")[1])    
+    extruder_count = len(os.environ["SLIC3R_NOZZLE_DIAMETER"].split(","))    
+    draft_shield = False if str(os.environ["SLIC3R_DRAFT_SHIELD"]) == 'disabled' else True
     raft_cooling_speed = 0
-    return raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield, slicer_name
+    
+    return raft_layers, raft_cooling_speed, layer_count, nozzle_size_0, nozzle_size_1, extruder_count, draft_shield, slicer_name
 
 # Get user settings
 def get_post_settings() -> str:
@@ -540,7 +535,7 @@ def get_post_settings() -> str:
     slicer_settings = get_slicer_settings(lines)
     raft_layers = slicer_settings[0]
     raft_cooling_speed = slicer_settings[1]
-    total_layer_count = slicer_settings[2]
+    layer_count = slicer_settings[2]
     nozzle_size_0 = slicer_settings[3]
     nozzle_size_1 = slicer_settings[4]
     extruder_count = slicer_settings[5]
@@ -632,7 +627,7 @@ def get_post_settings() -> str:
                 continue
             if response == 'n':
                 response = "99"
-    return remove_m106, fan_0, fan_1, raft_layers, raft_cooling_speed, total_layer_count, nozzle_size_0, nozzle_size_1, extruder_count, fan_mode, fan_speed_0_to_1
+    return remove_m106, fan_0, fan_1, raft_layers, raft_cooling_speed, layer_count, nozzle_size_0, nozzle_size_1, extruder_count, fan_mode, fan_speed_0_to_1
 
 def remove_fan_lines(slicer_name) -> str:
     # Remove the M106 and M107 lines if requested.

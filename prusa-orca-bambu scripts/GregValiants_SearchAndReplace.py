@@ -227,6 +227,7 @@ def get_post_settings(layer_count):
 
 def get_slicer_settings():
     layer_count = 0
+    slicer_name = ""
     for line in lines:
         if "Prusa" in line:
             slicer_name = "Prusa"
@@ -234,6 +235,9 @@ def get_slicer_settings():
             slicer_name = "Orca"
         if "Bambu" in line:
             slicer_name = "Bambu"
+        if slicer_name != "":
+            break
+    for line in lines:
         if ";Layer#:" in line:
             layer_count += 1
     return layer_count, slicer_name
