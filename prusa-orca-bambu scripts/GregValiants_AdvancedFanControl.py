@@ -70,7 +70,7 @@ def main(lines):
                 continue
         if control_p2_p3_str == "y":
             control_p2_p3 = True
-            bambu_aux_fans = bambu_extra_fans()
+            bambu_aux_fans = bambu_extra_fans(fan_speed_is_pwm)
             p2_fan_list = bambu_aux_fans[0]
             p3_fan_list = bambu_aux_fans[1]
         else:
@@ -612,7 +612,7 @@ def get_post_settings() -> str:
                     continue
             # Review the user settings
             input_str = "\nReview your settings to this point:\n\n"
-            input_str += f"Fan Speed Scale 0 to 1.......... {str(fan_speed_is_pwm)}\n"
+            input_str += f"Fan Speed Scale PWM............. {str(fan_speed_is_pwm)}\n"
             input_str += f"Extruder 1 (T0) Cooling Fan Nr.. {fan_0 if fan_0 != "" else "0"}\n"
             if extruder_count > 1:
                 input_str += f"Extruder 2 (T1) Cooling Fan Nr.. {fan_1 if fan_1 != "" else "0"}\n"
@@ -716,7 +716,7 @@ def format_string(input_str):
     input_str = "\n".join(temp_lines)
     return input_str
 
-def bambu_extra_fans():
+def bambu_extra_fans(fan_speed_is_pwm):
     response = input("The next settings are for the Auxiliary Fan (and the Chamber fan if it is supported).\n <enter>\n\n")
     bambu_p2_str = "r"
     p2_fan_list = []
