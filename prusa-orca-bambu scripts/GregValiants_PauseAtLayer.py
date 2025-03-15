@@ -462,8 +462,7 @@ def main(lines):
     final_file.close()
 
 def get_slicer_settings(lines):
-    layer_count = 0
-    speed_unload = None
+    slicer_name = ""
     for line in lines:
         if "Prusa" in line:
             slicer_name = "Prusa"
@@ -471,6 +470,11 @@ def get_slicer_settings(lines):
             slicer_name = "Orca"
         if "Bambu" in line:
             slicer_name = "Bambu"
+        if slicer_name != "":
+            break
+            
+    layer_count = 0    
+    for line in lines:
         if ";Layer#:" in line:
             layer_count += 1
             
@@ -499,8 +503,8 @@ def get_slicer_settings(lines):
         machine_bed_size_var = "SLIC3R_BED_SHAPE"
         machine_max_z_var = "SLIC3R_MAX_PRINT_HEIGHT"
         z_hop_height_var = "SLIC3R_RETRACT_LIFT"
-    else:
-        retract_dist_var = "SLIC3R_RETRACTION_SPEED"
+    elif slicer_name in ["Orca","Bambu"]:
+        retract_dist_var = "SLIC3R_RETRACTION_LENGTH"
         retract_speed_var = "SLIC3R_RETRACTION_SPEED"
         deretract_speed_var = "SLIC3R_DERETRACTION_SPEED"
         initial_layer_height_var = "SLIC3R_INITIAL_LAYER_PRINT_HEIGHT"
@@ -510,8 +514,9 @@ def get_slicer_settings(lines):
         machine_bed_size_var = "SLIC3R_PRINTABLE_AREA"
         machine_max_z_var = "SLIC3R_PRINTABLE_HEIGHT"
         z_hop_height_var = "SLIC3R_Z_HOP"
-        
+
     retract_speed_ext_0 = int(os.environ[retract_speed_var].split(",")[0]) * 60
+    
     extruder_count = 1
     if retract_speed_ext_0 != 0:
         retract_enabled_ext_0 = True
@@ -520,17 +525,17 @@ def get_slicer_settings(lines):
         extruder_count = 2
         if retract_speed_ext_1 != 0:
             retract_enabled_ext_1 = True
-
+    
     retract_length_ext_0 = float(os.environ[retract_dist_var].split(",")[0])
     if "," in os.environ[retract_dist_var]:
         retract_length_ext_1 = float(os.environ[retract_dist_var].split(",")[1])
-    
+
     deretract_speed_ext_0 = int(os.environ[deretract_speed_var].split(",")[0]) * 60
     if "," in os.environ[deretract_speed_var]:
-        deretract_speed_ext_1 = int(os.environ[deretract_speed_var].split(",")[0]) * 60
-    
-    speed_unload = int(os.environ[machine_max_speed_e_var]) * 60
-    
+        deretract_speed_ext_1 = int(os.environ[deretract_speed_var].split(",")[1]) * 60
+
+    speed_unload = int(os.environ[machine_max_speed_e_var].split(",")[0]) * 60
+
     bed_size = str(os.environ[machine_bed_size_var])
     bed_list = bed_size.split(",")
     if len(bed_list) > 4:
