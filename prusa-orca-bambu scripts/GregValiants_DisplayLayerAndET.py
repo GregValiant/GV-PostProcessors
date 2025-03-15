@@ -93,12 +93,12 @@ for index, line in enumerate(lines):
 
 enable_script = "r"
 while enable_script == "r":
-    enable_script = input("\nGreg Valiant's      [Display Info on LCD]\n  Displays a message on the LCD (using M117) and sends a message to a print server (using M118)\n Optionally adds M73 with print time and/or print percentage\n  (NOTE: M117, M118, M73 must be enabled in your firmware for them to work)\nYou may enter a 'q' for any setting to Quit.\nDo you wish to continue?\n <y> Yes\n <n> No\n").lower()
+    enable_script = input("\nGreg Valiant's      [Display Info on LCD]\n  Displays a message on the LCD (using M117) and sends a message to a print server (using M118)\n Optionally adds M73 with print time and/or print percentage\n  (NOTE: M117, M118, M73 must be enabled in your firmware for them to work)\nDo you wish to continue?\n <y> Yes\n <n> No\n").lower()
     if enable_script not in ["y", "n", "q"]:
-        print("Invalid response.  Must be 'y' or 'n' or 'q'\n")
-    if enable_script == "r":
+        print("Invalid response.  Must be 'y' or 'n'\n")
+        enable_script = "r"
         continue
-    if enable_script == "n" or enable_script == "q":
+    if enable_script == "n":
         exit(0)
 
 carry_on = True
