@@ -29,7 +29,7 @@ As each post-processor runs it will open a command window and you will be asked 
 3/1/2025   Added Pause at Layer.  
 3/4/2025   Added Insert at Layer Change  
 3/12 and 3/13/2025  Adjusted scripts to utilize variables from the slicers (instead of parsing the gcode).  Improved performance.  
-3/13/2025  Change the layer_change insertion from ";Layer:" to ";Layer#:" to avoid conflicts with the slicer layer_change_gcode.
+3/13/2025  Change the layer_change insertion from ";Layer:" to ";Layer#:" to avoid conflicts with the slicer layer_change_gcode.  
 3/16/2025   DisplayInfoAndET  Revised the calculation of the remaining time.  
 
 -----------------------------------------------------------------------------
