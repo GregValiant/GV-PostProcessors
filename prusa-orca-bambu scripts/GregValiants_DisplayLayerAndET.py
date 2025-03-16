@@ -115,7 +115,7 @@ while carry_on == True:
     if allow_m73:
         add_m73_line = "r"
         while add_m73_line == "r" and carry_on == True:
-            add_m73_line = input("'Add M73 line Adds M73 in addition to the M117.  For some firmware this will set the printers time and or percentage.  M75 is added to the beginning of the file and M77 is added to the end of the file.  You must select one or both of the Time and Percentage options that follow.\n <y> Yes\n <n> No\n").lower()
+            add_m73_line = input("\n'Add M73 line Adds M73 in addition to the M117.  For some firmware this will set the printers time and or percentage.  M75 is added to the beginning of the file and M77 is added to the end of the file.  You must select one or both of the Time and Percentage options that follow.\n <y> Yes\n <n> No\n").lower()
             if add_m73_line not in ["y", "n", "q"]:
                 print("Invalid response.  Must be a 1 or 2 or 'q'\n")
                 add_m73_line = "r"
@@ -131,7 +131,7 @@ while carry_on == True:
             if add_m73_line:
                 add_m73_percent = "r"
                 while add_m73_percent == "r" and carry_on == True:
-                    add_m73_percent = input("'Add M73 Print Percentage'\n <y> Yes\n <n> No\n").lower()
+                    add_m73_percent = input("\n'Add M73 Print Percentage'\n <y> Yes\n <n> No\n").lower()
                     if add_m73_percent not in ["y", "n", "q"]:
                         print("Invalid response.  Must be a 1 or 2 or 'q'\n")
                         add_m73_percent = "r"
@@ -145,7 +145,7 @@ while carry_on == True:
                         add_m73_percent = False
                 add_m73_time = "r"
                 while add_m73_time == "r" and carry_on == True:
-                    add_m73_time = input("'Add M73 Print Time'\n <y> Yes\n <n> No\n").lower()
+                    add_m73_time = input("\n'Add M73 Print Time'\n <y> Yes\n <n> No\n").lower()
                     if add_m73_time not in ["y", "n", "q"]:
                         print("Invalid response.  Must be a 'y' or 'n' or 'q'\n")
                         add_m73_time = "r"
@@ -159,7 +159,7 @@ while carry_on == True:
                         add_m73_time = False
     time_fudge_factor = "r"
     while time_fudge_factor == "r" and carry_on == True:
-        time_fudge_factor = input("'Time Factor Adjustment'\n  Enter a fudge factor as a percentage.  The formula is 'Slicer Estimated Print Time * Fudge Factor'.  With some practice you can get the actual print time to display on the LCD very close to reality.\n If the slicer under-estimates the print time the fudge factor will be > 100.\n If the slicer over-estimates the print time the fudge factor will be < 100.\n  If the estimated print times are very close to the real print time then enter 100.\n  Enter an integer.\n  Fudge Factor %:\n").lower()
+        time_fudge_factor = input("\n'Time Factor Adjustment'\n  Enter a fudge factor as a percentage.  The formula is 'Slicer Estimated Print Time * Fudge Factor'.  With some practice you can get the actual print time that displays very close to reality.\n If the slicer under-estimates the print time the fudge factor will be > 100.\n If the slicer over-estimates the print time the fudge factor will be < 100.\n  If the estimated print times are very close to the real print time then enter 100.\n  <Enter an integer for Fudge Factor %>\n").lower()
         if time_fudge_factor == "q":
             carry_on = False
             break
@@ -184,14 +184,52 @@ def main(lines):
     slice_time = round(slice_time * time_fudge_factor)
     actual_print_lines = layer_change_index_list[len(layer_change_index_list) - 1] - layer_change_index_list[0]
 
-    percentage_list = [slice_time]
-    for num in range(0, len(layer_change_index_list)):
-        percentage_list.append(round(((actual_print_lines - layer_change_index_list[num]) / actual_print_lines) * slice_time))
-    if display_option == "1":
-        lines = display_progress(lines, percentage_list)
-    else:
-       lines = display_filename(lines, print_time)
-
+    m118_list = []    
+    time_list = []
+    prev_x = 0
+    prev_y = 0
+    cur_x = 0
+    cur_y = 0
+    print_speed = 50
+    calc_print_time = 0
+    layer_time = 0
+    for index, line in enumerate(lines):
+        if line[0:3] in ["G0 ","G1 ","G2 ","G3 "]:
+            if getValue(line, "F") is not None:
+                print_speed = getValue(line, "F") / 60
+            if getValue(line, "X") is not None:
+                cur_x = getValue(line, "X")
+            if getValue(line, "Y") is not None:
+                cur_y = getValue(line, "Y")
+            layer_time += (getDistance(prev_x, prev_y, cur_x, cur_y)) / print_speed
+            prev_x = cur_x
+            prev_y = cur_y
+        if ";Layer#:" in line:
+            if line.endswith("0\n"):
+                print("Working on " + line[:-1])
+            calc_print_time += layer_time
+            time_list.append(round(calc_print_time))
+            layer_time = 0
+    # Add the numbers for the top layer
+    calc_print_time += layer_time
+    time_list.append(round(calc_print_time))
+    layer_time = 0
+    
+    elapsed_times = []
+    end_time = round(calc_print_time)
+    for index, tl in enumerate(time_list):
+        m118_list.append(round(slice_time - ((tl/end_time) * slice_time)))
+        elapsed_times.append(round((tl/end_time) * slice_time))
+    
+    # Add the elapsed time line to the gcode
+    num = 2
+    for index, line in enumerate(lines):
+        if f";Layer#:{num}\n" in line:
+            lines[index - 1] += f";Time_Elapsed:{round(elapsed_times[num - 1])}\n"
+            num += 1
+    # Send the m118_list to Display_Progress
+    lines = display_progress(lines, m118_list)
+    
     # Send the file back to the slicer as it was received, with each line a separate item in the lines list
     for index, line in enumerate(lines):
         if "\n" in line[0:-1]:
@@ -201,7 +239,7 @@ def main(lines):
             temp1.reverse()
             for n_line in temp1:
                 lines.insert(index, n_line + "\n")
-
+    print("Writing file...")
     # Write the new file
     #dest_file = open("C:/Users/grego/Documents/Creality/gcode/DisplayInfoB.gcode", "w+")
     dest_file = open(sourceFile, "w+")
@@ -210,7 +248,7 @@ def main(lines):
     dest_file.close()
     final_file.close()
 
-def display_progress(lines, percentage_list):
+def display_progress(lines, m118_list):
     start_index = layer_change_index_list[0]
     end_index = layer_change_index_list[len(layer_change_index_list)-1]
     if add_m73_line and add_m73_time:
@@ -228,10 +266,10 @@ def display_progress(lines, percentage_list):
     tindex = start_index
     m73_str = ""
     print_time_2 = convert_time_string(print_time)
-    slicer_time = percentage_list[0]
+    slicer_time = m118_list[0]
     hhh = slicer_time/3600
     hr = round(hhh // 1)
-    mmm = round((hhh % 1) * 60)
+    mmm = math.floor((hhh % 1) * 60)
     orig_hhh = print_time_2/3600
     orig_hr = round(orig_hhh // 1)
     orig_mmm = math.floor((orig_hhh % 1) * 60)
@@ -248,33 +286,7 @@ def display_progress(lines, percentage_list):
         if m73_percent:
             m73_str += " P0"
         lines[tindex + 3] += "M73" + m73_str + "\n"
-    # If Countdown to pause is enabled then count the pauses
-    pause_str = ""
-    if enable_countdown:
-        pause_count = 0
-        pause_setting = pause_cmd_str.upper()
-        if pause_setting != "":
-            pause_cmd = []
-            if "," in pause_setting:
-                pause_cmd = pause_setting.split(",")
-            else:
-                pause_cmd.append(pause_setting)
-            for q in range(0, len(pause_cmd)):
-                pause_cmd[q] = "\n" + pause_cmd[q]
-            for num in range(2,len(lines) - 2, 1):
-                for q in range(0,len(pause_cmd)):
-                    if pause_cmd[q] in lines[num]:
-                        pause_count += lines[num].count(pause_cmd[q], 0, len(lines[num]))
-            pause_str = f"with {pause_count} pause" + ("s" if pause_count > 1 else "")
-        else:
-            pause_str = ""
-            # This line goes in to convert seconds to hours and minutes
-            lines[tindex] += f";{slicer_name} Time Estimate: {orig_hr}hr {orig_mmm}min {pause_str}"
-            lines[0] = "\n".join(lines)
-            if add_m117_line:
-                lines[len(lines)-1] += "M117 Orig Cura Est " + str(orig_hr) + "hr " + str(orig_mmm) + "min\n"
-            if add_m118_line:
-                lines[len(lines)-1] += "M118 Est w/FudgeFactor  " + str(time_fudge_factor * 100) + "% was " + str(hr) + "hr " + str(mmm) + "min\n"
+    
     if not display_total_layers or not display_remaining_time:
         base_display_text = "layer "
     else:
@@ -290,7 +302,7 @@ def display_progress(lines, percentage_list):
         # if display_remaining_time is checked, it is calculated in this loop
         if display_remaining_time:
             time_remaining_display = " | ET "  # initialize the time display
-            m = percentage_list[index] // 60  # estimated time in minutes
+            m = m118_list[index] // 60  # estimated time in minutes
             m = int(m)
             h, m = divmod(m, 60)  # convert to hours and minutes
             # add the time remaining to the display_text
@@ -333,6 +345,29 @@ def convert_time_string(print_time: str) -> int:
             s = int(t_line[:-1])
     new_time = h + m + s
     return new_time
+
+def getValue(line, param):
+    if ";" in line:
+        line = line.split(";")[0]
+        if not line.endswith(" "):
+            line += " "
+    if ":" in line:
+        param = param + ":"
+    try:
+        temp = line.split(param)[1][:-1]
+        if " " in temp:
+            the_value = temp.split(" ")[0]
+        else:
+            the_value = temp
+    except:
+        return None
+    return float(the_value)
+
+def getDistance(prev_x, prev_y, cur_x, cur_y):
+    leg_x = cur_x - prev_x
+    leg_y = cur_y - prev_y
+    hyp = ((leg_x**2) + (leg_y**2))**.5
+    return hyp
 
 if __name__ == "__main__":
     main(lines)
