@@ -22,7 +22,7 @@ class AddCuraSettings(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Add Cura Settings 5.9.1",
+            "name": "Add Cura Settings 5.10.b",
             "key": "AddCuraSettings",
             "metadata": {},
             "version": 2,
@@ -224,6 +224,8 @@ class AddCuraSettings(Script):
         if roofing_extruder_nr == -1: roofing_extruder_nr = 0
         top_bottom_extruder_nr = int(global_stack.getProperty("top_bottom_extruder_nr", "value"))
         if top_bottom_extruder_nr == -1: top_bottom_extruder_nr = 0
+        flooring_extruder_nr = int(global_stack.getProperty("flooring_extruder_nr", "value"))
+        if flooring_extruder_nr == -1: flooring_extruder_nr = 0        
         infill_extruder_nr = int(global_stack.getProperty("infill_extruder_nr", "value"))
         if infill_extruder_nr == -1: infill_extruder_nr = 0
         support_extruder_nr = int(global_stack.getProperty("support_extruder_nr", "value"))
@@ -352,7 +354,7 @@ class AddCuraSettings(Script):
                             setting_data += f";    Machine Nozzle Offset Y (T{num}): " + str(extruder[num].getProperty("machine_nozzle_offset_y", "value")) + "\n"
                     except:
                         pass
-                            
+            setting_data += "Start GCode must be first:" + str(global_stack.getProperty("machine_start_gcode_first", "value")) + "\n"               
             setting_data += ";Z Position for Extruder Prime: " + str(global_stack.getProperty("extruder_prime_pos_z", "value")) + "\n"
             setting_data += ";Absolute Extruder Prime: " + str(global_stack.getProperty("extruder_prime_pos_abs", "value")) + "\n"
             setting_data += ";Max Feedrate X: " + str(global_stack.getProperty("machine_max_feedrate_x", "value")) + " mm/sec\n"
@@ -443,11 +445,18 @@ class AddCuraSettings(Script):
             setting_data += ";\n;  [Top/Bottom]\n"
             if complete_set and machine_extruder_count > 1: setting_data += ";Top Surface Skin Extruder: " + str(roofing_extruder_nr + 1) + " (T" + str(roofing_extruder_nr) + ")\n"
             if complete_set and machine_extruder_count > 1: setting_data += ";Top/Bottom Extruder: " + str(top_bottom_extruder_nr + 1) + " (T" + str(top_bottom_extruder_nr) + ")\n"
+            if complete_set and machine_extruder_count > 1: setting_data += ";Flooring Extruder: " + str(flooring_extruder_nr + 1) + " (T" + str(flooring_extruder_nr) + ")\n"
             setting_data += ";Top Surface Skin Count: " + str(global_stack.getProperty("roofing_layer_count", "value")) + "\n"
             setting_data += ";Top Surface Skin Line Width: " + str(extruder[roofing_extruder_nr].getProperty("roofing_line_width", "value")) + " mm\n"
             setting_data += ";Top Surface Skin Pattern: " + str(global_stack.getProperty("roofing_pattern", "value")) + "\n"
             setting_data += ";Top Surface Monotonic: " + str(global_stack.getProperty("roofing_monotonic", "value")) + "\n"
             setting_data += ";Top Surface Skin Line Directions: " + str(extruder[roofing_extruder_nr].getProperty("roofing_angles", "value")) + "°\n"
+            setting_data += ";Flooring Layer Count: " + str(global_stack.getProperty("flooring_layer_count", "value")) + "\n"
+            setting_data += ";Flooring Line Width: " + str(global_stack.getProperty("flooring_line_width", "value")) + "\n"
+            setting_data += ";Flooring Pattern: " + str(global_stack.getProperty("flooring_pattern", "value")) + "\n"
+            setting_data += ";Flooring Monotonic: " + str(global_stack.getProperty("flooring_monotonic", "value")) + "\n"
+            setting_data += ";Flooring Skin Line Directions: " + str(global_stack.getProperty("flooring_angles", "value")) + "\n"
+            setting_data += ";Flooring Material Flow: " + str(extruder[flooring_extruder_nr].getProperty("flooring_material_flow", "value")) + "\n"
             setting_data += ";Top/Bottom Thickness: " + str(round(global_stack.getProperty("top_bottom_thickness", "value"),2)) + " mm\n"
             setting_data += ";Top Thickness: " + str(round(global_stack.getProperty("top_thickness", "value"),2)) + " mm\n"
             setting_data += ";Top Layers: " + str(global_stack.getProperty("top_layers", "value")) + "\n"
@@ -542,7 +551,9 @@ class AddCuraSettings(Script):
                 setting_data += ";  Outer-Wall Flow: " + str(extruder[num].getProperty("wall_0_material_flow", "value")) + " %\n"
                 setting_data += ";  Inner-Wall Flow: " + str(extruder[num].getProperty("wall_x_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Top Surface Outer Wall Flow: " + str(extruder[num].getProperty("wall_0_material_flow_roofing", "value")) + " %\n"
-                if complete_set: setting_data += ";  Top Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_x_material_flow_roofing", "value")) + " %\n"
+                if complete_set: setting_data += ";  Top Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_x_material_flow_roofing", "value")) + " %\n"                
+                if complete_set: setting_data += ";  Bottom Surface Outer Wall Flow: " + str(extruder[num].getProperty("wall_0_material_flow_flooring", "value")) + " %\n"
+                if complete_set: setting_data += ";  Bottom Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_0_material_flow_flooring", "value")) + " %\n"                
                 setting_data += ";  Skin Flow: " + str(extruder[num].getProperty("skin_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Top Sufrace Skin Flow: " + str(extruder[num].getProperty("roofing_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Infill Flow: " + str(extruder[num].getProperty("infill_material_flow", "value")) + " %\n"
@@ -563,6 +574,7 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Max Flow Acceleration: " + str(extruder[num].getProperty("max_flow_acceleration", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Initial Layer Max Flow Acceleration: " + str(extruder[num].getProperty("layer_0_max_flow_acceleration", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Gradual flow discretisation step size: " + str(extruder[num].getProperty("gradual_flow_discretisation_step_size", "value")) + " sec\n"
+                if complete_set: setting_data += ";  Pressure Advance Factor: " + str(extruder[num].getProperty("material_pressure_advance_factor", "value")) + "\n"
 
         #Speed Settings--------------------------------------------------------------------------------------------------------------------
         if bool(self.getSettingValueByKey("speed_set")) or all_or_some == "all_settings":
@@ -576,40 +588,56 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Speed Inner-Walls: " + str(extruder[num].getProperty("speed_wall_x", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Top Surface Outer Wall Speed: " + str(extruder[num].getProperty("speed_wall_0_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Top Surface Inner Wall Speed: " + str(extruder[num].getProperty("speed_wall_x_roofing", "value")) + " mm/sec\n"
+                if complete_set: setting_data += ";  Flooring Outer Wall Speed: " + str(extruder[num].getProperty("speed_wall_0_flooring", "value")) + " mm/sec\n"
+                if complete_set: setting_data += ";  Flooring Inner Wall Speed: " + str(extruder[num].getProperty("speed_wall_x_flooring", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Speed Top Skins: " + str(extruder[num].getProperty("speed_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Speed Top/Bottom: " + str(extruder[num].getProperty("speed_topbottom", "value")) + " mm/sec\n"
+                if complete_set: setting_data += ";  Bottom Surface Skin Speed: " + str(extruder[num].getProperty("speed_flooring", "value")) + " mm/sec\n"
                 setting_data += ";  Speed Travel: " + str(extruder[num].getProperty("speed_travel", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Speed Initial Layer: " + str(extruder[num].getProperty("speed_layer_0", "value")) + " mm/sec\n"
                 setting_data += ";  Speed Print Initial Layer: " + str(extruder[num].getProperty("speed_print_layer_0", "value")) + " mm/sec\n"
                 setting_data += ";  Speed Travel Initial Layer: " + str(extruder[num].getProperty("speed_travel_layer_0", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Speed Z-Hop: " + str(extruder[num].getProperty("speed_z_hop", "value")) + " mm/sec\n"
                 setting_data += ";  Flow Equalization Ratio: " + str(extruder[num].getProperty("speed_equalize_flow_width_factor", "value")) + " %\n"
-                setting_data += ";  Acceleration Enabled: " + str(extruder[num].getProperty("acceleration_enabled", "value")) + "\n"
-                setting_data += ";  Acceleration Print: " + str(extruder[num].getProperty("acceleration_print", "value")) + " mm/sec²\n"
-                setting_data += ";  Acceleration Travel: " + str(extruder[num].getProperty("acceleration_travel", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Infill: " + str(extruder[num].getProperty("acceleration_infill", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Wall: " + str(extruder[num].getProperty("acceleration_wall", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Top Surface Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0_roofing", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Top Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_roofing", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Top Surface Skin: " + str(extruder[num].getProperty("acceleration_roofing", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Top/Bottom: " + str(extruder[num].getProperty("acceleration_topbottom", "value")) + " mm/sec²\n"
-                if complete_set: setting_data += ";  Acceleration Support: " + str(extruder[num].getProperty("acceleration_support", "value")) + " mm/sec²\n"# true
-                if complete_set: setting_data += ";  Acceleration Support Infill: " + str(extruder[num].getProperty("acceleration_support_infill", "value")) + " mm/sec²\n"# true
-                if complete_set: setting_data += ";  Acceleration Support Interface: " + str(extruder[num].getProperty("acceleration_support_interface", "value")) + " mm/sec²\n"# true
-                if complete_set: setting_data += ";  Acceleration Support Roof: " + str(extruder[num].getProperty("acceleration_support_roof", "value")) + " mm/sec²\n"# true
-                if complete_set: setting_data += ";  Acceleration Support Floor: " + str(extruder[num].getProperty("acceleration_support_bottom", "value")) + " mm/sec²\n"# true
-                if complete_set: setting_data += ";  Acceleration Prime Tower: " + str(global_stack.getProperty("acceleration_prime_tower", "value")) + " mm/sec²\n"
+                setting_data += ";  Accel Enabled: " + str(extruder[num].getProperty("acceleration_enabled", "value")) + "\n"
+                setting_data += ";  Accel Print: " + str(extruder[num].getProperty("acceleration_print", "value")) + " mm/sec²\n"
+                setting_data += ";  Accel Travel: " + str(extruder[num].getProperty("acceleration_travel", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Infill: " + str(extruder[num].getProperty("acceleration_infill", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Wall: " + str(extruder[num].getProperty("acceleration_wall", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Top Surface Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0_roofing", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Top Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_roofing", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Top Surface Skin: " + str(extruder[num].getProperty("acceleration_roofing", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Top/Bottom: " + str(extruder[num].getProperty("acceleration_topbottom", "value")) + " mm/sec²\n"
+                
+                if complete_set: setting_data += ";  Accel Bottom Surface Skin: " + str(extruder[num].getProperty("acceleration_flooring", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Bottom Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_flooring", "value")) + " mm/sec²\n"
+                if complete_set: setting_data += ";  Accel Bottom Surface Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0_flooring", "value")) + " mm/sec²\n"
+                
+                
+                
+                if complete_set: setting_data += ";  Accel Support: " + str(extruder[num].getProperty("acceleration_support", "value")) + " mm/sec²\n"# true
+                if complete_set: setting_data += ";  Accel Support Infill: " + str(extruder[num].getProperty("acceleration_support_infill", "value")) + " mm/sec²\n"# true
+                if complete_set: setting_data += ";  Accel Support Interface: " + str(extruder[num].getProperty("acceleration_support_interface", "value")) + " mm/sec²\n"# true
+                if complete_set: setting_data += ";  Accel Support Roof: " + str(extruder[num].getProperty("acceleration_support_roof", "value")) + " mm/sec²\n"# true
+                if complete_set: setting_data += ";  Accel Support Floor: " + str(extruder[num].getProperty("acceleration_support_bottom", "value")) + " mm/sec²\n"# true
+                if complete_set: setting_data += ";  Accel Prime Tower: " + str(global_stack.getProperty("acceleration_prime_tower", "value")) + " mm/sec²\n"
                 setting_data += ";  Jerk Enabled: " + str(extruder[num].getProperty("jerk_enabled", "value")) + "\n"
                 setting_data += ";  Jerk Print: " + str(extruder[num].getProperty("jerk_print", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Infill: " + str(extruder[num].getProperty("jerk_infill", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Walls: " + str(extruder[num].getProperty("jerk_wall", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x", "value")) + " mm/sec\n"
-                if complete_set: setting_data += ";  Jerk Wall Top Surface Wall: " + str(extruder[num].getProperty("jerk_roofing", "value")) + " mm/sec\n"
+                if complete_set: setting_data += ";  Jerk Top Surface Wall: " + str(extruder[num].getProperty("jerk_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Top Surface Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Top Surface Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x_roofing", "value")) + " mm/sec\n"
+                
+                if complete_set: setting_data += ";  Jerk Bottom Surface Skin: " + str(extruder[num].getProperty("jerk_flooring", "value")) + " mm/sec\n"
+                if complete_set: setting_data += ";  Jerk Bottom Surface Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0_flooring", "value")) + " mm/sec\n"
+                if complete_set: setting_data += ";  Jerk Bottom Surface Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x_flooring", "value")) + " mm/sec\n"
+                
+                
                 if complete_set: setting_data += ";  Jerk Top/Bottom: " + str(extruder[num].getProperty("jerk_topbottom", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Support: " + str(extruder[support_extruder_nr].getProperty("jerk_support", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Support Infill: " + str(extruder[support_extruder_nr].getProperty("jerk_support_infill", "value")) + " mm/sec\n"
@@ -693,6 +721,7 @@ class AddCuraSettings(Script):
                 setting_data += ";  Retraction Min Extr Dist Window: " + str(extruder[num].getProperty("retraction_extrusion_window", "value")) + "\n"
                 setting_data += ";  Retraction Combing: " + str(extruder[num].getProperty("retraction_combing", "value")) + "\n"
                 setting_data += ";  Retraction Max Combing with no Retract: " + str(extruder[num].getProperty("retraction_combing_max_distance", "value")) + " mm\n"
+                setting_data += ";  Inside Travel Avoid Distance: " + str(round(extruder[num].getProperty("retraction_combing_avoid_distance", "value"), 2)) + " mm\n"
                 setting_data += ";  Retract Before Outer Wall: " + str(extruder[num].getProperty("travel_retract_before_outer_wall", "value")) + "\n"
                 setting_data += ";  Layer Start X: " + str(extruder[num].getProperty("layer_start_x", "value")) + "\n"
                 setting_data += ";  Layer Start Y: " + str(extruder[num].getProperty("layer_start_y", "value")) + "\n"
@@ -817,7 +846,7 @@ class AddCuraSettings(Script):
             if complete_set:
                 try:
                     for num in range(0, machine_extruder_count):
-                        setting_data += ";Extruder: E" + str(num + 1) + " (T" + str(num) + ")\n"
+                        setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                         setting_data += ";  Prime Blob Enable: " + str(extruder[num].getProperty("prime_blob_enable", "value")) + "\n"
                         setting_data += ";  Extruder Prime X Position: " + str(extruder[num].getProperty("extruder_prime_pos_x", "value")) + "\n"
                         setting_data += ";  Extruder Prime Y Position: " + str(extruder[num].getProperty("extruder_prime_pos_y", "value")) + "\n"
@@ -934,7 +963,7 @@ class AddCuraSettings(Script):
 
             if machine_extruder_count > 1:
                 for num in range(0, machine_extruder_count):
-                    setting_data += ";Extruder: E" + str(num + 1) + " (T" + str(num) + ")\n"
+                    setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                     setting_data += ";  Nozzle Switch Retraction Distance: " + str(extruder[num].getProperty("switch_extruder_retraction_amount", "value")) + " mm\n"
                     setting_data += ";  Nozzle Switch Retraction Speed: " + str(extruder[num].getProperty("switch_extruder_retraction_speeds", "value")) + " mm/sec\n"
                     if complete_set: setting_data += ";  Nozzle Switch Retract Speed: " + str(extruder[num].getProperty("switch_extruder_retraction_speed", "value")) + " mm/sec\n"
@@ -983,7 +1012,7 @@ class AddCuraSettings(Script):
             setting_data += ";Infill Travel Optimization: " + str(global_stack.getProperty("infill_enable_travel_optimization", "value")) + "\n"
             if machine_extruder_count > 1 and complete_set:
                 for num in range(0, machine_extruder_count):
-                    setting_data += ";Extruder E" + str(num + 1) + " (T" + str(num) + "):\n"
+                    setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                     setting_data += ";  Flow Temperature Graph: " + str(extruder[num].getProperty("material_flow_temp_graph", "value")) + "\n"
             if complete_set: setting_data += ";Minimum Polygon Circumference: " + str(global_stack.getProperty("minimum_polygon_circumference", "value")) + "\n"
             setting_data += ";Generate Interlocking Structure: " + str(global_stack.getProperty("interlocking_enable", "value")) + "\n"
@@ -1028,6 +1057,8 @@ class AddCuraSettings(Script):
                         setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                         setting_data += ";  Conical Support Angle: " + str(extruder[support_infill_extruder_nr].getProperty("support_conical_angle", "value")) + "°\n"
                         setting_data += ";  Conical Support Minimum Width: " + str(extruder[support_infill_extruder_nr].getProperty("support_conical_min_width", "value")) + " mm\n"
+                        if complete_set: setting_data += ";  Minimum Layer Time with Overhang: " + str(extruder[num].getProperty("cool_min_layer_time_overhang", "value")) + "sec\n"
+                        if complete_set: setting_data += ";  Minimum Overhang Segment Length: " + str(extruder[num].getProperty("cool_min_layer_time_overhang_min_segment_length", "value")) + "mm\n"
             setting_data += ";Fuzzy Skin Enable: " + str(extruder[wall_0_extruder_nr].getProperty("magic_fuzzy_skin_enabled", "value")) + "\n"
             if bool(global_stack.getProperty("support_conical_enabled", "value")):
                 setting_data += ";  Fuzzy Skin Outside Only: " + str(extruder[wall_0_extruder_nr].getProperty("magic_fuzzy_skin_outside_only", "value")) + "\n"
@@ -1042,6 +1073,7 @@ class AddCuraSettings(Script):
                 setting_data += ";  Adaptive Height Step: " + str(global_stack.getProperty("adaptive_layer_height_variation_step", "value")) + "\n"
                 setting_data += ";  Adaptive Height Threshold: " + str(global_stack.getProperty("adaptive_layer_height_threshold", "value")) + "\n"
             if complete_set: setting_data += ";Overhanging Wall Angle: " + str(global_stack.getProperty("wall_overhang_angle", "value")) + "°\n"
+            if complete_set: setting_data += ";Overhanging Wall Speeds: " + str(global_stack.getProperty("wall_overhang_speed_factors", "value")) + "°\n"
             if complete_set: setting_data += ";Overhanging Seam Angle: " + str(global_stack.getProperty("seam_overhang_angle", "value")) + "°\n"
             if complete_set: setting_data += ";Overhanging Wall Speed: " + str(global_stack.getProperty("wall_overhang_speed_factor", "value")) + " %\n"
             setting_data += ";Bridge Settings Enabled: " + str(global_stack.getProperty("bridge_settings_enabled", "value")) + "\n"

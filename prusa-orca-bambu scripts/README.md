@@ -4,7 +4,7 @@ PLEASE NOTE:
 - These post-processors are "python scripts" and Python must be installed on your computer. 
 - "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).  
 
-All four slicers require that the post processors are entered into the "Others | Output Options | Post-processing scripts" text box in this form...  
+All the slicers require that the post processors are entered into the "Others | Output Options | Post-processing scripts" text box in this form...  
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
 The quotation marks are necessary on my installation of Windows 10 Pro.  For Linux or Mac you will need to adjust as needed.  
 

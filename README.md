@@ -10,4 +10,4 @@ Since I am a one-man-band there may be bugs that I did not catch.  Let me know i
 -----------------------------------------------------------------------------  
 Change Log for Cura scripts is in the Cura ReadMe file.  
 
-The Change Long for the Slic3R based scripts in the Prusa/Orca/Bambu/Creality ReadMe file.  
+The Change Log for the Slic3R based scripts in the Prusa/Orca/Bambu/Creality ReadMe file.  
