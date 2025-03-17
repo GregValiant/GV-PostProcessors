@@ -131,35 +131,35 @@ An option is to add M73 with % complete, and Time remaining as ' M73  R322 P0 '.
 Much like the Pause at Height in Cura, it asks several questions so the pause and return can be set up.  The settings include 10 pause options including M600.
 Users won't be asked for all of these, but a lot of these.
 
-Pause Layer(s).............. Can be multiple layers (delimited by commas) as long as they use the same basic settings (park position, retract amount, etc.) Ex:  125,333,412
-Message(s) M117 and M118.... Messages to send to the LCD and a print server like Octoprint.  For different message for each pause delimit with commas. Ex: green,red,blue
-Pause Method................ The pause command.  There are 11 options from Marlin M0, M25, Klipper PAUSE, G4, etc.
-  if pause_method == "G4":
-    G4 Dwell Time............... The dwell entered as minutes\n"
-  if pause_method == "M600"
-	All parameters for M600 (B, L, U, R, X, Y, Z, etc.)
-Reason for Pause............ Either 'Filament Change' or 'All Others' (for inserting nuts or magnets).
-Unload Amount............... The amount of filament to back out of the extruder for filament changes
-Enable Quick Purge.......... Extrude some material before unloading.  This helps keep the filament from getting stuck in the hot end.
-Reload Amount............... The amount of filament to extrude to get the end back to the nozzle.
-Unload and Reload Speed..... The E-speed for loading and unloading.  Generally, the machine max E speed.
-Purge Amount................ The amount of filament to purge when changing color.
-Extra Prime Amount.......... When the reason is All Others, this allows a make up extrustion to account for oozing during the pause
-Keep Steppers Alive......... Whether to allow the steppers to possibly disable.
-Disarm Timout............... The amount of time from the last movement, to the steppers disabling.
-Park the Print Head......... Whether to park the print head during the pause
-Park Head X................. The X parking location
-Park Head Y................. The Y parking location
-Z-hop for Parking........... The height to lift the nozzle over the print before parking
-Standby Temperature......... The temperature to sit at while waiting to resume the print
-Resume Print Temperature Cmd Either M104 or M109.
-Resume Temperature.......... The temperature that the print will resume at
-Custom Gcode Before Pause... Gcode commands to add before the pause
-Beep at Pause............... Whether to beep at pause
-Custom Gcode After Pause.... Gcode commands to add after the pause
-Redo Previous Layer......... Whether to go over the previous layer again.
-Redo Layer Flow Rate........ Flow % for the 'redo layer'
+Pause Layer(s).............. Can be multiple layers (delimited by commas) as long as they use the same basic settings (park position, retract amount, etc.) Ex:  125,333,412  
+Message(s) M117 and M118.... Messages to send to the LCD and a print server like Octoprint.  For different message for each pause delimit with commas. Ex: green,red,blue  
+Pause Method................ The pause command.  There are 11 options from Marlin M0, M25, Klipper PAUSE, G4, etc.  
+  if pause_method == "G4":  
+    G4 Dwell Time............... The dwell entered as minutes\n"  
+  if pause_method == "M600"  
+	All parameters for M600 (B, L, U, R, X, Y, Z, etc.)  
+Reason for Pause............ Either 'Filament Change' or 'All Others' (for inserting nuts or magnets).  
+Unload Amount............... The amount of filament to back out of the extruder for filament changes  
+Enable Quick Purge.......... Extrude some material before unloading.  This helps keep the filament from getting stuck in the hot end.  
+Reload Amount............... The amount of filament to extrude to get the end back to the nozzle.  
+Unload and Reload Speed..... The E-speed for loading and unloading.  Generally, the machine max E speed.  
+Purge Amount................ The amount of filament to purge when changing color.  
+Extra Prime Amount.......... When the reason is All Others, this allows a make up extrustion to account for oozing during the pause  
+Keep Steppers Alive......... Whether to allow the steppers to possibly disable.  
+Disarm Timout............... The amount of time from the last movement, to the steppers disabling.  
+Park the Print Head......... Whether to park the print head during the pause  
+Park Head X................. The X parking location  
+Park Head Y................. The Y parking location  
+Z-hop for Parking........... The height to lift the nozzle over the print before parking  
+Standby Temperature......... The temperature to sit at while waiting to resume the print  
+Resume Print Temperature Cmd Either M104 or M109.  
+Resume Temperature.......... The temperature that the print will resume at  
+Custom Gcode Before Pause... Gcode commands to add before the pause  
+Beep at Pause............... Whether to beep at pause  
+Custom Gcode After Pause.... Gcode commands to add after the pause  
+Redo Previous Layer......... Whether to go over the previous layer again.  
+Redo Layer Flow Rate........ Flow % for the 'redo layer'  
 
-Some of the commands are options, but there can be a lot of questions to answer.  There is a checklist before continuing and that allows you to go back and make changes to your settings, or to simply exit.
+Some of the commands are options, but there can be a lot of questions to answer.  There is a checklist before continuing and that allows you to go back and make changes to your settings, or to simply exit.  
 
 
