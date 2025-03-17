@@ -19,7 +19,7 @@ slicer_name = ""
 # Let the user decide to run the script or exit without running.
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiant's      [Insert at Layer Change]\nfor Prusa/Orca has started.  This will insert gcode commands every so-many layers.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
+    response = input("\nGreg Valiant's      [Insert at Layer Change]\n for PrusaSlicer/OrcaSlicer/BambuStudio/CrealityPrint has started.\n  This will insert gcode commands every so-many layers.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
     if response not in ["y", "n"]:
         fail_response = input("Invalid response.  It must be 'y' or 'n'.")
         response = "r"
@@ -36,7 +36,7 @@ def main(lines):
     # Insert the post-processor name
     for index, line in enumerate(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
-            lines.insert(index, ";     Post Processed by Greg Valiant's [Insert at Layer Change] for Prusa/Orca/Bambu\n")
+            lines.insert(index, ";     Post Processed by Greg Valiant's [Insert at Layer Change] for Prusa/Orca/Bambu/Creality\n")
             break
     support_enabled = None
     slicer_name = None
@@ -47,6 +47,8 @@ def main(lines):
             slicer_name = "Orca"
         elif "BambuStudio" in line:
             slicer_name = "Bambu"
+        elif "Creality_Print" in line:
+            slicer_name = "Creality"
         if slicer_name != None:
             break
 

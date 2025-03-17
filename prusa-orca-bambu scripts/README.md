@@ -1,4 +1,4 @@
-# GregValiant's PostProcessors for PrusaSlicer, OrcaSlicer, and Bambu Studio
+# GregValiant's PostProcessors for PrusaSlicer, OrcaSlicer, Bambu Studio, and Creality Print
 
 As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
 
@@ -6,7 +6,7 @@ PLEASE NOTE:
 - These post-processors are "python scripts" and Python must be installed on your computer. 
 - "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
 
-PrusaSlicer, OrcaSlicer, and Bambu Studio require that the post processors are entered into the "Output Options" "Post-processing scripts" text box in this manner...
+All four slicers require that the post processors are entered into the "Others | Output Options | Post-processing scripts" text box in this form...
 "C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
 The quotation marks are necessary on my installation of Windows 10 Pro.  For Linux or Mac you will need to adjust as needed.
 
@@ -31,6 +31,7 @@ As each post-processor runs it will open a command window and you will be asked 
 3/12 and 3/13/2025  Adjusted scripts to utilize variables from the slicers (instead of parsing the gcode).  Improved performance.  
 3/13/2025  Change the layer_change insertion from ";Layer:" to ";Layer#:" to avoid conflicts with the slicer layer_change_gcode.  
 3/16/2025   DisplayInfoAndET  Revised the calculation of the remaining time.  
+3/18/2025   Added support for Creality Print.  
 
 -----------------------------------------------------------------------------
 **Add Layer Numbers:**  
@@ -108,26 +109,8 @@ Park Print Head............. (whether to park the print head or not)
   Park Head Y............... (the 'y' location to park the head)  
 Retract when necessary...... (add a retraction and prime if there wasn't one before parking the head.)  
 Z-hop before parking........ (the height to move the nozzle up from the print before parking)  
-Insure final Image.......... (if the insertion frequency was such that there was no image taken at the end of the last layer - this will do that) 
+Insure final Image.......... (if the insertion frequency was such that there was no image taken at the end of the last layer - this will do that)  
 
-**Search and Replace**  
-This requires 'Add Layer Numbers' to run first.
- The script will search the gcode complete, or a range of layers, and make replacements.  Regular Expressions are an option as is ignoring the StartUp and Ending gcodes.  
- The setting options are. 
- 
-Review your Search and Replace settings  
-
-Search String......................: (the string you want to search for.)  
-Replace With.......................: (the replacement string.  If your search string ends with a '\n' then the replacement string should end with a \n.)  
-Is Regex?..........................: (will treat the search string as a regular expression Ex: ;Layer:(\d+) )  
-Enable a Layer Range Search?.......: (you can limit the search to a range of layers.  If the Start and End numbers are the same, then just that layer would be searched.)  
-  Start Layer......................: (the starting layer)  
-  End Layer........................: (the ending layer)  
-Replace the First Instance only?...: (you might only need to replace a single instance rather than everything in the file)  
-Ignore Startup G-Code?.............: (leave the startup out)  
-Ignore Ending G-Code?..............: (leave the ending out)  
- <Continue?(y)  Redo(r)  Quit(x)\n"  
- 
 **Insert at Layer Change**  
 This requires 'Add Layer Numbers' to run first.  
  The script will search the gcode complete, or a range of layers, and add gcode commands at layer changes replacements.  
@@ -178,3 +161,5 @@ Redo Previous Layer......... Whether to go over the previous layer again.
 Redo Layer Flow Rate........ Flow % for the 'redo layer'
 
 Some of the commands are options, but there can be a lot of questions to answer.  There is a checklist before continuing and that allows you to go back and make changes to your settings, or to simply exit.
+
+

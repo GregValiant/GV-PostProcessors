@@ -34,7 +34,7 @@ if response == "n":
     exit(0)
 
 # Insert the post-processor name
-by_line = ";     Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca/Bambu\n"
+by_line = ";     Post Processed by Greg Valiant's [Time Lapse Camera] for Prusa/Orca/Bambu/Creality\n"
 for index, line in enumerate(lines):
     if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
         lines.insert(index, by_line)
@@ -49,6 +49,8 @@ for line in lines:
         slicer_name = "Orca"
     if "BambuStudio" in line:
         slicer_name = "Bambu"
+    if "Creality_Print" in line:
+        slicer_name = "Creality"
     if slicer_name != "":
         break
 

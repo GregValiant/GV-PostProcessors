@@ -41,22 +41,27 @@ for line in lines:
         slicer_name = "Orca"
     if "BambuStudio" in line:
         slicer_name = "Bambu"
+    if "Creality_Print" in line:
+        slicer_name = "Creality"
     if slicer_name != "":
         break
+        
 if slicer_name == "":
     response = ""
     while response == "":    
-        response = input("The script was not able to determine the name of the slicer app.  The script should handle any of the three.\n Please enter a:\n<p> for PrusaSlicer\n <o> for OrcaSlicer\n <b> for Bambu Studio\n").lower()
+        response = input("The script was not able to determine the name of the slicer app.  The script should handle any of the three.\n Please enter:\n<p> for PrusaSlicer\n <o> for OrcaSlicer\n <b> for Bambu Studio\n <c> for Creality_Print\n").lower()
         if response not in ["p","o","b"]:
-            print("Invalid response.  Must be <b>, <o>, or <p>")
+            print("Invalid response.  Must be <b>, <o>, <p>, <c>")
             response = ""
             continue
     if response == "b":
         slicer_name = "Bambu"
     elif response == "o":
         slicer_name = "Orca"
-    else:
+    elif response == "p":
         slicer_name = "Prusa"
+    elif response == "c":
+        slicer_name = "Creality"
         
 # some local variables
 all_at_once = True
@@ -93,7 +98,7 @@ for index, line in enumerate(lines):
 
 enable_script = "r"
 while enable_script == "r":
-    enable_script = input("\nGreg Valiant's      [Display Info on LCD]\n  Displays a message on the LCD (using M117) and sends a message to a print server (using M118)\n Optionally adds M73 with print time and/or print percentage\n  (NOTE: M117, M118, M73 must be enabled in your firmware for them to work)\nDo you wish to continue?\n <y> Yes\n <n> No\n").lower()
+    enable_script = input("\nGreg Valiant's      [Display Info on LCD]\n  PrusaSlicer/OrcaSlicer/BambuStudio/CrealityPrint\n Displays a message on the LCD (using M117) and sends a message to a print server (using M118)\n Optionally adds M73 with print time and/or print percentage\n  (NOTE: M117, M118, M73 must be enabled in your firmware for them to work)\nDo you wish to continue?\n <y> Yes\n <n> No\n").lower()
     if enable_script not in ["y", "n", "q"]:
         print("Invalid response.  Must be 'y' or 'n'\n")
         enable_script = "r"
@@ -175,7 +180,7 @@ while carry_on == True:
 
 def main(lines):
     # Insert the post-processor name
-    by_line = ";     Post Processed by Greg Valiant's [Display Info] for Prusa/Orca/Bambu\n"
+    by_line = ";     Post Processed by Greg Valiant's [Display Info] for Prusa/Orca/Bambu/Creality\n"
     for index, line in enumerate(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines[index - 1] += by_line
@@ -184,6 +189,7 @@ def main(lines):
     slice_time = round(slice_time * time_fudge_factor)
     actual_print_lines = layer_change_index_list[len(layer_change_index_list) - 1] - layer_change_index_list[0]
 
+    # Calculate the time of each layer using general numbers to figure out what percentage of the overall print time each layer takes
     m118_list = []    
     time_list = []
     prev_x = 0
@@ -210,23 +216,24 @@ def main(lines):
             calc_print_time += layer_time
             time_list.append(round(calc_print_time))
             layer_time = 0
-    # Add the numbers for the top layer
+    # Add the number for first layer
     calc_print_time += layer_time
     time_list.append(round(calc_print_time))
-    layer_time = 0
     
+    # Calculate the numbers for the M117 and M118 insertions, and for the Time Elapsed lines.
     elapsed_times = []
     end_time = round(calc_print_time)
     for index, tl in enumerate(time_list):
         m118_list.append(round(slice_time - ((tl/end_time) * slice_time)))
         elapsed_times.append(round((tl/end_time) * slice_time))
     
-    # Add the elapsed time line to the gcode
+    # Add the Time Elapsed line to the gcode
     num = 2
     for index, line in enumerate(lines):
         if f";Layer#:{num}\n" in line:
             lines[index - 1] += f";Time_Elapsed:{round(elapsed_times[num - 1])}\n"
             num += 1
+            
     # Send the m118_list to Display_Progress
     lines = display_progress(lines, m118_list)
     

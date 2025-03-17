@@ -25,7 +25,7 @@ if not layer_numbers_added:
 # Run the script or exit?
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiants      [Pause at Layer]\nfor Prusa/Orca/Bambu has started.\n  This will insert 'park - pause - resume' code at the indicated layers.  You can make insertions at more than one layer provided that they all use the same general settings (same park position, filament temp's, etc.).\n (There may be as many as 24 settings and then a 'Review'.)\n  Do you wish to Continue?\n <y> Yes\n <n> No\n").lower()
+    response = input("\nGreg Valiants      [Pause at Layer]\n for PrusaSlicer/OrcaSlicer/BambuStudio/CrealityPrint has started.\n  This will insert 'park - pause - resume' code at the indicated layers.  You can make insertions at more than one layer provided that they all use the same general settings (same park position, filament temp's, etc.).\n (There may be as many as 24 settings and then a 'Review'.)\n  Do you wish to Continue?\n <y> Yes\n <n> No\n").lower()
     if response not in ["y", "n"]:
         input("Invalid response.  Enter a 'y' for Yes or an 'n' for No.")
         response = "r"
@@ -43,7 +43,7 @@ reload_amount = 0
 
 def main(lines):
     # Insert the post-processor name
-    by_line = ";     Post Processed by Greg Valiant's [Pause at Layer] for Prusa/Orca/Bambu\n"
+    by_line = ";     Post Processed by Greg Valiant's [Pause at Layer] for Prusa/Orca/Bambu/Creality\n"
     for index, line in enumerate(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines.insert(index, by_line)
@@ -470,6 +470,8 @@ def get_slicer_settings(lines):
             slicer_name = "Orca"
         if "Bambu" in line:
             slicer_name = "Bambu"
+        if "Creality_Print" in line:
+            slicer_name = "Creality"
         if slicer_name != "":
             break
             
@@ -503,7 +505,7 @@ def get_slicer_settings(lines):
         machine_bed_size_var = "SLIC3R_BED_SHAPE"
         machine_max_z_var = "SLIC3R_MAX_PRINT_HEIGHT"
         z_hop_height_var = "SLIC3R_RETRACT_LIFT"
-    elif slicer_name in ["Orca","Bambu"]:
+    elif slicer_name in ["Orca","Bambu","Creality"]:
         retract_dist_var = "SLIC3R_RETRACTION_LENGTH"
         retract_speed_var = "SLIC3R_RETRACTION_SPEED"
         deretract_speed_var = "SLIC3R_DERETRACTION_SPEED"

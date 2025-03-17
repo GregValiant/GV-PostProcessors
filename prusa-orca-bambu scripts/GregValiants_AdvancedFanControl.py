@@ -33,7 +33,7 @@ layer_count = None
 def main(lines):
     response = "q"
     while not response in ["y", "n"]:
-        response = input("\nGreg Valiants      [Advanced Fan Control]\nfor Prusa/Orca/Bambu has started.\n Note: You may run multiple instances of this script.  Example: The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?\n <y> Yes\n <n> No\n").lower()
+        response = input("\nGreg Valiants      [Advanced Fan Control]\n for PrusaSlicer/OrcaSlicer/BambuStudio/CrealityPrint has started.\n Note: You may run multiple instances of this script.  Example: The first might be for 'By Layer' up to layer 250 and then a second instance can be 'By Feature' and start at layer 250.\n Do you wish to continue?\n <y> Yes\n <n> No\n").lower()
         if response not in ["y", "n"]:
             print("Invalid Response.  Must be 'y' or 'n'.")
             continue
@@ -114,9 +114,9 @@ def main(lines):
 
     # Insert the by line
     if fan_mode == 1:
-        by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu\n"
+        by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Feature'] for Prusa/Orca/Bambu/Creality\n"
     else:
-        by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu\n"
+        by_line = ";     Post Processed by Greg Valiant's [Advanced Fan Control 'By Layer'] for Prusa/Orca/Bambu/Creality\n"
     for index, line in enumerate(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines.insert(index, by_line)
@@ -234,7 +234,7 @@ def getSettings_ByFeature(fan_speed_is_pwm, layer_count, extruder_count, fan_0, 
 
         type_overhang_wall = fan_speed_feature_type(f"\n'{alias_overhang_wall}'\n Enter the Fan speed (0% to 100%) for the walls around overhangs.\n")
         type_bridge = fan_speed_feature_type(f"\n'{alias_bridge}'\n Enter the Fan speed (0% to 100%) for the outer bridging.\n")
-        if slicer_name == "Orca":
+        if slicer_name == "Orca" or slicer_name == "Creality":
             type_internal_bridge = fan_speed_feature_type("\n'TYPE:Internal Bridge'\n Enter the Fan speed (0% to 100%) for the internal bridging.\n")
         elif slicer_name == "Prusa":
             type_internal_bridge = type_bridge
@@ -260,16 +260,16 @@ def getSettings_ByFeature(fan_speed_is_pwm, layer_count, extruder_count, fan_0, 
             input_str += f"End Layer (top layer is {layer_count}) = {end_layer}\n"
             if start_layer == 1 or draft_shield:
                 input_str += f"{alias_bed_adhesion_skirt[:-1]} = {round(type_skirt / 2.55)}%\n"
-                if slicer_name == "Orca":
+                if slicer_name == "Orca" or slicer_name == "Creality":
                     input_str += f"{alias_bed_adhesion_brim[:-1]} = {round(type_brim / 2.55)}%\n"
             input_str += f"{alias_wall_outer[:-1]} = {round(type_wall_outer / 2.55)}%\n"
             input_str += f"{alias_wall_inner[:-1]} = {round(type_wall_inner / 2.55)}%\n"
             input_str += f"{alias_top_skin[:-1]} = {round(type_top_skin / 2.55)}%\n"
             input_str += f"{alias_mid_skin[:-1]} = {round(type_mid_skin / 2.55)}%\n"
-            if slicer_name == "Orca":
+            if slicer_name == "Orca" or slicer_name == "Creality":
                 input_str += f"{alias_btm_skin[:-1]} = {round(type_btm_skin / 2.55)}%\n"
             input_str += f"{alias_bridge[:-1]} = {round(type_bridge / 2.55)}%\n"
-            if slicer_name == "Orca":
+            if slicer_name == "Orca" or slicer_name == "Creality":
                 input_str += f"{alias_internal_bridge[:-1]} = {round(type_internal_bridge / 2.55)}%\n"
             input_str += f"{alias_overhang_wall[:-1]} = {round(type_overhang_wall / 2.55)}%\n"
             input_str += f"{alias_infill[:-1]} = {round(type_infill / 2.55)}%\n"
@@ -512,6 +512,8 @@ def get_slicer_settings(lines: str) -> str:
             slicer_name = "Prusa"
         if "; BambuStudio" in line:
             slicer_name = "Bambu"
+        if "Creality_Print" in line:
+            slicer_name = "Creality"
         if slicer_name != "":
             break
     for line in lines:
@@ -670,7 +672,7 @@ def getAliases(slicer_name):
         alias_bridge = ";TYPE:Bridge infill\n"
         alias_internal_bridge = ";Not in Prusa"
 
-    elif slicer_name == "Orca":
+    elif slicer_name == "Orca" or slicer_name == "Creality":
         alias_bed_adhesion_skirt = ";TYPE:Skirt\n"
         alias_bed_adhesion_brim = ";TYPE:brim\n"
         alias_supt = ";TYPE:Support\n"

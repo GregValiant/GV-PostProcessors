@@ -24,7 +24,7 @@ if not layer_numbers_added:
 
 response = "r"
 while response == "r":
-    response = input("\nGreg Valiants      [Search and Replace]\nfor Prusa/Orca/Bambu has started.\nDo you wish to Continue?\n <y> Yes\n <n> No\n").lower()
+    response = input("\nGreg Valiants      [Search and Replace]\n for PrusaSlicer/OrcaSlicer/BambuStudio/CrealityPrint has started.\n Do you wish to Continue?\n <y> Yes\n <n> No\n").lower()
     if response not in ["y", "n"]:
         print("The response must be 'y' or 'n'.  Try again.")
         response = "r"
@@ -37,7 +37,7 @@ def main():
     slicer_settings = get_slicer_settings()
     layer_count = slicer_settings[0]
     slicer_name = slicer_settings[1]
-    by_line = ";     Post Processed by Greg Valiant's [Search and Replace] for Prusa/Orca/Bambu\n"
+    by_line = ";     Post Processed by Greg Valiant's [Search and Replace] for Prusa/Orca/Bambu/Creality\n"
     for index, line in enumerate(lines):
         if "; HEADER_BLOCK_END" in line or "; external perimeters extrusion width =" in line:
             lines.insert(index, by_line)
@@ -235,6 +235,8 @@ def get_slicer_settings():
             slicer_name = "Orca"
         if "Bambu" in line:
             slicer_name = "Bambu"
+        if "Creality_Print" in line:
+            slicer_name = "Creality"
         if slicer_name != "":
             break
     for line in lines:
