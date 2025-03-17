@@ -1,7 +1,9 @@
-# Copyright (c) May of 2024 GregValiant (Greg Foresi)
-#   This post processor opens the relevant fddmprinter.def.json files and goes through the settings.  The print is thrown out and the setting name and 'settable_per_extruder" are pulled out and added to the gcode file.  Two versions can be compared and the differences are noted.
+"""
+Copyright (c) May of 2024 GregValiant (Greg Foresi)
+    This script opens the relevant 'fddmprinter.def.json' files and goes through the settings.  The gcode is thrown out and the setting name and 'settable_per_extruder" are pulled out and added to the gcode file.  Two versions can be compared and the differences are noted.
+"""
 
-# Some of these may no longer be required.  I'm to lazy to figure out which.
+#  Some of these may no longer be required.  I'm to lazy to figure out which.
 from UM.Application import Application
 import UM.Util
 from ..Script import Script
@@ -15,12 +17,10 @@ from UM.Platform import Platform
 import os
 
 class DiscoverSettings(Script):
-    """ Remove all printing and then add all the Cura settings to the g-code.
-    """
 
     def getSettingDataString(self):
         return """{
-            "name": "Discover Settings 5.9.0",
+            "name": "Discover Settings 5.10 beta1",
             "key": "DiscoverSettings",
             "metadata": {},
             "version": 2,
@@ -32,7 +32,7 @@ class DiscoverSettings(Script):
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
-                        "qidi": "QIDI Print",
+                        "v5_10b": "5.10beta",
                         "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
@@ -55,7 +55,7 @@ class DiscoverSettings(Script):
                     "type": "enum",
                     "options": {
                         "no_compare": "No Compare",
-                        "qidi": "QIDI Print",                        
+                        "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
                         "v5_72": "5.7.2",
@@ -75,13 +75,13 @@ class DiscoverSettings(Script):
 
     def execute(self, data): #Application.getInstance().getPrintInformation().
         init_version = self.getSettingValueByKey("cura_version")
-        if init_version == "qidi":
-            init_path = r"C:\Program Files\Qidi Print 5.6\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_10b":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.10.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_91":
             init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
-        if init_version == "v5_90":
+        elif init_version == "v5_90":
             init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
-        if init_version == "v5_81":
+        elif init_version == "v5_81":
             init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_72":
             init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
@@ -99,17 +99,15 @@ class DiscoverSettings(Script):
             init_path = r"C:\Program Files\UltiMaker Cura 5.2.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v4_13":
             init_path = r"C:\Program Files\Ultimaker Cura 4.13.1\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_7b":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.7.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v4_20_26":
             init_path = r"C:\Program Files\Ultimaker Cura 4.20.26\resources\definitions\fdmprinter.def.json"
 
         compare_to_version = self.getSettingValueByKey("compare_to_version")
         if compare_to_version == "no_compare":
             ct_init_path = ""
-        elif compare_to_version == "qidi":
-            ct_init_path = r"C:\Program Files\Qidi Print 5.6\resources\definitions\fdmprinter.def.json"
-        if compare_to_version == "v5_90":
+        elif compare_to_version == "v5_91":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
+        elif compare_to_version == "v5_90":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_81":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
@@ -129,8 +127,6 @@ class DiscoverSettings(Script):
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.2.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v4_13":
             ct_init_path = r"C:\Program Files\Ultimaker Cura 4.13.1\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_7b":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.7.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v4_20_26":
             ct_init_path = r"C:\Program Files\Ultimaker Cura 4.20.26\resources\definitions\fdmprinter.def.json"
 
@@ -402,9 +398,12 @@ class DiscoverSettings(Script):
                 setting_list.append("#" + commands[num][:-1].strip())
             if "label:" in commands[num] and found_cmd:
                 label_list.append("#" + commands[num].split(":")[1].strip())
+            if "settable_per_mesh" in commands[num] and found_cmd:
+                if "true" in commands[num].split(":")[1]:
+                    label_list[len(label_list)-1] += str("."*(36-len(label_list[len(label_list)-1]))) + "Settable Per Mesh:" + commands[num].split(":")[1]
             if "settable_per_extruder" in commands[num] and found_cmd:
                 if "true" in commands[num].split(":")[1]:
-                    label_list[len(label_list)-1] += str("."*(36-len(label_list[len(label_list)-1]))) + "Settable Per:" + commands[num].split(":")[1]
+                    label_list[len(label_list)-1] += str("."*(36-len(label_list[len(label_list)-1]))) + "Settable Per Extruder:" + commands[num].split(":")[1]
             if "limit_to_extruder" in commands[num] and found_cmd:
                 label_list[len(label_list)-1] += str("."*(36-len(label_list[len(label_list)-1]))) + "  Limit To:" + commands[num].split(":")[1]
                 found_cmd = False

@@ -18,6 +18,8 @@ Latest Changes:
 
 1/25/2025: Little Utilities update:
 	Added 'Initial Layer Walls Z Height' adjustment.  The layer height of the initial layer Inner and Outer walls can be adjusted separate from other features.  The second layer has the Wall Flow Rate adjusted to account for the higher layer heights.
+	
+3/17/2025:	Updated 'Discover Settings' and 'AddCuraSettings' to 5.10 beta
 
 AnnealingCoolDown now has a "Filament Drying" function.  It will create a gcode file with just the commands needed to Auto-Home, park the head, heat the build plate to a temperature of your choice.  The bed will stay at that temperature for the specified period of time and then shut off.
 

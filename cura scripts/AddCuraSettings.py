@@ -2,7 +2,7 @@
     Copyright (c) 2024 GregValiant (Greg Foresi)
     This post processor adds most of the Cura settings to the end of the Gcode file.  Which settings are added depends on things like the Extruder Count, Cura setup, etc.  For example if Generate Support is turned off then there won't be any support settings.
     The "Full Set" contains all the settings.  The "Simple Set" has been filtered.
-    3/17/2025 Updated to UM Cura 5.10 beta 1
+    3/8/2025 Updated to UM Cura 5.9.1
 """
 
 from UM.Application import Application
@@ -224,8 +224,11 @@ class AddCuraSettings(Script):
         if roofing_extruder_nr == -1: roofing_extruder_nr = 0
         top_bottom_extruder_nr = int(global_stack.getProperty("top_bottom_extruder_nr", "value"))
         if top_bottom_extruder_nr == -1: top_bottom_extruder_nr = 0
-        flooring_extruder_nr = int(global_stack.getProperty("flooring_extruder_nr", "value"))
-        if flooring_extruder_nr == -1: flooring_extruder_nr = 0        
+        try:
+            flooring_extruder_nr = int(global_stack.getProperty("flooring_extruder_nr", "value"))
+            if flooring_extruder_nr == -1: flooring_extruder_nr = 0 
+        except:
+            pass
         infill_extruder_nr = int(global_stack.getProperty("infill_extruder_nr", "value"))
         if infill_extruder_nr == -1: infill_extruder_nr = 0
         support_extruder_nr = int(global_stack.getProperty("support_extruder_nr", "value"))
@@ -456,7 +459,10 @@ class AddCuraSettings(Script):
             setting_data += ";Flooring Pattern: " + str(global_stack.getProperty("flooring_pattern", "value")) + "\n"
             setting_data += ";Flooring Monotonic: " + str(global_stack.getProperty("flooring_monotonic", "value")) + "\n"
             setting_data += ";Flooring Skin Line Directions: " + str(global_stack.getProperty("flooring_angles", "value")) + "\n"
-            setting_data += ";Flooring Material Flow: " + str(extruder[flooring_extruder_nr].getProperty("flooring_material_flow", "value")) + "\n"
+            try:
+                setting_data += ";Flooring Material Flow: " + str(extruder[flooring_extruder_nr].getProperty("flooring_material_flow", "value")) + "\n"
+            except:
+                pass
             setting_data += ";Top/Bottom Thickness: " + str(round(global_stack.getProperty("top_bottom_thickness", "value"),2)) + " mm\n"
             setting_data += ";Top Thickness: " + str(round(global_stack.getProperty("top_thickness", "value"),2)) + " mm\n"
             setting_data += ";Top Layers: " + str(global_stack.getProperty("top_layers", "value")) + "\n"
@@ -721,7 +727,10 @@ class AddCuraSettings(Script):
                 setting_data += ";  Retraction Min Extr Dist Window: " + str(extruder[num].getProperty("retraction_extrusion_window", "value")) + "\n"
                 setting_data += ";  Retraction Combing: " + str(extruder[num].getProperty("retraction_combing", "value")) + "\n"
                 setting_data += ";  Retraction Max Combing with no Retract: " + str(extruder[num].getProperty("retraction_combing_max_distance", "value")) + " mm\n"
-                setting_data += ";  Inside Travel Avoid Distance: " + str(round(extruder[num].getProperty("retraction_combing_avoid_distance", "value"), 2)) + " mm\n"
+                try:
+                    setting_data += ";  Inside Travel Avoid Distance: " + str(round(extruder[num].getProperty("retraction_combing_avoid_distance", "value"), 2)) + " mm\n"
+                except:
+                    pass
                 setting_data += ";  Retract Before Outer Wall: " + str(extruder[num].getProperty("travel_retract_before_outer_wall", "value")) + "\n"
                 setting_data += ";  Layer Start X: " + str(extruder[num].getProperty("layer_start_x", "value")) + "\n"
                 setting_data += ";  Layer Start Y: " + str(extruder[num].getProperty("layer_start_y", "value")) + "\n"
