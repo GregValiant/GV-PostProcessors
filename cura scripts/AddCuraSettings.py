@@ -2,7 +2,7 @@
     Copyright (c) 2024 GregValiant (Greg Foresi)
     This post processor adds most of the Cura settings to the end of the Gcode file.  Which settings are added depends on things like the Extruder Count, Cura setup, etc.  For example if Generate Support is turned off then there won't be any support settings.
     The "Full Set" contains all the settings.  The "Simple Set" has been filtered.
-    3/8/2025 Updated to UM Cura 5.9.1
+    3/17/2025 Updated to UM Cura 5.10 beta 1
 """
 
 from UM.Application import Application
