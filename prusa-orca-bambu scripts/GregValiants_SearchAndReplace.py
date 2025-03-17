@@ -1,7 +1,9 @@
-# Copyright (c) 2025 GregValiant (Greg Foresi)
-#  Suitable to Prusa, Orca, and Bambu slicers
-#  Search and Replace through the gcode or ranges of layers.
-#  Regex searches are an option.
+"""
+    Copyright (c) 2025 GregValiant (Greg Foresi)
+    Suitable to Prusa, Orca, Bambu and Creality slicers
+    Search and Replace through the gcode or ranges of layers.
+    Regex searches are an option.
+"""
 
 import sys
 import re

@@ -1,6 +1,6 @@
 """
  Copyright (c) 2025 GregValiant (Greg Foresi)
-  Suitable to Prusa, Orca, and Bambu slicers
+  Suitable to Prusa, Orca, Bambu, and Creality slicers
   Please note that the 'Layer Count' for the slicers is dependent on whether or not supports are enabled.  The 'Layer Count' used by this script will match the slicer preview.
   
   The script adds M117 and M118 lines at layer changes.  The form is "current_layer / total_layers | Estimated time to end" Example: '1/250 | ET 3h 45m'

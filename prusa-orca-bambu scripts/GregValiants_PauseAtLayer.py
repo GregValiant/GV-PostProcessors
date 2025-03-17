@@ -1,7 +1,9 @@
-# Copyright (c) 2025 GregValiant (Greg Foresi)
-#  Suitable to Prusa, Orca, and Bambu slicers
-#  Depending the the selected options, this script can:
-#    <Retract> <Lift nozzle> <Park> <Quick purge> <Unload filament> <Pause> <Load filament> <Purge> <Retract> <Move back> <Lower nozzle> <Unretract>
+"""
+    Copyright (c) 2025 GregValiant (Greg Foresi)
+    Suitable to Prusa, Orca, Bambu, and Creality slicers
+    Depending the the selected options, this script can:
+        <Retract> <Lift nozzle> <Park> <Quick purge> <Unload filament> <Pause> <Load filament> <Purge> <Retract> <Move back> <Lower nozzle> <Unretract>
+"""
 
 import sys
 import re

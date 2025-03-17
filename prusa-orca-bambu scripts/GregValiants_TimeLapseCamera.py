@@ -1,7 +1,8 @@
-# Copyright (c) 2025 GregValiant (Greg Foresi)
-#  Suitable to Prusa, Orca, and Bambu slicers
-#  Depending on the chosen options, this script can:
-#    <retract> <Lift the nozzle> <park park the head> <pause> <take a image> <pause> <move back> <lower the nozzle> <unretract>.
+"""
+    Copyright (c) 2025 GregValiant (Greg Foresi)
+    Suitable to Prusa, Orca, Bambu, and Creality slicers
+    Depending on the chosen options, this script can:
+        <retract> <Lift the nozzle> <park the head> <pause> <take an image> <pause> <move back> <lower the nozzle> <unretract>.
 
 import sys
 import os

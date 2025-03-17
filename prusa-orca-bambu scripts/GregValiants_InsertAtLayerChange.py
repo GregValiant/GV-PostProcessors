@@ -1,6 +1,6 @@
 """
     Copyright (c) 2025 GregValiant (Greg Foresi)
-    Suitable to Prusa, Orca, and Bambu slicers
+    Suitable to Prusa, Orca, Bambu, and Creality slicers
     This script will:
         Add additional Gcode commands at layer changes.
         Delimit multiple commands with commas (EX:  M999,G92 E0,M221 S95)
