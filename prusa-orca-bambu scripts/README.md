@@ -1,30 +1,29 @@
 # GregValiant's PostProcessors for PrusaSlicer, OrcaSlicer, Bambu Studio, and Creality Print
 
-As I work on these I update the Git page.  The versions here should work as intended.  Since I am a one-man-band there may be bugs that I did not catch.  Let me know if there are issues with the post processors.
-
-PLEASE NOTE:
+PLEASE NOTE:  
 - These post-processors are "python scripts" and Python must be installed on your computer. 
-- "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).
+- "GregValiants_AddLayerNumbers" must be run first in order for the other scripts to work (they will search for Layer Numbers).  
 
-All four slicers require that the post processors are entered into the "Others | Output Options | Post-processing scripts" text box in this form...
-"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";
-The quotation marks are necessary on my installation of Windows 10 Pro.  For Linux or Mac you will need to adjust as needed.
+All four slicers require that the post processors are entered into the "Others | Output Options | Post-processing scripts" text box in this form...  
+"C:\Users\grego\AppData\Local\Programs\Python\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
+The quotation marks are necessary on my installation of Windows 10 Pro.  For Linux or Mac you will need to adjust as needed.  
 
-The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".
-The second part is the path and file name of the post-processor followed by a semi-colon.
-Each post-processor requires the same form and must be on separate lines in the text box.
-For multiple post-processors the "Post-processing scripts" textbox would look something like this...
+The first part of the line is the path and file name for "python.exe" (on your computer) followed by a single "space".  
+The second part is the path and file name of the post-processor followed by a semi-colon.  
+Each post-processor requires the same form and must be on separate lines in the text box.  
+For multiple post-processors the "Post-processing scripts" textbox would look something like this...  
 
-*<path\python.exe><1space><path\post-processor file name><;>*
-Github is shortening this but each "path + post processor" should be on a single line.  (It will look odd in the short textboxes of Orca and Bambu.)
+*<path\python.exe><1space><path\post-processor file name><;>*  
+Github is shortening this but each "path + post processor" should be on a single line.  (It will look odd in the short textboxes of Orca and Bambu.)  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AddLayerNumbers.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_SearchAndReplace.py";  
 "C:\Users\PathToPython\Python313\python.exe" "C:\Users\grego\Documents\PrusaScripts\GregValiants_AdvancedFanControl.py";  
 
 *I keep a simple text file with the above lines in it.  When I need to use a script, I open that file and copy the line and paste it into the post-processor box of the slicer.*  
 
-As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.
+As each post-processor runs it will open a command window and you will be asked for your input.  The scripts attempt to catch typos, but you need to be careful.  
 
+Slic3R based script changes:  
 2/25/2025  Added the Display Layer and ET script.  
 3/1/2025   Added Pause at Layer.  
 3/4/2025   Added Insert at Layer Change  
@@ -33,7 +32,7 @@ As each post-processor runs it will open a command window and you will be asked 
 3/16/2025   DisplayInfoAndET  Revised the calculation of the remaining time.  
 3/18/2025   Added support for Creality Print.  
 
------------------------------------------------------------------------------
+-----------------------------------------------------------------------------  
 **Add Layer Numbers:**  
 2/14/2025  My test model is 50mm tall.  When I slice at 0.2 layer height and 0.2 initial layer height and with "Generate Support Material" turned off, it is 250 layers.  That's what I expect and what "Add Layer Numbers" comes up with.  If I turn "Generate Support Material" on - it is 470 layers in Prusa, 379 layers in Orca, and 350 layers in Bambu.  Go figure.  The script will make the adjustment when supports are enabled or disabled.  The layer numbering in the gcode will match the slicer preview.  
 The script will go through the gcode and look for ";LAYER_CHANGE" ("; CHANGE_LAYER" in Bambu) and add a line below that ";Layer:XX".  
