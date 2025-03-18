@@ -1,6 +1,6 @@
 """
     Copyright (c) 2024 GregValiant (Greg Foresi)
-    This post processor adds most of the Cura settings to the end of the Gcode file.  Which settings are added depends on things like the Extruder Count, Cura setup, etc.  For example if Generate Support is turned off then there won't be any support settings.
+    This post processor adds most of the Cura settings (from fdmprinter) to the end of the Gcode file.  Which settings are added depends on things like the Extruder Count, Cura setup, etc.  For example if Generate Support is turned off then there won't be any support settings.
     The "Full Set" contains all the settings.  The "Simple Set" has been filtered.
     3/8/2025 Updated to UM Cura 5.9.1
 """
@@ -226,7 +226,7 @@ class AddCuraSettings(Script):
         if top_bottom_extruder_nr == -1: top_bottom_extruder_nr = 0
         try:
             flooring_extruder_nr = int(global_stack.getProperty("flooring_extruder_nr", "value"))
-            if flooring_extruder_nr == -1: flooring_extruder_nr = 0 
+            if flooring_extruder_nr == -1: flooring_extruder_nr = 0
         except:
             pass
         infill_extruder_nr = int(global_stack.getProperty("infill_extruder_nr", "value"))
@@ -254,7 +254,7 @@ class AddCuraSettings(Script):
         raft_base_extruder_nr = int(global_stack.getProperty("raft_base_extruder_nr", "value"))
         raft_interface_extruder_nr = int(global_stack.getProperty("raft_interface_extruder_nr", "value"))
         raft_surface_extruder_nr = int(global_stack.getProperty("raft_surface_extruder_nr", "value"))
-        
+
         #General Settings------------------------------------------------------------------------------------------------------------------
         if bool(self.getSettingValueByKey("general_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [General Settings]\n"
@@ -284,7 +284,7 @@ class AddCuraSettings(Script):
                 setting_data += ";  Filament Amount: " + str(round(filament_amt[num],2)) + "m\n"
                 setting_data += ";  Filament Weight: " + str(round(filament_wt[num],2)) + "gm\n"
                 setting_data += ";  Filament Cost: " + currency_symbol + "{:.2f}".format(filament_cost[num]) + "\n"
-            setting_data += ";Initial Extruder Number: " + str(CuraApplication.getInstance().getExtruderManager().getInitialExtruderNr()) + "\n"
+            setting_data += ";Initial Extruder Number: T" + str(CuraApplication.getInstance().getExtruderManager().getInitialExtruderNr()) + "\n"
             setting_data += ";Keep Models Apart: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_push_free")) + "\n"
             setting_data += ";Drop Models to Build Plate: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_drop_down")) + "\n"
 
@@ -314,11 +314,11 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Cool Down Speed: " + str(global_stack.getProperty("machine_nozzle_cool_down_speed", "value")) + "°/sec\n"
             if complete_set: setting_data += ";Minimal Time Standby Temperature: " + str(global_stack.getProperty("machine_min_cool_heat_time_window", "value")) + " sec\n"
             if complete_set: setting_data += ";G-code Flavor: " + str(global_stack.getProperty("machine_gcode_flavor", "value")) + "\n"
-            if complete_set: setting_data += ";Firmware Retraction: " + str(global_stack.getProperty("machine_firmware_retract", "value")) + "\n"
+            if complete_set: setting_data += ";Firmware Retraction: " + str(global_stack.getProperty("machine_firmware_retract", "value")) + " \n"
             if machine_extruder_count > 1:
-                setting_data += ";Extruders Share Heater: " + str(global_stack.getProperty("machine_extruders_share_heater", "value")) + "\n"
-                setting_data += ";Extruders Share Nozzle: " + str(global_stack.getProperty("machine_extruders_share_nozzle", "value")) + "\n"
-                setting_data += ";Shared Nozzle Initial Retraction: " + str(global_stack.getProperty("machine_extruders_shared_nozzle_initial_retraction", "value")) + " mm\n"
+                setting_data += "; Extruders Share Heater: " + str(global_stack.getProperty("machine_extruders_share_heater", "value")) + " \n"
+                setting_data += "; Extruders Share Nozzle: " + str(global_stack.getProperty("machine_extruders_share_nozzle", "value")) + " \n"
+                setting_data += "; Shared Nozzle Initial Retraction: " + str(global_stack.getProperty("machine_extruders_shared_nozzle_initial_retraction", "value")) + " mm\n"
             if complete_set:
                 mach_dis_areas = global_stack.getProperty("machine_disallowed_areas", "value")
                 templist = ""
@@ -335,7 +335,10 @@ class AddCuraSettings(Script):
             machine_head_with_fans_polygon = global_stack.getProperty("machine_head_with_fans_polygon", "value")
             if complete_set: setting_data += ";Print Head Disallowed Area (for One-At-A-Time): " + str(machine_head_with_fans_polygon[0]) + str(machine_head_with_fans_polygon[1]) + str(machine_head_with_fans_polygon[2]) + str(machine_head_with_fans_polygon[3]) + "\n"
             if complete_set: setting_data += ";Gantry Height: " + str(global_stack.getProperty("gantry_height", "value")) + " mm\n"
-            if complete_set: setting_data += ";Nozzle Identifier: " + str(global_stack.getProperty("machine_nozzle_id", "value")) + "\n"            
+            if complete_set: setting_data += ";Nozzle Identifier: " + str(global_stack.getProperty("machine_nozzle_id", "value")) + "\n"
+            if complete_set and machine_extruder_count == 1:
+                setting_data += ";Extruder Start_Gcode: " + str(extruder[0].getProperty("machine_extruder_start_code", "value")) + "\n"
+                setting_data += ";Extruder End_Gcode: " + str(extruder[0].getProperty("machine_extruder_end_code", "value")) + "\n"
             if machine_extruder_count > 1:
                 setting_data += ";Initial Extruder Number: T" + str(initial_extruder_nr) + "\n"
             for num in range(0,machine_extruder_count):
@@ -357,7 +360,20 @@ class AddCuraSettings(Script):
                             setting_data += f";    Machine Nozzle Offset Y (T{num}): " + str(extruder[num].getProperty("machine_nozzle_offset_y", "value")) + "\n"
                     except:
                         pass
-            setting_data += "Start GCode must be first:" + str(global_stack.getProperty("machine_start_gcode_first", "value")) + "\n"               
+                    ext_start = ""
+                    ext_end = ""
+                    ext_prestart = ""
+                    if str(extruder[num].getProperty("machine_extruder_prestart_code", "value")) != "":
+                        ext_prestart = str(extruder[num].getProperty("machine_extruder_prestart_code", "value")).replace("\n","|")
+                    if str(extruder[num].getProperty("machine_extruder_start_code", "value")) != "":
+                        ext_start = str(extruder[num].getProperty("machine_extruder_start_code", "value")).replace("\n","|")
+                    if str(extruder[num].getProperty("machine_extruder_end_code", "value")) != "":
+                        ext_end = str(extruder[num].getProperty("machine_extruder_end_code", "value")).replace("\n","|")
+                    setting_data += ";  Extruder PreStart Gcode: " + ext_prestart + " \n"
+                    setting_data += ";  Extruder Start Gcode: " + ext_start + " \n"
+                    setting_data += ";  Extruder End Gcode: " + ext_end + " \n"
+
+            setting_data += ";Start GCode must be first: " + str(global_stack.getProperty("machine_start_gcode_first", "value")) + "\n"
             setting_data += ";Z Position for Extruder Prime: " + str(global_stack.getProperty("extruder_prime_pos_z", "value")) + "\n"
             setting_data += ";Absolute Extruder Prime: " + str(global_stack.getProperty("extruder_prime_pos_abs", "value")) + "\n"
             setting_data += ";Max Feedrate X: " + str(global_stack.getProperty("machine_max_feedrate_x", "value")) + " mm/sec\n"
@@ -557,9 +573,9 @@ class AddCuraSettings(Script):
                 setting_data += ";  Outer-Wall Flow: " + str(extruder[num].getProperty("wall_0_material_flow", "value")) + " %\n"
                 setting_data += ";  Inner-Wall Flow: " + str(extruder[num].getProperty("wall_x_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Top Surface Outer Wall Flow: " + str(extruder[num].getProperty("wall_0_material_flow_roofing", "value")) + " %\n"
-                if complete_set: setting_data += ";  Top Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_x_material_flow_roofing", "value")) + " %\n"                
+                if complete_set: setting_data += ";  Top Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_x_material_flow_roofing", "value")) + " %\n"
                 if complete_set: setting_data += ";  Bottom Surface Outer Wall Flow: " + str(extruder[num].getProperty("wall_0_material_flow_flooring", "value")) + " %\n"
-                if complete_set: setting_data += ";  Bottom Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_0_material_flow_flooring", "value")) + " %\n"                
+                if complete_set: setting_data += ";  Bottom Surface Inner Wall(s) Flow: " + str(extruder[num].getProperty("wall_0_material_flow_flooring", "value")) + " %\n"
                 setting_data += ";  Skin Flow: " + str(extruder[num].getProperty("skin_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Top Sufrace Skin Flow: " + str(extruder[num].getProperty("roofing_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Infill Flow: " + str(extruder[num].getProperty("infill_material_flow", "value")) + " %\n"
@@ -616,13 +632,13 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Accel Top Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_roofing", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Top Surface Skin: " + str(extruder[num].getProperty("acceleration_roofing", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Top/Bottom: " + str(extruder[num].getProperty("acceleration_topbottom", "value")) + " mm/sec²\n"
-                
+
                 if complete_set: setting_data += ";  Accel Bottom Surface Skin: " + str(extruder[num].getProperty("acceleration_flooring", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Bottom Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_flooring", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Bottom Surface Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0_flooring", "value")) + " mm/sec²\n"
-                
-                
-                
+
+
+
                 if complete_set: setting_data += ";  Accel Support: " + str(extruder[num].getProperty("acceleration_support", "value")) + " mm/sec²\n"# true
                 if complete_set: setting_data += ";  Accel Support Infill: " + str(extruder[num].getProperty("acceleration_support_infill", "value")) + " mm/sec²\n"# true
                 if complete_set: setting_data += ";  Accel Support Interface: " + str(extruder[num].getProperty("acceleration_support_interface", "value")) + " mm/sec²\n"# true
@@ -638,12 +654,12 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Jerk Top Surface Wall: " + str(extruder[num].getProperty("jerk_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Top Surface Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Top Surface Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x_roofing", "value")) + " mm/sec\n"
-                
+
                 if complete_set: setting_data += ";  Jerk Bottom Surface Skin: " + str(extruder[num].getProperty("jerk_flooring", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Bottom Surface Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0_flooring", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Bottom Surface Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x_flooring", "value")) + " mm/sec\n"
-                
-                
+
+
                 if complete_set: setting_data += ";  Jerk Top/Bottom: " + str(extruder[num].getProperty("jerk_topbottom", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Support: " + str(extruder[support_extruder_nr].getProperty("jerk_support", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Support Infill: " + str(extruder[support_extruder_nr].getProperty("jerk_support_infill", "value")) + " mm/sec\n"

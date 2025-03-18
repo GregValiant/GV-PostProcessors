@@ -1,16 +1,19 @@
-# Copyright (c) 2023 GregValiant (Greg Foresi)
-#
-# When Annealing:
-#    The user may elect to hold the build plate at a temperature for a period of time.  When the hold expires, the 'Timed Cooldown' will begin.
-#    If there is no 'Hold Time' then the 'Annealing' cooldown will begin when the print ends.  In 'Annealing' cooldown the bed temperature drops in 3° increments across the time span.
-#    G4 commands are used for the cooldown steps.
-#    If there is a 'Heated Chamber' then the chamber will start to cool when the bed temperature reaches the chamber temperature.
-#
-# When drying filament:
-#    The bed must be empty because the printer will auto-home before raising the Z to 'machine_height minus 20mm' and then park the head in the XY.
-#    The bed will heat up to the set point.
-#    G4 commands are used to keep the machine from turning the bed off until the Drying Time has expired.
-# If you happen to have an enclosure with a fan, the fan can be set up to run during the drying or annealing.
+"""
+Copyright (c) 2025 GregValiant (Greg Foresi)
+    The annealing portion of the script adds commands to the end of a print file.
+    When Annealing:
+        The user may elect to hold the build plate at a temperature for a period of time.  When the hold expires, the 'Timed Cooldown' will begin.
+        If there is no 'Hold Time' then the 'Annealing' cooldown will begin when the print ends.  In 'Annealing' cooldown the bed temperature drops in 3° increments across the time span.
+        G4 commands are used for the cooldown steps.  G4 cannot be 'killed'.  To quit you would need to turn the printer off.
+        If there is a 'Heated Chamber' then the chamber will start to cool when the bed temperature reaches the chamber temperature.
+
+    The drying script replaces the print gcode with a simple set of commands to control the build plate temperature for a perior of time.
+    When drying filament:
+        The bed must be empty because the printer will auto-home before raising the Z to 'machine_height minus 20mm' and then park the head in the XY.
+        The bed will heat up to the set point.
+        G4 commands are used to keep the machine from turning the bed off until the Drying Time has expired. G4 cannot be 'killed'.  To quit you would need to turn the printer off.
+    If you happen to have an enclosure with a fan, the fan can be set up to run during the drying or annealing.
+"""
 
 from UM.Application import Application
 from ..Script import Script
@@ -20,24 +23,27 @@ class AnnealingOrDrying(Script):
 
     def initialize(self) -> None:
         super().initialize()
+        self.global_stack = Application.getInstance().getGlobalContainerStack()
         # Get the Bed Temperature from Cura
-        bed_temp = str(Application.getInstance().getGlobalContainerStack().getProperty("material_bed_temperature", "value"))
+        bed_temp = str(self.global_stack.getProperty("material_bed_temperature", "value"))
         self._instance.setProperty("startout_temp", "value", bed_temp)
         # Get the Build Volume temperature if there is one
-        heated_build_volume = bool(Application.getInstance().getGlobalContainerStack().getProperty("machine_heated_build_volume", "value"))
-        global_stack = Application.getInstance().getGlobalContainerStack()
-        chamber_fan_nr = global_stack.getProperty("build_volume_fan_nr", "value")
-        extruder_count = global_stack.getProperty("machine_extruder_count", "value")
+        heated_build_volume = bool(self.global_stack.getProperty("machine_heated_build_volume", "value"))
+        chamber_fan_nr = self.global_stack.getProperty("build_volume_fan_nr", "value")
+        #extruder_count = self.global_stack.getProperty("machine_extruder_count", "value")
         if heated_build_volume:
-            chamber_temp = global_stack.getProperty("build_volume_temperature", "value")
+            chamber_temp = self.global_stack.getProperty("build_volume_temperature", "value")
             self._instance.setProperty("has_build_volume_heater", "value", heated_build_volume)
             self._instance.setProperty("build_volume_temp", "value", chamber_temp)
-        if chamber_fan_nr > 0:
-            self._instance.setProperty("enable_chamber_fan_setting", "value", True)
-
+        try:
+            if chamber_fan_nr is not None:
+                if chamber_fan_nr > 0:
+                    self._instance.setProperty("enable_chamber_fan_setting", "value", True)
+        except:
+            self._instance.setProperty("enable_chamber_fan_setting", "value", False)
     def getSettingDataString(self):
         return """{
-            "name": "Annealing CoolDown or Filament Drying",
+            "name": "Annealing CoolDown OR Filament Drying",
             "key": "AnnealingOrDrying",
             "metadata": {},
             "version": 2,
@@ -56,9 +62,7 @@ class AnnealingOrDrying(Script):
                     "label": "Anneal Print or Dry Filament",
                     "description": "Whether to Anneal the Print (by keeping the bed hot for a period of time), or to use the bed as a Filament Dryer.  If drying; you will still need to slice a model, but it will not print. The gcode will consist only of a short script to heat the bed, wait for a while, then turn the bed off.  The 'Z' will move to the max height and XY park position so the filament can be covered. The 'Hold Time', 'Bed Start Temp' and (if applicable) the 'Chamber Temp' come from these settings rather than from the Cura settings.  When annealing; the Timed Cooldown will commence when the print ends.",
                     "type": "enum",
-                    "options":
-                    {
-
+                    "options": {
                         "anneal_cycle": "Anneal Print",
                         "dry_cycle": "Dry Filament"},
                     "default_value": "anneal_cycle",
@@ -70,8 +74,7 @@ class AnnealingOrDrying(Script):
                     "label": "Hold the Temp for the:",
                     "description": "Select the 'Bed' for just the bed, or 'Bed and Chamber' if you want to include your 'Heated Build Volume'.",
                     "type": "enum",
-                    "options":
-                    {
+                    "options": {
                         "bed_only": "Bed",
                         "bed_chamber": "Bed and Chamber"},
                     "default_value": "bed_only",
@@ -167,10 +170,13 @@ class AnnealingOrDrying(Script):
                 },
                 "park_head":
                 {
-                    "label": "Park at MaxX and MaxY",
-                    "description": "When unchecked, the park position is X0 Y0.  Enable this setting to move the nozzle to the Max X and Max Y to allow access to the print.",
-                    "type": "bool",
-                    "default_value": false,
+                    "label": "Park Print Head At...",
+                    "description": "Where to park the print head.  For rectangular beds it will be Left Front or Right Rear.  For elliptic beds it will be Mid Front or Mid Rear.",
+                    "type": "enum",
+                    "options": {
+                        "left_front": "Left Front",
+                        "right_rear": "Right Rear"},
+                    "default_value": "left_front",
                     "enabled": "enable_annealing and cycle_type == 'anneal_cycle'"
                 },
                 "park_max_z":
@@ -219,7 +225,6 @@ class AnnealingOrDrying(Script):
 
     def execute(self, data):
         # Exit if there is no heated bed.
-        self.global_stack = Application.getInstance().getGlobalContainerStack()
         if not bool(self.global_stack.getProperty("machine_heated_bed", "value")):
             Message(title = "[Anneal or Dry Filament]", text = "The script did not run because Heated Bed is disabled in Machine Settings.").show()
             return data
@@ -234,6 +239,7 @@ class AnnealingOrDrying(Script):
             data[0] += ";  Anneal or Dry Filament did not run.  Shutoff Temp < 30\n"
             Message(title = "[Anneal or Dry Filament]", text = "The script did not run because the Shutoff Temp is less than 30°.").show()
             return data
+
         extruder = self.global_stack.extruderList
         bed_temperature = int(self.getSettingValueByKey("startout_temp"))
         heated_chamber = bool(self.global_stack.getProperty("machine_heated_build_volume", "value"))
@@ -245,9 +251,13 @@ class AnnealingOrDrying(Script):
         else:
             anneal_type = "bed_only"
             chamber_temp = "0"
-        has_bv_fan = bool(self.global_stack.getProperty("build_volume_fan_nr", "value"))
-        bv_fan_nr = int(self.global_stack.getProperty("build_volume_fan_nr", "value"))
-        speed_bv_fan = int(self.getSettingValueByKey("chamber_fan_speed"))
+        try:
+            has_bv_fan = bool(self.global_stack.getProperty("build_volume_fan_nr", "value"))
+            bv_fan_nr = int(self.global_stack.getProperty("build_volume_fan_nr", "value"))
+            speed_bv_fan = int(self.getSettingValueByKey("chamber_fan_speed"))
+        except:
+            has_bv_fan = False
+            speed_bv_fan = 0
         if bool(extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value")):
             speed_bv_fan = round(speed_bv_fan * .01)
         else:
@@ -258,36 +268,59 @@ class AnnealingOrDrying(Script):
         else:
             self.bv_fan_on_str = ""
             self.bv_fan_off_str = ""
+
         # Park Head
-        max_y = str(self.global_stack.getProperty("machine_depth", "value"))
-        max_x = str(self.global_stack.getProperty("machine_width", "value"))
+        bed_shape = self.global_stack.getProperty("machine_shape", "value")
+        center_origin = bool(self.global_stack.getProperty("machine_center_is_zero", "value"))
+        bed_width = int(self.global_stack.getProperty("machine_width", "value"))
+        bed_depth = int(self.global_stack.getProperty("machine_depth", "value"))
+        if center_origin:
+            if bed_shape == "rectangular":
+                max_x = bed_width / 2
+                max_y = bed_depth / 2
+                min_x = -abs(max_x)
+                min_y = -abs(max_y)
+            elif bed_shape == "elliptic":
+                max_x = 0
+                max_y = bed_depth / 2
+                min_x = 0
+                min_y = -abs(max_y)
+        elif not center_origin:
+            max_x = bed_width
+            max_y = bed_depth
+            min_x = 0
+            min_y = 0
+            
         # Max_z is limited to 'machine_height - 20' just so the print head doesn't smack into anything.
         max_z = str(int(self.global_stack.getProperty("machine_height", "value")) - 20)
-        speed_travel = str(round(extruder[0].getProperty("speed_travel", "value")*60))
-        park_xy = bool(self.getSettingValueByKey("park_head"))
+        speed_travel = str(round(extruder[0].getProperty("speed_travel", "value") * 60))
+        park_xy = str(self.getSettingValueByKey("park_head"))
         park_z = bool(self.getSettingValueByKey("park_max_z"))
         cycle_type = self.getSettingValueByKey("cycle_type")
         add_messages = bool(self.getSettingValueByKey("add_messages"))
 
         if cycle_type == "anneal_cycle":
-            data = self._anneal_print(data, park_xy, park_z, bed_temperature, lowest_temp, heated_chamber, chamber_temp, max_y, max_x, max_z, speed_travel, add_messages, anneal_type)
+            data = self._anneal_print(data, park_xy, park_z, bed_temperature, lowest_temp, heated_chamber, chamber_temp, max_x, max_y, max_z, min_x, min_y, speed_travel, add_messages, anneal_type)
         elif cycle_type == "dry_cycle":
             data = self._dry_filament_only(data, anneal_type, heated_chamber, chamber_temp, bed_temperature, max_z, max_y, speed_travel)
         return data
 
-    def _anneal_print(self, anneal_data: str, park_xy: bool, park_z: bool, bed_temperature:int, lowest_temp: int, heated_chamber: bool, chamber_temp: str, max_x: str, max_y: str, max_z: str, speed_travel: str, add_messages: bool, anneal_type: str):
+    def _anneal_print(self, anneal_data: str, park_xy: bool, park_z: bool, bed_temperature:int, lowest_temp: int, heated_chamber: bool, chamber_temp: str, max_x: str, max_y: str, max_z: str, min_x: str, min_y: str, speed_travel: str, add_messages: bool, anneal_type: str):
         # Put the head parking string together
         time_minutes = 1
         time_span = int(float(self.getSettingValueByKey("time_span")) * 3600)
         park_string = ""
-        if park_xy and not park_z:
-            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} ; Park XY\nM84 X Y E ; Disable steppers except Z\n"
-        elif park_xy and park_z:
-            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} ; Park XY\nG0 Z{max_z} ; Raise Z to 'ZMax - 20'\nM84 X Y E ; Disable steppers except Z\n"
-        elif not park_xy and park_z:
-            park_string = f"G0 F{speed_travel} Z{max_z} ; Raise Z to 'ZMax - 20'\nM84 X Y E ; Disable steppers except Z\n"
-        elif not park_xy and not park_z:
-            park_string = f"G91 ; Relative movement\nG0 F{speed_travel} Z5 ; Raise Z\nG90 ; Absolute movement\nG0 X0 Y0 ; Park\nM84 X Y E ; Disable steppers except Z\n"
+        if park_xy == "right_rear" and not park_z:
+            park_string = f"G0 F1200 Z5 ; Move Up\nG0 F{speed_travel} X{max_x} Y{max_y} ; Park XY\nM84 X Y E ; Disable steppers except Z\n"
+        elif park_xy == "right_rear" and park_z:
+            park_string = f"G0 F{speed_travel} X{max_x} Y{max_y} Z{max_z}; Park XY Raise Z to 'ZMax - 20'\nM84 X Y E ; Disable steppers except Z\n"
+        elif park_xy == "left_front" and park_z:
+            park_string = f"G0 F{speed_travel} X{min_x} Y{min_y} Z{max_z}; Park XY and Raise Z to 'ZMax - 20'\nM84 X Y E ; Disable steppers except Z\n"
+        elif park_xy == "left_front" and not park_z:
+            park_string = f"G91 ; Relative movement\nG0 F{speed_travel} Z5 ; Raise Z\nG90 ; Absolute movement\nG0 F{speed_travel} X{min_x} Y{min_y} ; Park\nM84 X Y E ; Disable steppers except Z\n"
+
+        # Keep the steppers on so the Z doesn't drift down.
+        park_string += "M84 S7200 ; Set the disarm timeout\n"
 
         # Calculate the temperature differential
         hysteresis = bed_temperature - lowest_temp
@@ -309,8 +342,9 @@ class AnnealingOrDrying(Script):
         # Put the first lines of the anneal string together
         anneal_string = ";\n;TYPE:CUSTOM ---------------- Anneal Print\n"
         if add_messages:
-            anneal_string += "M117 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
-            anneal_string += "M118 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr\n"
+            anneal_string += "M117 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr ; Message\n"
+            anneal_string += "M118 Cool Down for " + str(round((wait_time + time_span)/3600,2)) + "hr ; Message\n"
+
         anneal_string += self.bv_fan_on_str
         if wait_time > 0:
             # Move the head before the M190
@@ -325,9 +359,11 @@ class AnnealingOrDrying(Script):
             anneal_string += f"M140 S{step_down} ; Set bed temp\n"
             anneal_string += park_string
             anneal_string += f"G4 S{time_per_step} ; wait time in seconds\n"
+
         step_down -= deg_per_step
 
         time_remaining = round(time_span/3600,2)
+        time_remaining = round((time_span-time_per_step)/3600,2)
         # Step the bed/chamber temps down and add each step to the anneal string.  The chamber remains at it's temperature until the bed gets down to that temperature.
         for num in range(bed_temperature, lowest_temp, -3):
             anneal_string += f"M140 S{step_down} ; Step down bed\n"
@@ -336,14 +372,15 @@ class AnnealingOrDrying(Script):
             anneal_string += f"G4 S{time_per_step} ; Wait\n"
             #time_remaining = round((time_span-(step_index*time_per_step))/3600,2)
             if time_remaining >= 1.00:
+                anneal_string += "M84 S7200 ; ReSet the disarm timeout\n"
                 if add_messages:
-                    anneal_string += f"M117 CoolDown - {round(time_remaining,1)}hr\n"
-                    anneal_string += f"M118 CoolDown - {round(time_remaining,1)}hr\n"
+                    anneal_string += f"M117 CoolDown - {round(time_remaining,1)}hr ; Message\n"
+                    anneal_string += f"M118 CoolDown - {round(time_remaining,1)}hr ; Message\n"
             elif time_minutes > 0:
                 time_minutes = round(time_remaining * 60,1)
                 if add_messages:
-                    anneal_string += f"M117 CoolDown - {time_minutes}min\n"
-                    anneal_string += f"M118 CoolDown - {time_minutes}min\n"
+                    anneal_string += f"M117 CoolDown - {time_minutes}min ; Message\n"
+                    anneal_string += f"M118 CoolDown - {time_minutes}min ; Message\n"
             time_remaining = round((time_span-(step_index*time_per_step))/3600,2)
             step_down -= deg_per_step
             step_index += 1
@@ -363,8 +400,8 @@ class AnnealingOrDrying(Script):
         anneal_string += self.bv_fan_off_str
         anneal_string += beep_string
         if add_messages:
-            anneal_string += "M117 CoolDown Complete\n"
-            anneal_string += "M118 CoolDown Complete\n"
+            anneal_string += "M117 Cool Down Complete ; Message\n"
+            anneal_string += "M118 Cool Down Complete ; Message\n"
         anneal_string += ";TYPE:CUSTOM ---------------- End of Anneal\n;"
 
         # Format
@@ -421,8 +458,8 @@ class AnnealingOrDrying(Script):
         lines = drydata[1].split("\n")
         drying_string = lines[0] + "\n" + ";............TYPE:CUSTOM: Dry Filament\n"
         if add_messages:
-            drying_string += f"M117 Cool Down for {round(dry_time/3600,2)} hr ; Message\n"
-            drying_string += f"M118 Cool Down for {round(dry_time/3600,2)} hr ; Message\n"
+            drying_string += f"M117 Cool Down - {round(dry_time/3600,2)} hr ; Message\n"
+            drying_string += f"M118 Cool Down - {round(dry_time/3600,2)} hr ; Message\n"
         # M113 sends messages to a print server as a 'Keep Alive' and can generate a lot of traffic over the USB
         drying_string += "M113 S0 ; No echo\n"
         drying_string += f"M84 S{round(dry_time)} ; Set stepper timeout\n"
@@ -469,7 +506,7 @@ class AnnealingOrDrying(Script):
         drying_string += "M84 X Y E ; Disable steppers except Z\n"
         drying_string += ";End of Gcode"
 
-        # Format
+        # Format the string so it looks nice
         lines = drying_string.split("\n")
         for index, line in enumerate(lines):
             if not line.startswith(";") and ";" in line:
