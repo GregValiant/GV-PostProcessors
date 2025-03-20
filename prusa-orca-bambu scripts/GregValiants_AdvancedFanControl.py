@@ -1,10 +1,8 @@
-"""
-    Copyright (c) 2025 GregValiant (Greg Foresi)
-    Supports Prusa, Orca, Bambu, and Creality slicers
-    Add fan speed changes 'By Layer' or 'By Feature'
-    Supports dual extruders with dual fans
-    Bambu printers can optionally also control the Auxiliary and Chamber fans P2 and P3.
-"""
+# Copyright (c) 2025 GregValiant (Greg Foresi)
+#  Suitable to Prusa, Orca, and Bambu slicers
+#    Add fan speed changes 'By Layer' or 'By Feature'
+#    Supports dual extruders with dual fans
+#    Bambu printers can optionally also control the Auxiliary and Chamber fans P2 and P3.
 
 import sys
 import os
@@ -135,6 +133,7 @@ def main(lines):
                 lines.insert(index, n_line + "\n")
 
     # Write the file
+    print("Writing file...")
     dest_file = open(sourceFile, "w")
     for line in lines:
         dest_file.write(line)
@@ -407,6 +406,10 @@ def single_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer
             cur_index = feature_type_list.index(lines[num])
             cur_speed = feature_speed_list[cur_index]
             lines[num] += f"M106 S{cur_speed} {fan_0}\n"
+        if ";Layer#:" in lines[num]:
+            if lines[num].split(":")[1][-2:-1] == "0":
+                lay = lines[num].split(":")[1].strip()
+                print(f"Working on layer.....{lay}")
     if end_index != last_index:
         lines[end_index] += f"M106 S{feature_speed_list[10]} {fan_0}\n"
     return lines
@@ -445,6 +448,10 @@ def dual_extruder_ByFeature(feature_type_list, feature_speed_list, start_layer, 
             if lines[num].startswith("T1"):
                 lines[num] = f"M106 S0 {fan_0}\n{lines[num]}M106 S{cur_speed} {fan_1}\n"
                 active_fan = fan_1
+        if ";Layer#:" in lines[num]:
+            if lines[num].split(":")[1][-2:-1] == "0":
+                lay = lines[num].split(":")[1].strip()
+                print(f"Working on layer.....{lay}")
     if end_index != last_index:
         final_speed = feature_speed_list[10]
         lines[end_index] += f"M106 S{final_speed} {active_fan}\n"
