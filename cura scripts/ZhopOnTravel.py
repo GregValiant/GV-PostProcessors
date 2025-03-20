@@ -1,17 +1,19 @@
-# GregValiant (Greg Foresi) July of 2024
-# Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range' (or Layer List), 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
-# This script is compatible with Z-hops enabled in Cura.  If Z-hops are enabled: There will occasionally be a hop on top of a hop, but the 'resume Z height' will be correct.
-# It is not necessary to have "retractions" enabled.  If retractions are disabled in Cura you may elect to have this script add retractions.  The Cura retraction distance and speeds are used.
-# The retraction settings for a multi-extruder printer are always taken from Extruder 1.
-#
-# Compatibility:
-# The script is compatible with:  Relative Extrusion, Firmware Retraction, and Extra Prime Amount > 0.
-#
-# Incompatibility:
-#   This script is NOT compatible with "One at a Time" mode.
-#
-# Please note:
-#   This is a slow running post processor as it must check the cummulative distances of all travel moves (G0 moves) in the range of layers.
+"""
+        GregValiant (Greg Foresi) July of 2024
+    Insert Z-hops for travel moves regardless of retraction.  The 'Layer Range' (or Layer List), 'Minimum Travel Distance' and the 'Hop-Height' are user defined.
+    This script is compatible with Z-hops enabled in Cura.  If Z-hops are enabled: There will occasionally be a hop on top of a hop, but the 'resume Z height' will be correct.
+    It is not necessary to have "retractions" enabled.  If retractions are disabled in Cura you may elect to have this script add retractions.  The Cura retraction distance and speeds are used.
+    The retraction settings for a multi-extruder printer are always taken from Extruder 1.
+
+    Compatibility:
+        The script is compatible with:  Relative Extrusion, Firmware Retraction, and Extra Prime Amount > 0.
+
+    Incompatibility:
+        This script is NOT compatible with "One at a Time" mode.
+
+    Please Note:
+        This is a slow running post processor as it must check the cummulative distances of all travel moves (G0 moves) in the range of layers.
+"""
 
 from UM.Application import Application
 from ..Script import Script
@@ -261,7 +263,7 @@ class ZhopOnTravel(Script):
                         hop_start = 0
                         hop_end = 0
                     if hop_start > 0:
-                        # For any lines that are XYZ moves right before layer change 
+                        # For any lines that are XYZ moves right before layer change
                         if " Z" in line:
                             lines[index] = lines[index].replace("Z" + str(self._cur_z), "Z" + str(self._cur_z + hop_height))
                         # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over

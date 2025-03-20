@@ -1,20 +1,22 @@
-# By GregValiant (Greg Foresi) November 2023
-# This script allows the users of single extruder printers to print Support-Interface with a second material.  It adds filament change pauses (to the selected layers) before and after any 'Support-Interface' sections within the layer.  Be advised that there can be a lot of filament changing going on as there are two pauses for each Interface on each affected layer.  Check your gcode to insure it is correct.  Searching the gcode for 'custom' will find the pauses.
-#  This script works really well with large flat interfaces.  Because horizontal holes have limited contact with the support on any individual layer there can be a lot of pauses and the value of this script falls off as the annoyance factor goes up.
-#  I tried printing a TPU model with both PLA as the interface and PETG as the interface.  TPU seems to stick well to both of them so the testing failed.
+"""
+        By GregValiant (Greg Foresi) November 2023
+    This script allows the users of single extruder printers to print Support-Interface with a second material.  It adds filament change pauses (to the selected layers) before and after any 'Support-Interface' sections within the layer.  Be advised that there can be a lot of filament changing going on as there are two pauses for each Interface on each affected layer.  Check your gcode to insure it is correct.  Searching the gcode for 'custom' will find the pauses.
+    This script works really well with large flat interfaces.  Because horizontal holes have limited contact with the support on any individual layer there can be a lot of pauses and the value of this script falls off as the annoyance factor goes up.
+    I tried printing a TPU model with both PLA as the interface and PETG as the interface.  TPU seems to stick well to both of them so the testing failed.
 
-# RULES:
-#   If insufficient material is purged, then the two materials may mix for the first few cm's of model extrusion.  That will affect the layer adhesion for that portion of the print.  It will also affect the color as the interface material might not be the same color as the print material.  Don't skimp on purging.
-#   Rafts are allowed.  Set the raft "Air Gap" to 0.0 and the 'Support Bottom Distance' to 0.0.  If you try to use this script on the 2 topmost layers of a raft you will get back-to-back filament changes because rafts take up the entire layer and jumping between layers in post process isn't really allowed.  Using the second material for ONLY the top raft layer works well.
-#   If this script is used on the bottom interface then you can set the bottom distance to 0.  When used on a top interface the interface density should be a high % and the "Top Distance" 0.  If there are numerous areas of the model that require interfaces then you need to decide on the 'Top Distance' because it cannot be adjusted 'Per Model' or using mesh modifiers.
-#   Multi-extruder printers are allowed but may only have a single extruder enabled (tool change retractions are a problem).
-#   The layer numbers you enter are the only ones searched for "TYPE:SUPPORT-INTERFACE" so be accurate when you pick the "layers of interest".  Checking the output gcode is a really good idea.  There is a popup message to inform the user if 'Support-Interface' was found on each of the subject layers.
-#   It was apparent that too high of a temperature during unload could cause filament to break off in the hot end.  The 'Unload Temperature' for the model material and the interface material have been added.  Those temperatures should be near the 'Cold Pull' temperature of each material.
-#   My normal setup is for the Interface 100% density and 0 air gap.  That is dependent on how many interfaces occur in the model because the density and air gap will be the same for all of them when can make it hard to remove the supports from areas where the interface is still Model Material.
-#   75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My bowden printer works will with 440mm of unload and 370mm of reload.  That would be way too much for a direct drive hot end.  Yours will vary according to the length of the filament path from the extruder to the hot end.  You can set the unload and reload amounts to '0' to disable the features.
-#   Let me know if you find any problems, bugs, or have suggestions.  You can post them on the Git page under "Issues" or "Discussions".
-#      GregValiant
-#-------------------------------------------------------------------------------------
+    RULES:
+        > If insufficient material is purged, then the two materials may mix for the first few cm's of model extrusion.  That will affect the layer adhesion for that portion of the print.  It will also affect the color as the interface material might not be the same color as the print material.  Don't skimp on purging.
+        > Rafts are allowed.  Set the raft "Air Gap" to 0.0 and the 'Support Bottom Distance' to 0.0.  If you try to use this script on the 2 topmost layers of a raft you will get back-to-back filament changes because rafts take up the entire layer and jumping between layers in post process isn't really allowed.  Using the second material for ONLY the top raft layer works well.
+        > If this script is used on the bottom interface then you can set the bottom distance to 0.  When used on a top interface the interface density should be a high % and the "Top Distance" 0.  If there are numerous areas of the model that require interfaces then you need to decide on the 'Top Distance' because it cannot be adjusted 'Per Model' or using mesh modifiers.
+        > Multi-extruder printers are allowed but may only have a single extruder enabled (tool change retractions are a problem).
+        > The layer numbers you enter are the only ones searched for "TYPE:SUPPORT-INTERFACE" so be accurate when you pick the "layers of interest".  Checking the output gcode is a really good idea.  There is a popup message to inform the user if 'Support-Interface' was found on each of the subject layers.
+        > It was apparent that too high of a temperature during unload could cause filament to break off in the hot end.  The 'Unload Temperature' for the model material and the interface material have been added.  Those temperatures should be near the 'Cold Pull' temperature of each material.
+        > My normal setup is for the Interface 100% density and 0 air gap.  That is dependent on how many interfaces occur in the model because the density and air gap will be the same for all of them when can make it hard to remove the supports from areas where the interface is still Model Material.
+        > 75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My bowden printer works will with 440mm of unload and 370mm of reload.  That would be way too much for a direct drive hot end.  Yours will vary according to the length of the filament path from the extruder to the hot end.  You can set the unload and reload amounts to '0' to disable the features.
+    Let me know if you find any problems, bugs, or have suggestions.  You can post them on the Git page under "Issues" or "Discussions".
+    GregValiant
+-------------------------------------------------------------------------------------
+"""
 
 from ..Script import Script
 from cura.CuraApplication import CuraApplication

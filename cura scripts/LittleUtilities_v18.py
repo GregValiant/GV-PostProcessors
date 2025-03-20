@@ -7,11 +7,11 @@
     6) Very Cool FanPath - Raise 1mm and follow a zigzag path across the print with just the Layer Cooling Fan running.
     7) Renumber Layers - For One-At-A-Time prints renumbering to "all at once" style can provide additional options for PauseAtHeight and Filament Change.
     8) Change Printer Settings - Max Feedrate, Max Accel, Home Offsets, Steps/mm.  (There is no Max for Jerk)
-#     Debugging Tools:
-        9) Add Data Headers - A debugging utility, it adds comments between the data sections
-        10) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
-        11) Debug Gcode File - A debug tool that removes all the extrusions and heating lines from a range of layers or the whole file.  The result is a 'Movement Only' file so users can check a toolpath.  There is an option to leave the Hot End heating commands or comment them out.
-        12) Add data item and line numbers for each layer - Debugging tool that addes a layer and line number as a comment.
+      Debugging Tools:
+      9) Add Data Headers - A debugging utility, it adds comments between the data sections
+      10) Change a dual extruder print into a single extruder print to check motion.  All the T0 and T1 lines are commented out and 1 or 2 beeps inserted instead.  Tool numbers are moved to the end of M104 lines and all M109 lines are converted to M104 so there is no waiting.  When coupled with "create a debug file" all extrusions are eliminated as well just leaving the print and prime tower motion.  You may leave the heating commands to see what effect the M109 lines might have.
+      11) Debug Gcode File - A debug tool that removes all the extrusions and heating lines from a range of layers or the whole file.  The result is a 'Movement Only' file so users can check a toolpath.  There is an option to leave the Hot End heating commands or comment them out.
+      12) Add data item and line numbers for each layer - Debugging tool that addes a layer and line number as a comment.
     13) Gcode Line Numbering - Numbers the lines in the gcode.  A prefix is an option.  (authored by: Slashee the Cow)
     14) Disable ABL for small models.  The user defines 'small' and models that fall below that area on the build plate cause G29 and M420 to be commented out of the StartUp Gcode.  There is also a 'minimum time' option.
     15) One-at-a-Time Adjust Print Temperatures - Enter a list of temperatures and each succesive model will print at the assigned temperature.
@@ -19,7 +19,7 @@
     17) Adjust the layer height of the Initial Layer Walls.  Adjust the second layer Wall Flow to account for the adjusted layer height.
     18) Alter StartUp Gcode - Currently this only affects M92 lines in the startup and changes the Esteps/mm based on user input for each material.
     --) This is disabled: Kill Wipe at layer - Negates the wipe move for 'Outer-Wall, Infill, or Both' within a layer range.
-    --) This is disabled: 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double them in the gcode.  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
+    --) This is disabled: 2X Print Temperatures - This is a High Temperature Override for Cura's 365° limit. This works but is disabled here for safety reasons.  If you enable it:  Set the Cura print temperatures to 1/2 of the required temperature and this script will go through and double the temperature lines in the gcode.  Example:  When printing a material like PEEK you can set the temperature in Cura to 210 and the gcode will be changed to 420.
 """
 
 from ..Script import Script
