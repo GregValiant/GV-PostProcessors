@@ -1,11 +1,18 @@
-# GregValiant
-#   This script is a redo of 'Change At Z'.
-#     "By Height" is obsolete as ChangAtZ could be fooled by Adaptive Layers, Z-hops, and Scarf Seams.
-#     The use of M220 to change speeds is obolete and the user can opt to change just the print speed or both print and travel speeds.  The gcode lines are changed to the new F values.
-#     Output to LCD will add an M118 to output the message to a print server.
-#     Allows the user to select a Range of layers rather than just 'Single Layer' or 'To the End'.
-#     Added support for Relative Extrusion
-#     Version number changed to 1.0.0
+"""
+ By GregValiant (Greg Foresi) March 2025
+    This script is a remake of 'Change At Z' which is obsolete.
+    Differences from 'ChangeAtZ':
+        "By Height" is obsolete as ChangAtZ could be fooled by Adaptive Layers, Z-hops, and Scarf Seams.
+        The use of M220 to change speeds is obolete and the user can opt to change just the print speed or both print and travel speeds.  The 'F' parameters are calculated using the percentage that the user inputs.
+        The retract/prime speeds are split out and changing the print speed no longer affects retract/prime speeds.
+        Output to LCD is obsolete.
+        Allows the user to select a Range of Layers (rather than just 'Single Layer' or 'To the End'.)
+        Added support for Relative Extrusion
+        Added support for Firmware Retraction
+        Rafts are NOT included in any changes
+        'One-at-a-Time' mode is not supported
+    Version number changed to 1.0.0
+"""
 
 from UM.Application import Application
 from ..Script import Script
@@ -18,17 +25,24 @@ class ChangeAtLayer(Script):
 
     def initialize(self) -> None:
         super().initialize()
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        machine_extruder_count = int(curaApp.getProperty("machine_extruder_count", "value"))
+        global_stack = Application.getInstance().getGlobalContainerStack()
+        machine_extruder_count = int(global_stack.getProperty("machine_extruder_count", "value"))
+
         if machine_extruder_count == 1:
             self._instance.setProperty("multi_extruder", "value", False)
         else:
             self._instance.setProperty("multi_extruder", "value", True)
-        machine_heated_build_volume = bool(curaApp.getProperty("machine_heated_build_volume", "value"))
+
+        machine_heated_build_volume = bool(global_stack.getProperty("machine_heated_build_volume", "value"))
         if machine_heated_build_volume:
             self._instance.setProperty("heated_build_volume", "value", True)
         else:
             self._instance.setProperty("heated_build_volume", "value", False)
+        
+        # Leave this disabled for now as there doesn't appear to be a way to set the fan speed in Cura.
+        if int(global_stack.getProperty("build_volume_fan_nr", "value")) > 0:
+            #self._instance.setProperty("has_bv_fan", "value", True)     
+            self._instance.setProperty("has_bv_fan", "value", False)            
 
     def getSettingDataString(self):
         return """{
@@ -166,8 +180,32 @@ class ChangeAtLayer(Script):
                     "default_value": 20,
                     "minimum_value": "0",
                     "minimum_value_warning": "15",
-                    "maximum_value_warning": "50",
+                    "maximum_value_warning": "80",
                     "enabled": "heated_build_volume and e_change_build_volume_temperature and cal_enabled"
+                },
+                "enable_bv_fan_change": {
+                    "label": "Build Volume Fan Change",
+                    "description": "Hidden setting that enables the Build Volume fan speed.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "has_bv_fan and cal_enabled"
+                },
+                "e1_build_volume_fan_speed": {
+                    "label": "    Build Volume Fan Speed",
+                    "description": "New Build Volume Fan Speed.  This will revert to the Cura Chamber Fan setting at the end of the 'End Layer'.",
+                    "unit": "%",
+                    "type": "int",
+                    "default_value": 0,
+                    "minimum_value": "0",
+                    "maximum_value": "100",
+                    "enabled": "has_bv_fan and enable_bv_fan_change and cal_enabled"
+                },
+                "has_bv_fan": {
+                    "label": "Build Volume Fan Num",
+                    "description": "Hidden setting that enables the Build Volume fan speed.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": false
                 },
                 "f_change_extruder_temperature": {
                     "label": "Change Print Temp",
@@ -214,7 +252,7 @@ class ChangeAtLayer(Script):
                 },
                 "g_retract_speed": {
                     "label": "        Retract/Prime Speed",
-                    "description": "New Retract Feed Rate (mm/s).  If 'Firmware Retraction' is used then M207 and M208 are used to change the retract and prime speeds and the distance.  NOTE: the same speed will be used for both retract and prime.",
+                    "description": "New Retract Feed Rate (mm/s).  If 'Firmware Retraction' is enabled then M207 and M208 are used to change the retract and prime speeds and the distance.  NOTE: the same speed will be used for both retract and prime.",
                     "unit": "mm/s  ",
                     "type": "float",
                     "default_value": 40,
@@ -251,17 +289,26 @@ class ChangeAtLayer(Script):
             Logger.log("i", "[Change at Layer] is not enabled.")
             return data
 
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
-        firmware_retraction = bool(curaApp.getProperty("machine_firmware_retract", "value"))
-        relative_extrusion = bool(curaApp.getProperty("relative_extrusion", "value"))
-        self.extruder_count = curaApp.getProperty("machine_extruder_count", "value")
-        self.heated_build_volume = curaApp.getProperty("machine_heated_build_volume", "value")
+        self.global_stack = Application.getInstance().getGlobalContainerStack()
+        
+        # Message the user and exit if the print sequence is 'One at a Time'
+        if self.global_stack.getProperty("print_sequence", "value") == "one_at_a_time":
+            Message(title = "[Change at Layer]", text = "One-at-a-Time mode is not supported.  The script will exit without making any changes.").show()
+            data[0] += ";    [Change At Layer] Did not run (One at a Time mode is not supported)\n"
+            Logger.log("i", "Change at Layer does not support 'One at a Time' mode")
+            return data
+            
+        self.extruder = self.global_stack.extruderList
+        self.firmware_retraction = bool(self.global_stack.getProperty("machine_firmware_retract", "value"))
+        self.relative_extrusion = bool(self.global_stack.getProperty("relative_extrusion", "value"))
+        self.extruder_count = self.global_stack.getProperty("machine_extruder_count", "value")
+        self.heated_build_volume = self.global_stack.getProperty("machine_heated_build_volume", "value")
+        self.retract_enabled = bool(self.extruder[0].getProperty("retraction_enable", "value"))
+        self.orig_bed_temp = self.global_stack.getProperty("material_bed_temperature", "value")
+        self.orig_bv_temp = self.global_stack.getProperty("build_volume_temperature", "value")
         start_layer = self.getSettingValueByKey("a_start_layer") - 1
         end_layer = self.getSettingValueByKey("a_end_layer")
-        retract_enabled = bool(extruder[0].getProperty("retraction_enable", "value"))
-        self.orig_bed_temp = curaApp.getProperty("material_bed_temperature", "value")
-        self.orig_bv_temp = curaApp.getProperty("build_volume_temperature", "value")
+
         # Find the indexes of the Start and End layers
         start_index = None
         end_index = len(data) - 1
@@ -270,16 +317,18 @@ class ChangeAtLayer(Script):
                 start_index = index
                 break
         if end_layer == -1:
-            if retract_enabled:
+            if self.retract_enabled:
                 end_index = len(data) - 2
             else:
                 end_index = len(data) - 1
+
         else:
             end_layer -= 1
             for index, layer in enumerate(data):
                 if ";LAYER:" + str(end_layer) + "\n" in layer:
                     end_index = index
                     break
+
         # Exit if the Start Layer wasn't found
         if start_index == None:
             Message(title = "[Change at Layer]", text = "The 'Start Layer' is beyond the top of the print.  The script did not run.").show()
@@ -300,7 +349,8 @@ class ChangeAtLayer(Script):
             "d_change_bed_temp": self._change_bed_temp,
             "e_change_build_volume_temperature": self._change_bv_temp,
             "f_change_extruder_temperature": self._change_hotend_temp,
-            "g_change_retract": self._change_retract
+            "g_change_retract": self._change_retract,
+            "has_bv_fan": self._change_bv_fan_speed
         }
         # Run selected procedures
         for setting, method in procedures.items():
@@ -310,7 +360,6 @@ class ChangeAtLayer(Script):
         return data
 
 # What to do about Rafts and one-at-a-time
-
     def _change_speed(self, data:str)->str:
         speed_x = self.getSettingValueByKey("b_speed")/100
         print_speed_only = not bool(self.getSettingValueByKey("b_change_printspeed"))
@@ -397,11 +446,9 @@ class ChangeAtLayer(Script):
         return data
 
     def _change_hotend_temp(self, data:str)->str:
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
         new_hotend_temp_0 = self.getSettingValueByKey("f_extruder_temperature_t0")
-        orig_hot_end_temp_0 = extruder[0].getProperty("material_print_temperature", "value")
-        orig_standby_temp_0 = int(extruder[0].getProperty("material_standby_temperature", "value"))
+        orig_hot_end_temp_0 = self.extruder[0].getProperty("material_print_temperature", "value")
+        orig_standby_temp_0 = int(self.extruder[0].getProperty("material_standby_temperature", "value"))
         # Start with single extruder machines
         if self.extruder_count == 1:
             if self.start_index == 2:
@@ -421,12 +468,13 @@ class ChangeAtLayer(Script):
                 lines[len(lines) - 2] += "\n" + "M104 S" + str(orig_hot_end_temp_0) + " ; Change_at_Layer: Reset Nozzle Temperature"
                 data[self.end_index] = "\n".join(lines) + "\n"
                 break
+        
         # Multi-extruder machines
         elif self.extruder_count > 1:
             active_tool = "T0"
             new_hotend_temp_1 = self.getSettingValueByKey("f_extruder_temperature_t1")
-            orig_hot_end_temp_1 = extruder[1].getProperty("material_print_temperature", "value")
-            orig_standby_temp_1 = int(extruder[1].getProperty("material_standby_temperature", "value"))
+            orig_hot_end_temp_1 = self.extruder[1].getProperty("material_print_temperature", "value")
+            orig_standby_temp_1 = int(self.extruder[1].getProperty("material_standby_temperature", "value"))
             # Track the tool number
             for index, layer in enumerate(data):
                 if index < self.start_index:
@@ -476,28 +524,24 @@ class ChangeAtLayer(Script):
         return data
 
     def _change_retract(self, data:str)->str:
-        curaApp = Application.getInstance().getGlobalContainerStack()
-        extruder = curaApp.extruderList
-        retract_enabled = extruder[0].getProperty("retraction_enable", "value")
-        if not retract_enabled:
+        if not self.retract_enabled:
             return
-        firmware_retraction = bool(curaApp.getProperty("machine_firmware_retract", "value"))
-        relative_extrusion = bool(curaApp.getProperty("relative_extrusion", "value"))
-        speed_retract_0 = int(extruder[0].getProperty("retraction_speed", "value") * 60)
-        retract_amt_0 = extruder[0].getProperty("retraction_amount", "value")
+        self.firmware_retraction = bool(self.global_stack.getProperty("machine_firmware_retract", "value"))
+        speed_retract_0 = int(self.extruder[0].getProperty("retraction_speed", "value") * 60)
+        retract_amt_0 = self.extruder[0].getProperty("retraction_amount", "value")
         change_retract_amt = self.getSettingValueByKey("g_change_retract_amount")
         change_retract_speed = self.getSettingValueByKey("g_change_retract_speed")
         new_retract_speed = int(self.getSettingValueByKey("g_retract_speed") * 60)
         new_retract_amt = self.getSettingValueByKey("g_retract_amount")
 
-        if firmware_retraction:
+        if self.firmware_retraction:
             lines = data[self.start_index].splitlines()
             firmware_start_str = "\nM207"
             if change_retract_speed:
                 firmware_start_str += " F" + str(new_retract_speed)
             if change_retract_amt:
                 firmware_start_str += " S" + str(new_retract_amt)
-            firmware_start_str += f" ; Change_at_Layer: Alter Firmware Retract\nM208 S{new_retract_speed} ; Change_at_Layer: Alter Firmware Prime"
+            firmware_start_str += f" ; Change_at_Layer: Alter Firmware Retract\nM208 F{new_retract_speed} ; Change_at_Layer: Alter Firmware Prime"
             lines[0] += firmware_start_str
             data[self.start_index] = "\n".join(lines) + "\n"
             lines = data[self.end_index].splitlines()
@@ -509,7 +553,7 @@ class ChangeAtLayer(Script):
             data[self.end_index] = "\n".join(lines) + "\n"
             return data
 
-        if not firmware_retraction:
+        if not self.firmware_retraction:
             prev_e = 0
             cur_e = 0
             is_retracted = False
@@ -537,13 +581,13 @@ class ChangeAtLayer(Script):
                         if cur_e < prev_e:
                             is_retracted = True
                             new_e = prev_e - new_retract_amt
-                            if not relative_extrusion:
+                            if not self.relative_extrusion:
                                 if change_retract_amt:
                                     lines[index] = lines[index].replace("E" + str(cur_e), "E" + str(new_e))
                                     prev_e = new_e
                                 if change_retract_speed:
                                     lines[index] = lines[index].replace("F" + str(cur_speed), "F" + str(new_retract_speed))
-                            elif relative_extrusion:
+                            elif self.relative_extrusion:
                                 if change_retract_amt:
                                     lines[index] = lines[index].replace("E" + str(cur_e), "E-" + str(new_retract_amt))
                                     prev_e = 0
@@ -555,13 +599,14 @@ class ChangeAtLayer(Script):
                             if change_retract_speed:
                                 lines[index] = lines[index].replace("F" + str(cur_speed), "F" + str(new_retract_speed))
                                 prev_e = cur_e
-                            if relative_extrusion:
+                            if self.relative_extrusion:
                                 if change_retract_amt:
                                     lines[index] = lines[index].replace("E" + str(cur_e), "E" + str(new_retract_amt))
                                 prev_e = 0
                             lines[index] += " ; Change_at_Layer: Alter retract"
                             is_retracted = False
                 data[num] = "\n".join(lines) + "\n"
+                
             # If the changes end before the last layer and the filament is retracted, then adjust the first prime of the next layer so it doesn't blob.
             if is_retracted and self.getSettingValueByKey("a_end_layer") != -1:
                 layer = data[self.end_index]
@@ -571,12 +616,12 @@ class ChangeAtLayer(Script):
                         break
                     if " F" in line and " E" in line and not " X" in line and not " Z" in line:
                         cur_e = self.getValue(line, "E")
-                        if not relative_extrusion:
+                        if not self.relative_extrusion:
                             new_e = prev_e + new_retract_amt
                             if change_retract_amt:
                                 lines[index] = lines[index].replace("E" + str(cur_e), "E" + str(new_e)) + " ; Change_at_Layer: Alter retract"
                                 break
-                        elif relative_extrusion:
+                        elif self.relative_extrusion:
                             if change_retract_amt:
                                 lines[index] = lines[index].replace("E" + str(cur_e), "E" + str(new_retract_amt)) + " ; Change_at_Layer: Alter retract"
                                 break
@@ -590,4 +635,31 @@ class ChangeAtLayer(Script):
                 if "; Change_at_Layer:" in line:
                     lines[index] = lines[index].split(";")[0] + ";" + ("-" * (40 - len(lines[index].split(";")[0]))) + lines[index].split(";")[1]
             temp_data[l_index] = "\n".join(lines)
+        return temp_data
+        
+    def _change_bv_fan_speed(self, temp_data: str) -> str:
+        if not bool(self.global_stack.getProperty("build_volume_fan_nr", "value")):
+            return temp_data
+        if not self.getSettingValueByKey("enable_bv_fan_change"):
+            return temp_data
+        bv_fan_nr = self.global_stack.getProperty("build_volume_fan_nr", "value")
+        bv_fan_speed = self.getSettingValueByKey("e1_build_volume_fan_speed")
+        orig_bv_fan_speed = self.global_stack.getProperty("build_fan_speed", "value")
+        if bool(self.extruder[0].getProperty("machine_scale_fan_speed_zero_to_one", "value")):
+            bv_fan_speed = round(bv_fan_speed * 0.01, 2)
+            orig_bv_fan_speed = round(orig_bv_fan_speed * 0.01, 2)
+        else:
+            bv_fan_speed = round(bv_fan_speed * 2.55)
+            orig_bv_fan_speed = round(orig_bv_fan_speed * 2.55)
+        
+        # Start with single extruder machines
+        for index, layer in enumerate(temp_data):
+            if index == self.start_index:
+                lines = layer.split("\n")
+                lines.insert(1, f"M106 S{bv_fan_speed} P{bv_fan_nr} ; Change_at_Layer: Change Build Volume Fan Speed")
+                temp_data[index] = "\n".join(lines)
+            if index == self.end_index:
+                lines = layer.split("\n")
+                lines.insert(len(lines) - 2, f"M106 S{orig_bv_fan_speed} P{bv_fan_nr} ; Change_at_Layer: Reset Build Volume Fan Speed")
+                temp_data[index] = "\n".join(lines)
         return temp_data
