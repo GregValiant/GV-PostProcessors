@@ -71,7 +71,7 @@ class ChangeAtZ(Script):
                 },
                 "by_layer_or_height": {
                     "label": "'By Layer' or 'By Height'",
-                    "description": "Which criteria to use.  'By Height' may be off by a layer or so if 'Adaptive Layers' or 'Scarf Seams' are enabled.  Check the gcode.",
+                    "description": "Which criteria to use to start and end the changes.",
                     "type": "enum",
                     "options":
                     {
@@ -102,7 +102,7 @@ class ChangeAtZ(Script):
                 },
                 "a_height_start": {
                     "label": "Height Start of Changes",
-                    "description": "Enter the 'Z-Height' to Start the changes at.  If 'Z-hops' or 'Scarf Seam' or 'Adaptive Layers' are enabled then the Start-of-Changes height may be more than what you enter here.",
+                    "description": "Enter the 'Z-Height' to Start the changes at.  The changes START at the beginning of the first layer where this height is either reached or exceeded.",
                     "type": "float",
                     "default_value": 0,
                     "unit": "mm",
@@ -110,7 +110,7 @@ class ChangeAtZ(Script):
                 },
                 "a_height_end": {
                     "label": "Height End of Changes",
-                    "description": "Enter the 'Z-Height' to End the changes at.  If 'Z-hops' or 'Scarf Seam' or 'Adaptive Layers' are enabled then the End-of-Changes height may be more than what you enter here.",
+                    "description": "Enter the 'Z-Height' to End the changes at.  The changes END when this height is reached or exceeded.",
                     "type": "float",
                     "default_value": 0,
                     "unit": "mm",
@@ -386,41 +386,14 @@ class ChangeAtZ(Script):
                     if ";LAYER:" + str(end_layer) + "\n" in layer:
                         self.end_index = index
                         break
+
         elif self.getSettingValueByKey("by_layer_or_height") == "by_height":
-            z_hop_enabled = bool(self.extruder_list[0].getProperty("retraction_hop_enabled", "value"))
-            if z_hop_enabled:
-                z_hop_height = float(self.extruder_list[0].getProperty("retraction_hop", "value"))
-            else:
-                z_hop_height = 0
-            start_height = float(self.getSettingValueByKey("a_height_start")) + z_hop_height
-            end_height = float(self.getSettingValueByKey("a_height_end")) + z_hop_height
-            # Get the By Height starting index
-            for index, layer in enumerate(data):
-                if index < 2:
-                    continue
-                lines = layer.splitlines()
-                for line in lines:
-                    if line[0:3] in ["G0 ", "G1 ", "G2 ", "G3 "] and index <= self.end_index:
-                        if " Z" in line:
-                            cur_z = float(self.getValue(line, "Z"))
-                        if cur_z >= start_height:
-                            self.start_index = (index + 1) if not z_hop_enabled else (index)
-                            break
-                if self.start_index > 0:
-                    break
-            # Get the By Height ending index
-            for index, layer in enumerate(data):
-                lines = layer.splitlines()
-                for line in lines:
-                    if line[0:3] in ["G0 ", "G1 ", "G2 ", "G3 "] and index <= self.end_index:
-                        if " Z" in line:
-                            cur_z = float(self.getValue(line, "Z"))
-                        if cur_z >= end_height:
-                            self.end_index = (index + 1) if not z_hop_enabled else index
-                            break
-                if self.end_index < (len(data) - 2) if self.retract_enabled else (len(data) - 1):
-                    break
-        data[0] += ";   End Height  " + str(end_height) + "\n" + ";   End Index  " + str(self.end_index) + "\n"
+            start_height = float(self.getSettingValueByKey("a_height_start"))
+            end_height = float(self.getSettingValueByKey("a_height_end"))
+            # Get the By Height start and end indexes
+            self.start_index = self._is_legal_z(data, start_height)
+            self.end_index = self._is_legal_z(data, end_height) - 1
+
         # Exit if the Start Layer wasn't found
         if self.start_index == 0:
             Message(title = "[Change at Layer]", text = "The 'Start Layer' is beyond the top of the print.  The script did not run.").show()
@@ -814,3 +787,21 @@ class ChangeAtZ(Script):
                 lines.insert(len(lines) - 2, f"M106 S{orig_bv_fan_speed} P{bv_fan_nr} ; ChangeAtZ: Reset Build Volume Fan Speed")
                 temp_data[index] = "\n".join(lines)
         return temp_data
+
+    # Get the starting index or ending index of the change range when 'By Height'
+    def _is_legal_z(self, data: str, the_height: float) -> int:
+        the_index = 0
+        for index, layer in enumerate(data):
+            if index < 2:
+                continue
+            lines = layer.splitlines()
+            for z_index, line in enumerate(lines):
+                if line[0:3] in ["G0 ", "G1 ", "G2 ", "G3 "] and index <= self.end_index:
+                    if " Z" in line:
+                        cur_z = float(self.getValue(line, "Z"))
+                    if cur_z >= the_height and lines[z_index - 1].startswith(";TYPE:"):
+                        the_index = (index)
+                        break
+            if the_index > 0:
+                break
+        return the_index
