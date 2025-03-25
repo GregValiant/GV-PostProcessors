@@ -32,6 +32,8 @@ MaxVolumetricSpeed (Max E Speed by Flow Rate) is new and there is a pull request
 
 PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machines with disallowed areas.  Added moves when a multi-extruder printer travels to the purge tower at the beginning of a print.  This will be part of Cura 5.10.
 
+3/24/2025  I had an idea on how to handle 'By Height' in both 'ChangeAtLayer' (which reverts to 'ChangeAtZ') and in PauseAtLayer (which reverts to 'PauseAtHeight').  The new files are posted and the previously named files are obsolete.
+
 -----------------------------------------------------------------------------
 Here is a list of the Cura post-processors and a brief description of what they do.  See the Prusa folder for the Prusa/Orca scripts.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
