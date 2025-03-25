@@ -74,10 +74,9 @@ class PauseAtHeight(Script):
                 "pause_height":
                 {
                     "label": "Pause at Height(s)",
-                    "description": "Enter the Height to pause at. The pause will occur at the layer where the height is reached, or if it is not an exact match, then at the first layer above the entered height.  If you want to use these exact same settings for more than one pause then use a comma to delimit the heights.  If the settings are different then you must add another instance of PauseAtHeight.",
+                    "description": "Enter the Height to pause at. The pause will occur at the layer where the height is reached (or exceeded if there is no exact match).  Example: enter 25.43 and the pause will occur at the start of the layer where Z>=25.43. If you want to use these exact same settings for more than one pause then use a comma to delimit the heights.  If the settings are different then you must add another instance of PauseAtHeight.",
                     "type": "str",
-                    "value": "37.5",
-                    "minimum_value": "0.02",
+                    "default_value": "37.5",
                     "enabled": "enable_pause_at_height and by_layer_or_height == 'by_height'"
                 },
                 "pause_method":
@@ -442,6 +441,10 @@ class PauseAtHeight(Script):
 
     #  Alter some settings per the configuration of the printer and user
     def initialize(self) -> None:
+        """
+        Adjusts the script settings depending on the Cura setup and Machine settings.
+        :param global_stack: is local here as it might change prior to the script actually running
+        """
         super().initialize()
         # Set up some defaults when loading.
         global_stack = Application.getInstance().getGlobalContainerStack()
@@ -461,6 +464,7 @@ class PauseAtHeight(Script):
         unload_reload_speed = int(global_stack.getProperty("machine_max_feedrate_e", "value"))
         # If Cura has the max E speed at 299792458000 knock it down to something reasonable
         if unload_reload_speed > 100: unload_reload_speed = 100
+        # Set the machine limits to catch user typos
         self._instance.setProperty("unload_reload_speed", "value", unload_reload_speed)
         self._machine_width = int(global_stack.getProperty("machine_width", "value"))
         self._machine_depth = int(global_stack.getProperty("machine_depth", "value"))
@@ -478,35 +482,68 @@ class PauseAtHeight(Script):
             self._instance.setProperty("y_min_value", "value", -abs(round(self._machine_depth/2,1)))
 
     def execute(self, data):
+        """
+        Adds pauses based on the user input
+
+        :param data: The G-code data as a list of strings.
+        :param one_at_a_time: The Print Sequence from Cura
+        :param one_at_a_time_renum: If the print sequence is One-at-a-Time then the user can opt to renumber the gcode to All-at-Once mode and then revert to One-at-a-Time mode.  It allows different effects for PauseAtHeight.
+        :param by_layer_or_height: The criteria to use for the pauses.
+        :param pause_layer_setting: The layer numbers where the pause(s) will occur.  When 'By Height' is the criteria then they will be translated into layer numbers.
+        :param display_text_list: The text that will be displayed at each layer change.
+        :param pause_layer_list: The pause layer or pause height numbers might be delimited and so a list is used
+        :param pause_layer: The items from the pause_layer_list
+        
+        :return: The modified G-code data.
+        """
+        # Exit if the script is not enabled
         if not self.getSettingValueByKey("enable_pause_at_height"):
             data[0] += ";    [Pause At Layer] Not enabled\n"
             Logger.log("i", "[Pause At Layer] Not enabled")
             return data
+        # Set some variables
         self.global_stack = Application.getInstance().getGlobalContainerStack()
         self.extruder_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))        
         self.extruder_list = self.global_stack.extruderList
+        self.initial_layer_height = float(self.global_stack.getProperty("layer_height_0", "value"))
+        self.layer_height = float(self.global_stack.getProperty("layer_height", "value"))
+        self.z_hop_enabled = bool(self.extruder_list[0].getProperty("retraction_hop_enabled", "value"))
         one_at_a_time = self.global_stack.getProperty("print_sequence", "value")
         one_at_a_time_renum = bool(self.getSettingValueByKey("one_at_a_time_renum"))
+        # If in One-at-a-Time mode then renumber the layers to All-at-Once mode
         if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
             data = self._renumber_layers(data, "renum")
+        # Get the command that will be used to pause the printer
         pause_layer_setting = str(self.getSettingValueByKey("pause_layer"))
+        # Get the text that will be displayed at the pause
         display_text = str(self.getSettingValueByKey("display_text"))
+        # Get the 'By Layer' or 'By Height' user preference
         by_layer_or_height = self.getSettingValueByKey("by_layer_or_height")
+        
         if by_layer_or_height == "by_layer":
+            # When 'By Layer' the setting can be used
             pause_layer_list = pause_layer_setting.split(",")
         else:
+            # When 'By Height' the heights need to be translated into layer numbers
             pause_layer_list = self._pause_layer_from_height(data)
+        
+        # The display_text_list can match the pauses so color changes can be noted
         display_text_list = display_text.split(",")
+        
+        # Go through the pause layer list and add pauses as necessary
         for index, pause_layer in enumerate(pause_layer_list):
+            # Track the tool numbers so the settings will match the tool that is active at the pause
             self.tool_nr = 0
             if self.extruder_count > 1:
                 self.tool_nr = self._track_tool_nr(data, pause_layer)
             self._get_tool_settings(self.tool_nr)
+            # This is to catch situations where the length of the display list is shorter than the length of the pause list.
             try:
                 txt_msg = display_text_list[index]
-            except:
+            except IndexError:
                 txt_msg = display_text_list[len(display_text_list) - 1]
             data = self._find_pause(data, int(pause_layer.strip()), txt_msg.strip())
+        # Renumber the layers if requested
         if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
             data = self._renumber_layers(data, "un_renum")
         return data
@@ -526,6 +563,16 @@ class PauseAtHeight(Script):
         return 0, 0
 
     def _find_pause(self, new_data: [str], pause_layer: int, txt_msg: str) -> [str]:
+        """
+        Goes through the list of pause layers/heights and adds pauses as required
+        :param xtra_cmds: Is used in both the before and after custom gcode commands in case of multiple commands.
+        :param pause_command: The actual command used to pause the machine.
+        :param current_z: Tracks the Z-height
+        :param current_height:
+        :param current_layer:
+        :param layers_started: Tracks the first layer of the print whether model or raft.
+        nbr_negative_layers = 0
+        """
         hold_steppers_on = self.getSettingValueByKey("hold_steppers_on")
         disarm_timeout = self.getSettingValueByKey("disarm_timeout") * 60
         reason_for_pause = self.getSettingValueByKey("reason_for_pause")
@@ -555,12 +602,8 @@ class PauseAtHeight(Script):
         standby_temperature = self.getSettingValueByKey("standby_temperature")
         use_tool_temperature = bool(self.getSettingValueByKey("tool_temp_overide"))
         resume_print_temperature = self.getSettingValueByKey("resume_print_temperature")
-
         firmware_retract = self.global_stack.getProperty("machine_firmware_retract", "value")
         control_temperatures = self.global_stack.getProperty("machine_nozzle_temp_enabled", "value")
-        initial_layer_height = self.global_stack.getProperty("layer_height_0", "value")
-        self.layer_height = self.global_stack.getProperty("layer_height", "value")
-        self.z_hop_enabled = self.extruder_list[0].getProperty("retraction_hop_enabled", "value")
         if self.z_hop_enabled:
             self.z_hop_height = self.extruder_list[0].getProperty("retraction_hop", "value")
         else:
@@ -606,16 +649,9 @@ class PauseAtHeight(Script):
             "custom": self.putValue(str(custom_pause_command)),
             "g_4": self.putValue(G = 4, S = g4_dwell_time)}[pause_method]
 
-        # use offset to calculate the current height: <current_height> = <current_z> - <layer_0_z>
-        layer_0_z = 0
+        # Track the Z height and layer number
         current_z = 0
-        current_height = 0
         current_layer = 0
-        current_extrusion_f = 0
-        got_first_g_cmd_on_layer_0 = False
-        current_t = 0 # Tracks the current extruder for tracking the target temperature.
-        target_temperature = {} # Tracks the current target temperature for each extruder.
-
         nbr_negative_layers = 0
 
         for index, layer in enumerate(new_data):
@@ -635,9 +671,6 @@ class PauseAtHeight(Script):
                         resume_print_temperature = self.getValue(line, "S")
                 if not layers_started:
                     continue
-                # Look for the feed rate of an extrusion instruction
-                if self.getValue(line, "F") is not None and self.getValue(line, "E") is not None:
-                    current_extrusion_f = self.getValue(line, "F")
                 # If a Z instruction is in the line, read the current Z
                 if self.getValue(line, "Z") is not None:
                     current_z = self.getValue(line, "Z")
@@ -647,10 +680,10 @@ class PauseAtHeight(Script):
                 current_layer = line[len(";LAYER:"):]
                 try:
                     current_layer = int(current_layer)
-
                 # Couldn't cast to int. Something is wrong with this g-code data
                 except ValueError:
                     continue
+                    
                 if current_layer < pause_layer - nbr_negative_layers:
                     continue
 
@@ -929,7 +962,7 @@ class PauseAtHeight(Script):
                 return new_data
         return new_data
 
-    # Renumber Layers----------------------------------------------------------
+    # Renumber Layers from One-at-a-Time to All-at-Once or vice versa
     def _renumber_layers(self, one_data:str, renum:str)->str:
         renum_layers = str(renum)
 
@@ -1033,7 +1066,7 @@ class PauseAtHeight(Script):
         
     def _pause_layer_from_height(self, data: str) -> str:
         # If By_Height, convert the heights to corresponding layer numbers and return the list.
-        pause_height_list = self.getSettingValueByKey("pause_height").split(",")
+        pause_height_list = str(self.getSettingValueByKey("pause_height")).split(",")
         temporary_layer_list = []
         # this jumps out of an inside 'for' statement
         move_on = False
@@ -1047,25 +1080,53 @@ class PauseAtHeight(Script):
                 err_str = f"An entered 'Height' ({p_hgt}) could not be converted to a number.  It was skipped."
                 Message(title = "[PauseAtHeight]", text = err_str).show()
                 continue
-            for index, layer in enumerate(data):
-                # If the layers haven't started then continue
-                if index < 2:
-                    continue
-                # Split the lines to search for a Z value
-                lines = layer.splitlines()
-                for line in lines:
-                    # Search movement lines
-                    if line[0:3] in ["G0 ", "G1 ", "G2 ", "G3 "] and index <= len(data) - 2:
-                        if " Z" in line:
-                            cur_z = float(self.getValue(line, "Z"))
-                        # When the height is reached then note the layer it is on.
-                        if cur_z >= p_hgt:
-                            layer_nr = int(data[index].split("LAYER:")[1].split("\n")[0])
-                            # Add one to the layer and append it to the temporary list
-                            temporary_layer_list.append(str(layer_nr + 1))
-                            move_on = True
-                            break
-                if move_on:
-                    move_on = False
-                    break
+            temporary_layer_list.append(str(self._is_legal_z(data, p_hgt)))
         return temporary_layer_list
+        
+    def _is_legal_z(self, data: str, the_height: float) -> int:
+        # The start height changes depending whether or not rafts are enabled.
+        starting_z = 0
+        if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft":
+            # If z-hops are enabled then start looking for the Z after layer:0
+            if self.z_hop_enabled:
+                for layer in data:
+                    if ";LAYER:0" in layer:
+                        lines = layer.splitlines()
+                        for index, line in enumerate(lines):
+                            try:
+                                if " Z" in line and " E" in lines[index + 1]:
+                                    starting_z = round(float(self.getValue(line, "Z")),2)
+                                    the_height += starting_z
+                                    break
+                            except IndexError:                                
+                                starting_z = round(float(self.getValue(line, "Z")),2)
+                                the_height += starting_z
+                                break
+            # If Z-hops are disabled, then look for the starting Z from the start of the raft up to Layer:0
+            else:
+                for layer in data:
+                    lines = layer.splitlines()
+                    for index, line in enumerate(lines):
+                        if " Z" in line and " E" in lines[index + 1]:
+                            starting_z = self.getValue(line, "Z")
+                        if ";LAYER:0" in line:
+                            the_height += starting_z
+                            break
+                        
+        the_index = 0
+        for index, layer in enumerate(data):
+            # Don't bother with the opening or the startup
+            if index < 2:
+                continue
+            lines = layer.splitlines()
+            for z_index, line in enumerate(lines):
+                if line[0:3] in ["G0 ", "G1 ", "G2 ", "G3 "]:
+                    if " Z" in line:
+                        cur_z = float(self.getValue(line, "Z"))
+                    # The working Z of the layer is always after a ';TYPE:' line
+                    if cur_z >= the_height and lines[z_index - 1].startswith(";TYPE:"):
+                        the_index = (index) - 2
+                        break
+            if the_index > 0:
+                break
+        return the_index

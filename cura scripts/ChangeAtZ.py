@@ -1,10 +1,10 @@
 """
  This version by GregValiant (Greg Foresi) March 2025
     This script is makeover of the earlier 'ChangeAtZ'.
-    Differences from the previous 'ChangeAtZ':
-        "By Height" will work with Z-hops enabled.  "By Height" may still produce inexact results if Adaptive Layers and/or and Scarf Seams are enabled but the changes will be inserted at the first layer above the height if there is no exact match for the height.  Ex:  Enter 25.34 for the height and the layers are at 25.24 and 25.44 then the change will occur at 25.44.
-        The user can opt to change just the print speed or both print and travel speeds.  The 'F' parameters are re-calculated line-by-line using the percentage that the user inputs.  Speeds can now be changed 'per extruder'.  M220 is no longer used to change speeds.
-        The retract/prime speeds are split out and changing the print speed no longer affects retract/prime speeds.
+    Differences from the previous version (5.3.0):
+        "By Height" will work with Z-hops enabled, Adaptive Layers, Scarf Z-seam, and rafts.  The changes will be commence at the first layer where the height is reached or exceeded.  The changes will end at the start of the layer where the End Height is reached or exceeded.  Ex:  End Height = 25.34 then the changes will end when the Z of the next layer >= 25.34.
+        The user can opt to change just the print speed or both print and travel speeds.  The 'F' parameters are re-calculated line-by-line using the percentage that the user inputs.  Speeds can now be changed 'per extruder'.  M220 is no longer used to change speeds as it affected all speeds.
+        The retract/prime speeds are split out so changing the print speed no longer affects retract/prime speeds.
         Output to LCD is obsolete to avoid flooding the screen with messages that were quickly over-written.
         Allows the user to select a Range of Layers (rather than just 'Single Layer' or 'To the End'.)
         Added support for Relative Extrusion
@@ -102,7 +102,7 @@ class ChangeAtZ(Script):
                 },
                 "a_height_start": {
                     "label": "Height Start of Changes",
-                    "description": "Enter the 'Z-Height' to Start the changes at.  The changes START at the beginning of the first layer where this height is either reached or exceeded.",
+                    "description": "Enter the 'Z-Height' to Start the changes at.  The changes START at the beginning of the first layer where this height is reached (or exceeded).  If the model is on a raft then this height will be from the top of the air gap (first height of the actual model print).",
                     "type": "float",
                     "default_value": 0,
                     "unit": "mm",
@@ -110,7 +110,7 @@ class ChangeAtZ(Script):
                 },
                 "a_height_end": {
                     "label": "Height End of Changes",
-                    "description": "Enter the 'Z-Height' to End the changes at.  The changes END when this height is reached or exceeded.",
+                    "description": "Enter the 'Z-Height' to End the changes at.  The changes continue until this height is reached or exceeded.  If the model is on a raft then this height will be from the top of the air gap (first height of the actual model print).",
                     "type": "float",
                     "default_value": 0,
                     "unit": "mm",
@@ -363,6 +363,7 @@ class ChangeAtZ(Script):
         self.retract_enabled = bool(self.extruder_list[0].getProperty("retraction_enable", "value"))
         self.orig_bed_temp = self.global_stack.getProperty("material_bed_temperature", "value")
         self.orig_bv_temp = self.global_stack.getProperty("build_volume_temperature", "value")
+        self.z_hop_enabled = bool(self.extruder_list[0].getProperty("retraction_hop_enabled", "value"))
         start_layer = self.getSettingValueByKey("a_start_layer") - 1
         end_layer = self.getSettingValueByKey("a_end_layer")
 
@@ -790,6 +791,36 @@ class ChangeAtZ(Script):
 
     # Get the starting index or ending index of the change range when 'By Height'
     def _is_legal_z(self, data: str, the_height: float) -> int:
+        # The start height changes depending whether or not rafts are enabled.
+        starting_z = 0
+        if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft":
+            # If z-hops are enabled then start looking for the working Z after layer:0
+            if self.z_hop_enabled:
+                for layer in data:
+                    if ";LAYER:0" in layer:
+                        lines = layer.splitlines()
+                        for index, line in enumerate(lines):
+                            try:
+                                if " Z" in line and " E" in lines[index + 1]:
+                                    starting_z = round(float(self.getValue(line, "Z")),2)
+                                    the_height += starting_z
+                                    break
+                            # If the layer ends without an extruder move following the Z line, then just jump out
+                            except IndexError:                                
+                                starting_z = round(float(self.getValue(line, "Z")),2)
+                                the_height += starting_z
+                                break
+            # If Z-hops are disabled, then look for the starting Z from the start of the raft up to Layer:0
+            else:
+                for layer in data:
+                    lines = layer.splitlines()
+                    for index, line in enumerate(lines):
+                        if " Z" in line and " E" in lines[index + 1]:
+                            starting_z = float(self.getValue(line, "Z"))
+                        if ";LAYER:0" in line:
+                            the_height += starting_z
+                            break
+        
         the_index = 0
         for index, layer in enumerate(data):
             if index < 2:
@@ -800,7 +831,7 @@ class ChangeAtZ(Script):
                     if " Z" in line:
                         cur_z = float(self.getValue(line, "Z"))
                     if cur_z >= the_height and lines[z_index - 1].startswith(";TYPE:"):
-                        the_index = (index)
+                        the_index = index
                         break
             if the_index > 0:
                 break
