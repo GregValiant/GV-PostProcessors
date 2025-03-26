@@ -22,7 +22,7 @@
             Modified by Ghostkeeper (Ultimaker), to debug.
             Modified by Wes Hanney, Retract Length + Speed, Clean up
             Modified by Alex Jaxon, Added option to modify Build Volume Temperature
-            Re-write by GregValiant, to work with new variables in Cura 5.x
+            Re-write by GregValiant, to work with new variables in Cura 5.x and with the changes noted above
 """
 
 from UM.Application import Application
@@ -35,15 +35,17 @@ class ChangeAtZ(Script):
     version = "6.0.0"
 
     def initialize(self) -> None:
+        # Prepare the script settings for the current machine
         super().initialize()
         self.global_stack = Application.getInstance().getGlobalContainerStack()
         self.extruder_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))
-
+        # If the printer is multi-extruder then enable the settings for T1
         if self.extruder_count == 1:
             self._instance.setProperty("multi_extruder", "value", False)
         else:
             self._instance.setProperty("multi_extruder", "value", True)
 
+        # Enable the build volume temperature change when a heated build volume is present
         machine_heated_build_volume = bool(self.global_stack.getProperty("machine_heated_build_volume", "value"))
         if machine_heated_build_volume:
             self._instance.setProperty("heated_build_volume", "value", True)
@@ -355,6 +357,11 @@ class ChangeAtZ(Script):
             Logger.log("i", "ChangeAtZ does not support 'One at a Time' mode")
             return data
 
+        # Exit if the gcode has been previously post-processed.
+        if ";POSTPROCESSED" in data[0]:
+            return data
+
+        # Pull some settings from Cura
         self.extruder_list = self.global_stack.extruderList
         self.firmware_retraction = bool(self.global_stack.getProperty("machine_firmware_retract", "value"))
         self.relative_extrusion = bool(self.global_stack.getProperty("relative_extrusion", "value"))
@@ -375,12 +382,13 @@ class ChangeAtZ(Script):
                 if ";LAYER:" + str(start_layer) + "\n" in layer:
                     self.start_index = index
                     break
+            # If the changes continue to the top layer
             if end_layer == -1:
                 if self.retract_enabled:
                     self.end_index = len(data) - 2
                 else:
                     self.end_index = len(data) - 1
-
+            # If the changes end below the top layer
             else:
                 end_layer -= 1
                 for index, layer in enumerate(data):
@@ -403,9 +411,8 @@ class ChangeAtZ(Script):
         # Adjust the End Index if the End Index < Start Index or the script doesn't do anything
         if self.end_index < self.start_index:
             self.start_index = self.end_index
-            Message(title = "[Change at Layer]", text = "Check the Gcode.  Your 'Start Layer' input is higher than the End Layer input.  The Start Layer has been adjusted to equal the End Layer.").show()
+            Message(title = "[Change at Layer]", text = "Check the Gcode.  Your 'Start Layer/Height' input is higher than the End Layer/Height input.  The Start Layer has been adjusted to equal the End Layer.").show()
 
-        # Run the selected procedures
         # Mapping settings to corresponding methods
         procedures = {
             "b_change_speed": self._change_speed,
@@ -414,9 +421,10 @@ class ChangeAtZ(Script):
             "e_change_build_volume_temperature": self._change_bv_temp,
             "f_change_extruder_temperature": self._change_hotend_temp,
             "g_change_retract": self._change_retract,
-            "has_bv_fan": self._change_bv_fan_speed  # On hold and always False until the Cura settings are in place.
+            "has_bv_fan": self._change_bv_fan_speed
         }
-        # Run selected procedures
+        
+        # Run the selected procedures
         for setting, method in procedures.items():
             if self.getSettingValueByKey(setting):
                 method(data)
@@ -424,6 +432,11 @@ class ChangeAtZ(Script):
         return data
 
     def _change_speed(self, data:str)->str:
+        """
+        The actual speed will be a percentage of the Cura calculate 'F' values in the gcode.  The percentage can be different for each extruder.  Travel speeds can also be affected dependent on the user input.
+        :param speed_x: The speed percentage to use
+        """
+        # Since a single extruder changes all relevant speed settings then for a multi-extruder 'both extruders' is the same
         if self.extruder_count == 1 or self.getSettingValueByKey("change_speed_per_extruder") == "ext_both":
             speed_x = self.getSettingValueByKey("b_speed")/100
             print_speed_only = not bool(self.getSettingValueByKey("b_change_printspeed"))
@@ -445,12 +458,15 @@ class ChangeAtZ(Script):
             speed_x = self.getSettingValueByKey("b_speed")/100
             print_speed_only = not bool(self.getSettingValueByKey("b_change_printspeed"))
             target_extruder = self.getSettingValueByKey("change_speed_per_extruder")
+            
+            # These variables are so the 'turn on' and 'turn off' points are at tool changes.
             if target_extruder == "ext_0":
                 target_extruder = "T0"
                 off_extruder = "T1"
             elif target_extruder == "ext_1":
                 target_extruder = "T1"
                 off_extruder = "T0"
+                
             for index, layer in enumerate(data):
                 if index < self.start_index:
                     lineT = layer.splitlines()
@@ -506,11 +522,11 @@ class ChangeAtZ(Script):
                     lines = layer.splitlines()
                     for l_index, line in enumerate(lines):
                         if line.startswith("T0"):
-                            lines[l_index] = lines[l_index] + "\n" + new_flowrate_0
-                            lines[l_index] += " ; ChangeAtZ: Alter Flow Rate"
+                            lines[l_index] += new_flowrate_0
+                            lines[l_index] += " ; ChangeAtZ: Alter Flow Rate T0"
                         if line.startswith("T1"):
-                            lines[l_index] = lines[l_index] + "\n" + new_flowrate_1
-                            lines[l_index] += " ; ChangeAtZ: Alter Flow Rate"
+                            lines[l_index] += new_flowrate_1
+                            lines[l_index] += " ; ChangeAtZ: Alter Flow Rate T1"
                     data[index] = "\n".join(lines) + "\n"
                     if index == self.end_index:
                         lines = data[index].splitlines()
@@ -791,8 +807,19 @@ class ChangeAtZ(Script):
 
     # Get the starting index or ending index of the change range when 'By Height'
     def _is_legal_z(self, data: str, the_height: float) -> int:
-        # The start height changes depending whether or not rafts are enabled.
+        # The height passed down cannot exceed the height of the model or the search for the Z fails
+        lines = data[0].split("\n")
+        for line in lines:
+            if "MAXZ" in line or "MAX.Z" in line:
+                max_z = float(line.split(":")[1])
+                break
+        if the_height > max_z:
+            the_height = max_z
+            
         starting_z = 0
+        the_index = 0
+
+        # The start height changes depending whether or not rafts are enabled.
         if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft":
             # If z-hops are enabled then start looking for the working Z after layer:0
             if self.z_hop_enabled:
@@ -806,7 +833,7 @@ class ChangeAtZ(Script):
                                     the_height += starting_z
                                     break
                             # If the layer ends without an extruder move following the Z line, then just jump out
-                            except IndexError:                                
+                            except IndexError:
                                 starting_z = round(float(self.getValue(line, "Z")),2)
                                 the_height += starting_z
                                 break
@@ -815,13 +842,17 @@ class ChangeAtZ(Script):
                 for layer in data:
                     lines = layer.splitlines()
                     for index, line in enumerate(lines):
-                        if " Z" in line and " E" in lines[index + 1]:
-                            starting_z = float(self.getValue(line, "Z"))
+                        # This try/except catches comments in the startup gcode
+                        try:
+                            if " Z" in line and " E" in lines[index - 1]:
+                                starting_z = float(self.getValue(line, "Z"))
+                        except TypeError:
+                            # Just pass beause there will be further Z values
+                            pass
                         if ";LAYER:0" in line:
                             the_height += starting_z
                             break
-        
-        the_index = 0
+
         for index, layer in enumerate(data):
             if index < 2:
                 continue
@@ -835,4 +866,8 @@ class ChangeAtZ(Script):
                         break
             if the_index > 0:
                 break
+        
+        # Fudge factor to insure an entry of the 'model_height' allows the changes to continue to the end of the top layer
+        if the_height >= max_z:
+            the_index = len(data) - 2
         return the_index
