@@ -2,19 +2,23 @@
  This version by GregValiant (Greg Foresi) March 2025
     This script is makeover of the earlier 'ChangeAtZ'.
     Differences from the previous version (5.3.0):
-        "By Height" will work with Z-hops enabled, Adaptive Layers, Scarf Z-seam, and rafts.  The changes will be commence at the first layer where the height is reached or exceeded.  The changes will end at the start of the layer where the End Height is reached or exceeded.  Ex:  End Height = 25.34 then the changes will end when the Z of the next layer >= 25.34.
+        "By Height" will work with Z-hops enabled, Adaptive Layers, Scarf Z-seam, and Rafts.  The changes will be commence at the first layer where the height is reached or exceeded.  The changes will end at the start of the layer where the End Height is reached or exceeded.  Ex:  End Height = 25.34 then the changes will end when the Z of the next layer >= 25.34.
         The user can opt to change just the print speed or both print and travel speeds.  The 'F' parameters are re-calculated line-by-line using the percentage that the user inputs.  Speeds can now be changed 'per extruder'.  M220 is no longer used to change speeds as it affected all speeds.
         The retract/prime speeds are split out so changing the print speed no longer affects retract/prime speeds.
+        The Z-hop speed is never affected.
         Output to LCD is obsolete to avoid flooding the screen with messages that were quickly over-written.
         Allows the user to select a Range of Layers (rather than just 'Single Layer' or 'To the End'.)
+        Support added for a Build Volume Fan.
+        Changes to the Layer Cooling Fan(s) are removed in favor of AddCoolingProfile script.
         Added support for Relative Extrusion
         Added support for Firmware Retraction
+        Added support for 'G2' and 'G3' moves.
+        The script supports up to 2 extruders.
         'One-at-a-Time' is not supported and a kick-out is added
         Version number changed to 6.0.0
 
     Previous contributions by:
         Original Authors and contributors to the ChangeAtZ post-processing script and the earlier TweakAtZ:
-        (Not much remains of either ChangeAtZ or TweakAtZ but the original concept remains the same.)
             Written by Steven Morlock,
             Modified by Ricardo Gomez, to add Bed Temperature and make it work with Cura_13.06.04+
             Modified by Stefan Heule, since V3.0
@@ -325,8 +329,8 @@ class ChangeAtZ(Script):
                     "enabled": "has_bv_fan and enable_bv_fan_change and caz_enabled"
                 },
                 "bv_fan_nr": {
-                    "label": "    Chamber/Aux Fan Num",
-                    "description": "Hidden setting that enables the Chamber/Auxiliary fan speed.",
+                    "label": "    Chamber/Aux Fan Number",
+                    "description": "The circuit number of the Auxilliary or Chamber fan.  M106 will be used and the 'P' parameter (the fan number) will be the number entered here.",
                     "type": "int",
                     "unit": "#",
                     "default_value": 3,
@@ -334,8 +338,8 @@ class ChangeAtZ(Script):
                     "enabled": "has_bv_fan and enable_bv_fan_change and caz_enabled"
                 },
                 "has_bv_fan": {
-                    "label": "Hidden setting to enable bv fan when machine_heated_bed is true",
-                    "description": "Enables the Build Volume/Auxiliary fan speed.",
+                    "label": "Hidden setting",
+                    "description": "Enables the Build Volume/Auxiliary fan speed control when 'machine_heated_bed' is true.",
                     "type": "bool",
                     "default_value": false,
                     "enabled": false
@@ -371,11 +375,22 @@ class ChangeAtZ(Script):
         self.orig_bed_temp = self.global_stack.getProperty("material_bed_temperature", "value")
         self.orig_bv_temp = self.global_stack.getProperty("build_volume_temperature", "value")
         self.z_hop_enabled = bool(self.extruder_list[0].getProperty("retraction_hop_enabled", "value"))
+        self.raft_enabled = True if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft" else False
+        # The Start and end layer numbers are used when 'By Layer' is selected
         start_layer = self.getSettingValueByKey("a_start_layer") - 1
-        end_layer = self.getSettingValueByKey("a_end_layer")
-
+        end_layer = int(self.getSettingValueByKey("a_end_layer"))
+        nbr_raft_layers = 0        
+        if self.raft_enabled:
+            for layer in data:
+                if ";LAYER:-" in layer:
+                    nbr_raft_layers += 1
+                if ";LAYER:0\n" in layer:
+                    break
+        # Adjust the start layer to account for any raft layers
+        start_layer -= nbr_raft_layers
         # Find the indexes of the Start and End layers if 'By Layer'
         self.start_index = 0
+        # When retraction is enabled it adds a single line item to the data list
         self.end_index = len(data) - 1 - int(self.retract_enabled)
         if self.getSettingValueByKey("by_layer_or_height") == "by_layer":
             for index, layer in enumerate(data):
@@ -390,12 +405,16 @@ class ChangeAtZ(Script):
                     self.end_index = len(data) - 1
             # If the changes end below the top layer
             else:
+                # Adjust the end layer from base1 numbering to base0 numbering
                 end_layer -= 1
+                # Adjust the End Layer if it is not the top layer and if bed adhesion is 'raft'
+                end_layer -= nbr_raft_layers
                 for index, layer in enumerate(data):
                     if ";LAYER:" + str(end_layer) + "\n" in layer:
                         self.end_index = index
                         break
-
+                        
+        # The Start and End heights are used to find the Start and End indexes when changes are 'By Height'
         elif self.getSettingValueByKey("by_layer_or_height") == "by_height":
             start_height = float(self.getSettingValueByKey("a_height_start"))
             end_height = float(self.getSettingValueByKey("a_height_end"))
@@ -408,12 +427,13 @@ class ChangeAtZ(Script):
             Message(title = "[Change at Layer]", text = "The 'Start Layer' is beyond the top of the print.  The script did not run.").show()
             Logger.log("w", "[Change at Layer] The 'Start Layer' is beyond the top of the print.  The script did not run.")
             return data
-        # Adjust the End Index if the End Index < Start Index or the script doesn't do anything
+
+        # Adjust the End Index if the End Index < Start Index (required for the script to make changes)
         if self.end_index < self.start_index:
             self.start_index = self.end_index
             Message(title = "[Change at Layer]", text = "Check the Gcode.  Your 'Start Layer/Height' input is higher than the End Layer/Height input.  The Start Layer has been adjusted to equal the End Layer.").show()
 
-        # Mapping settings to corresponding methods
+        # Map settings to corresponding methods
         procedures = {
             "b_change_speed": self._change_speed,
             "c_change_flowrate": self._change_flow,
@@ -423,7 +443,7 @@ class ChangeAtZ(Script):
             "g_change_retract": self._change_retract,
             "has_bv_fan": self._change_bv_fan_speed
         }
-        
+
         # Run the selected procedures
         for setting, method in procedures.items():
             if self.getSettingValueByKey(setting):
@@ -433,8 +453,12 @@ class ChangeAtZ(Script):
 
     def _change_speed(self, data:str)->str:
         """
-        The actual speed will be a percentage of the Cura calculate 'F' values in the gcode.  The percentage can be different for each extruder.  Travel speeds can also be affected dependent on the user input.
-        :param speed_x: The speed percentage to use
+        The actual speed will be a percentage of the Cura calculated 'F' values in the gcode.  The percentage can be different for each extruder.  Travel speeds can also be affected dependent on the user input.
+        :params:
+            speed_x: The speed percentage to use
+            print_speed_only: Only change speeds with extrusions (but not retract or primes)
+            target_extruder: For multi-extruder printers this is the active extruder
+            off_extruder: For multi-extruders this is the inactive extruder.
         """
         # Since a single extruder changes all relevant speed settings then for a multi-extruder 'both extruders' is the same
         if self.extruder_count == 1 or self.getSettingValueByKey("change_speed_per_extruder") == "ext_both":
@@ -458,15 +482,16 @@ class ChangeAtZ(Script):
             speed_x = self.getSettingValueByKey("b_speed")/100
             print_speed_only = not bool(self.getSettingValueByKey("b_change_printspeed"))
             target_extruder = self.getSettingValueByKey("change_speed_per_extruder")
-            
-            # These variables are so the 'turn on' and 'turn off' points are at tool changes.
+
+            # These variables are used as the 'turn changes on' and 'turn changes off' at tool changes.
             if target_extruder == "ext_0":
                 target_extruder = "T0"
                 off_extruder = "T1"
             elif target_extruder == "ext_1":
                 target_extruder = "T1"
                 off_extruder = "T0"
-                
+
+            # After all of that it goes to work.
             for index, layer in enumerate(data):
                 if index < self.start_index:
                     lineT = layer.splitlines()
@@ -497,6 +522,15 @@ class ChangeAtZ(Script):
         return data
 
     def _change_flow(self, data:str)->str:
+        """
+        M221 is used to change the flow rate.
+        :params:
+            new_flow_ext_0: The flowrate percentage from these script settings (for the primary extruder)
+            new_flowrate_0: The string to use for the new flowrate for T0
+            reset_flowrate_0: Resets the flowrate to 100% (for either extruder)
+            new_flow_ext_1: The flowrate percentage from these script settings (for the secondary extruder)
+            new_flowrate_1: The string to use for the new flowrate for T1
+        """
         new_flow_ext_0 = self.getSettingValueByKey("c_flowrate_t0")
         new_flowrate_0 = f"\nM221 S{new_flow_ext_0} ; ChangeAtZ: Alter Flow Rate"
         reset_flowrate_0 = "\nM221 S100 ; ChangeAtZ: Reset Flow Rate"
@@ -522,11 +556,9 @@ class ChangeAtZ(Script):
                     lines = layer.splitlines()
                     for l_index, line in enumerate(lines):
                         if line.startswith("T0"):
-                            lines[l_index] += new_flowrate_0
-                            lines[l_index] += " ; ChangeAtZ: Alter Flow Rate T0"
+                            lines[l_index] += new_flowrate_0 + " T0"
                         if line.startswith("T1"):
-                            lines[l_index] += new_flowrate_1
-                            lines[l_index] += " ; ChangeAtZ: Alter Flow Rate T1"
+                            lines[l_index] += new_flowrate_1 + " T1"
                     data[index] = "\n".join(lines) + "\n"
                     if index == self.end_index:
                         lines = data[index].splitlines()
@@ -538,6 +570,11 @@ class ChangeAtZ(Script):
         return data
 
     def _change_bed_temp(self, data:str)->str:
+        """
+        Change the Bed Temperature at height or layer
+        :params:
+        new_bed_temp: The new temperature from the settings for this script
+        """
         if not self.heated_bed:
             return data
         new_bed_temp = self.getSettingValueByKey("d_bedTemp")
@@ -555,6 +592,11 @@ class ChangeAtZ(Script):
         return data
 
     def _change_bv_temp(self, data:str)->str:
+        """
+        Change the Build Volume temperature at height or layer
+        :param:
+        new_bv_temp: The new temperature from the settings for this script
+        """
         if not self.heated_build_volume:
             return data
         new_bv_temp = self.getSettingValueByKey("e_build_volume_temperature")
@@ -567,7 +609,21 @@ class ChangeAtZ(Script):
         return data
 
     def _change_hotend_temp(self, data:str)->str:
-        # This one made my head hurt
+        """
+        Changes to the hot end temperature(s).
+        :params:
+            extruders_share_heater: Lets the script know how to handle temperature at tool changes
+            active_tool: Tracks the active tool through the gcode
+            extruders_share_neater: From the Cura setting, this insures the hot end is treated as a single extruder.
+            new_hotend_temp_0: The new temperature for the primary extruder T0
+            orig_hot_end_temp_0: The print temperature for the primary extruder T0 as set in Cura
+            orig_standby_temp_0: The standby temperature for the primary extruder T0 from Cura.  This marks a temperature line to ignore.
+            new_hotend_temp_1: The new temperature for the secondary extruder T1
+            orig_hot_end_temp_1: The print temperature for the secondary extruder T1 as set in Cura
+            orig_standby_temp_1: The standby temperature for the secondary extruder T1 from Cura.  This marks a temperature line to ignore.
+        """
+
+        # Change the hot end temperature
         extruders_share_heater = bool(self.global_stack.getProperty("machine_extruders_share_heater", "value"))
         new_hotend_temp_0 = self.getSettingValueByKey("f_extruder_temperature_t0")
         orig_hot_end_temp_0 = int(self.extruder_list[0].getProperty("material_print_temperature", "value"))
@@ -668,6 +724,22 @@ class ChangeAtZ(Script):
         return data
 
     def _change_retract(self, data:str)->str:
+        """
+        This is for single extruder printers only (tool change retractions get in the way for multi-extruders).
+        Depending on the selected options, this will change the Retraction Speeds and Prime Speeds, and the Retraction Distance.  NOTE: The retraction and prime speeds will be the same.
+        :params:
+            speed_retract_0:  The set retraction and prime speed from Cura.
+            retract_amt_0:  The set retraction distance from Cura
+            change_retract_amt:  Boolean to trip changing the retraction distance
+            change_retract_speed:  Boolean to trip changing the speeds
+            new_retract_amt:  The new retraction amount to use from this script settings.
+            new_retract_speed:  The new retract and prime speed from this script settings.
+            firmware_start_str:  The string to insert for changes to firmware retraction
+            firmware_reset:  The last insertion for firmware retraction will set the numbers back to the settings in Cura.
+            is_retracted:  Tracks the end of the filament location
+            cur_e:  The current location of the extruder
+            prev_e:  The location of where the extruder was before the current e
+        """
         if not self.retract_enabled:
             return
         speed_retract_0 = int(self.extruder_list[0].getProperty("retraction_speed", "value") * 60)
@@ -772,6 +844,9 @@ class ChangeAtZ(Script):
         return data
 
     def _format_lines(self, temp_data: str) -> str:
+        """
+        This adds '-' as padding so the setting descriptions line up in the gcode
+        """
         for l_index, layer in enumerate(temp_data):
             lines = layer.split("\n")
             for index, line in enumerate(lines):
@@ -781,6 +856,13 @@ class ChangeAtZ(Script):
         return temp_data
 
     def _change_bv_fan_speed(self, temp_data: str) -> str:
+        """
+        This can control an additional fan - Auxilliary or Build Volume fan
+        :params:
+            bv_fan_nr:  The 'P' number of the fan
+            bv_fan_speed:  The new speed for the fan
+            orig_bv_fan_speed:  The reset speed.  This is currently always "0" as the fan speed may not exist in Cura, or the fan might be 'on-off' and not PWM controlled.
+        """
         if not self.getSettingValueByKey("enable_bv_fan_change"):
             return temp_data
         bv_fan_nr = self.getSettingValueByKey("bv_fan_nr")
@@ -807,6 +889,14 @@ class ChangeAtZ(Script):
 
     # Get the starting index or ending index of the change range when 'By Height'
     def _is_legal_z(self, data: str, the_height: float) -> int:
+        """
+        When in 'By Height' mode, this will return the index of the layer where the working Z is >= the input Z height, or the index of the layer where the working Z >= the Ending Z height
+        :params:
+            max_z:  The maximum Z height within the Gcode.  This is used to determine the upper limit of the data list that should be returned.
+            the_height:  The user input height.  This will be adjusted if rafts are enabled and/or Z-hops are enabled
+            cur_z:  Is the current Z height as tracked through the gcode
+            the_index:  The number to return.
+        """
         # The height passed down cannot exceed the height of the model or the search for the Z fails
         lines = data[0].split("\n")
         for line in lines:
@@ -815,11 +905,11 @@ class ChangeAtZ(Script):
                 break
         if the_height > max_z:
             the_height = max_z
-            
+
         starting_z = 0
         the_index = 0
 
-        # The start height changes depending whether or not rafts are enabled.
+        # The start height varies depending whether or not rafts are enabled and whether Z-hops are enabled.
         if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft":
             # If z-hops are enabled then start looking for the working Z after layer:0
             if self.z_hop_enabled:
@@ -837,6 +927,7 @@ class ChangeAtZ(Script):
                                 starting_z = round(float(self.getValue(line, "Z")),2)
                                 the_height += starting_z
                                 break
+
             # If Z-hops are disabled, then look for the starting Z from the start of the raft up to Layer:0
             else:
                 for layer in data:
@@ -854,6 +945,7 @@ class ChangeAtZ(Script):
                             break
 
         for index, layer in enumerate(data):
+            # Skip over the opening paragraph and StartUp Gcode
             if index < 2:
                 continue
             lines = layer.splitlines()
@@ -866,7 +958,7 @@ class ChangeAtZ(Script):
                         break
             if the_index > 0:
                 break
-        
+
         # Fudge factor to insure an entry of the 'model_height' allows the changes to continue to the end of the top layer
         if the_height >= max_z:
             the_index = len(data) - 2
