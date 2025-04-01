@@ -309,13 +309,13 @@ class SuptIntMaterialChange(Script):
         if not self.getSettingValueByKey("enable_supt_int_matl_change"):
             Logger.log("i", "[Supt-Interface Material Change] Is not enabled.")
             return data
-        mycura = CuraApplication.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
-        ext_count = int(mycura.getProperty("machine_extruder_count", "value"))
+        self.global_stack = CuraApplication.getInstance().getGlobalContainerStack()
+        extruder = self.global_stack.extruderList
+        ext_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))
         # Exit if the printer is a multi-extruder and more than 1 tool is enabled
         ext_enabled = 0
         if ext_count > 1:
-            enabled_list = list([mycura.isEnabled for mycura in mycura.extruderList])
+            enabled_list = list([self.global_stack.isEnabled for self.global_stack in self.global_stack.extruderList])
             for num in range(0,len(enabled_list)):
                 if bool(enabled_list[num]):
                     ext_enabled += 1
@@ -324,7 +324,7 @@ class SuptIntMaterialChange(Script):
             data[0] += ";    [Supt-Interface Material Change] Did not run because more than one extruder is enabled.\n"
             Logger.log("i", "[Supt-Interface Material Change] Did not run because more than one extruder is enabled.")
             return data
-        if not mycura.getProperty("support_enable", "value"):
+        if not self.global_stack.getProperty("support_enable", "value"):
             Message(title = "[Supt-Interface Material Change]", text = "'Generate Support' is not enabled.").show()
             data[0] += ";    [Supt-Interface Material Change] Did not run because 'Generate Support' is not enabled.\n"
             Logger.log("i", "[Supt-Interface Material Change] Did not run because 'Generate Support' is not enabled.")
@@ -337,7 +337,7 @@ class SuptIntMaterialChange(Script):
 
         # Count the raft layers
         raft_layers = 0
-        if str(mycura.getProperty("adhesion_type", "value")) == "raft":
+        if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft":
             for num in range(2,10,1):
                 layer = data[num]
                 if ";LAYER:-" in layer:
@@ -376,14 +376,14 @@ class SuptIntMaterialChange(Script):
 
         # Check the Raft Air Gap.  If it is greater than 0 send a message.
         if raft_layers > 0:
-            raft_airgap = mycura.getProperty("raft_airgap", "value")
+            raft_airgap = self.global_stack.getProperty("raft_airgap", "value")
             raft_is_included = True if layer_list[0] < 0 else False
             if raft_airgap > 0 and raft_is_included:
                 Message(title = "[Supt-Interface Material Change]", text = "Your 'Raft Air Gap' is not 0.  This will work, but the bottom layer of the model is better if the air gap is 0.").show()
 
         # Purging needs room under the nozzle so establish a minimum lift height of 25mm until the print is 25mm tall
-        layer_height = mycura.getProperty("layer_height", "value")
-        layer_height_0 = mycura.getProperty("layer_height_0", "value")
+        layer_height = self.global_stack.getProperty("layer_height", "value")
+        layer_height_0 = self.global_stack.getProperty("layer_height_0", "value")
         z_lift_list = []
         for num in range(0,len(layer_list)):
             the_layer = int(layer_list[num])
@@ -395,18 +395,18 @@ class SuptIntMaterialChange(Script):
             z_lift_list.append(z_lift)
 
         # Retrieve some settings from Cura and set up some variables
-        firmware_retraction = bool(mycura.getProperty("machine_firmware_retract", "value"))
-        speed_travel = str(round(extruder[0].getProperty("speed_travel", "value") * 60))
+        self.firmware_retraction = bool(self.global_stack.getProperty("machine_firmware_retract", "value"))
+        self.speed_travel = str(round(extruder[0].getProperty("speed_travel", "value") * 60))
         retract_enabled = bool(extruder[0].getProperty("retraction_enable", "value"))
-        retract_dist = round(float(extruder[0].getProperty("retraction_amount", "value")),2)
-        retract_speed = int(extruder[0].getProperty("retraction_retract_speed", "value") * 60)
-        unretract_speed = int(extruder[0].getProperty("retraction_prime_speed", "value") * 60)
-        max_speed_e = str(mycura.getProperty("machine_max_feedrate_e", "value"))
+        self.retract_dist = round(float(extruder[0].getProperty("retraction_amount", "value")),2)
+        self.retract_speed = int(extruder[0].getProperty("retraction_retract_speed", "value") * 60)
+        self.unretract_speed = int(extruder[0].getProperty("retraction_prime_speed", "value") * 60)
+        max_speed_e = str(self.global_stack.getProperty("machine_max_feedrate_e", "value"))
         model_str = self.getSettingValueByKey("model_str")
         interface_str = self.getSettingValueByKey("interface_str")
-        unload_reload_speed = int(mycura.getProperty("machine_max_feedrate_e", "value") * 60)
-        if unload_reload_speed > 3000:
-            unload_reload_speed = 3000
+        self.unload_reload_speed = int(self.global_stack.getProperty("machine_max_feedrate_e", "value") * 60)
+        if self.unload_reload_speed > 3000:
+            self.unload_reload_speed = 3000
         enable_purge = bool(self.getSettingValueByKey("enable_purge"))
         purge_amt_model = int(self.getSettingValueByKey("purge_amt_model"))
         purge_amt_interface = int(self.getSettingValueByKey("purge_amt_interface"))
@@ -414,8 +414,8 @@ class SuptIntMaterialChange(Script):
         m84_line = f"M84 S{disarm_time}; Keep steppers enabled"
 
         # Absolute or Relative Extrusion
-        relative_ext_mode = bool(mycura.getProperty("relative_extrusion", "value"))
-        if relative_ext_mode:
+        self.relative_ext_mode = bool(self.global_stack.getProperty("relative_extrusion", "value"))
+        if self.relative_ext_mode:
             ext_mode_str = "M83; Relative extrusion\n"
         else:
             ext_mode_str = "M82; Absolute extrusion\n"
@@ -423,10 +423,10 @@ class SuptIntMaterialChange(Script):
         # Retractions
         retract_line = ""
         unretract_line = ""
-        if not firmware_retraction:
+        if not self.firmware_retraction:
             if retract_enabled:
-                retract_line = f"G1 F{retract_speed} E-{retract_dist}; Retract\n"
-                unretract_line = f"G1 F{unretract_speed} E{retract_dist}; Unretract\n"
+                retract_line = f"G1 F{self.retract_speed} E-{self.retract_dist}; Retract\n"
+                unretract_line = f"G1 F{self.unretract_speed} E{self.retract_dist}; Unretract\n"
         else:
             if retract_enabled:
                 retract_line = "G10; Retract\n"
@@ -473,7 +473,7 @@ class SuptIntMaterialChange(Script):
         park_x = self.getSettingValueByKey("park_x")
         park_y = self.getSettingValueByKey("park_y")
         if park_head:
-            park_str = f"G0 F{round(float(speed_travel))} X{park_x} Y{park_y}; Move to park position\n"
+            park_str = f"G0 F{round(float(self.speed_travel))} X{park_x} Y{park_y}; Move to park position\n"
         else:
             park_str = ""
 
@@ -520,12 +520,12 @@ class SuptIntMaterialChange(Script):
         # Load and Unload lines
         if self.getSettingValueByKey("unload_dist") != 0:
             unload_dist = self.getSettingValueByKey("unload_dist")
-            unload_str = self.getUnloadReloadScript(data, unload_dist, unload_reload_speed, retract_speed, True, retract_dist)
+            unload_str = self.getUnloadReloadScript(data, unload_dist, True)
         else:
             unload_str = ""
         if self.getSettingValueByKey("load_dist") != 0:
             load_dist = self.getSettingValueByKey("load_dist")
-            load_str = self.getUnloadReloadScript(data, load_dist, unload_reload_speed, unretract_speed, False, retract_dist)
+            load_str = self.getUnloadReloadScript(data, load_dist, False)
         else:
             load_str = ""
 
@@ -536,7 +536,7 @@ class SuptIntMaterialChange(Script):
         if purge_amt_model > 0 and enable_purge:
             purge_str_model += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{purge_amt_model}; Purge full amount\n"
         if not firmware_retract:
-            purge_str_model += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract\n"
+            purge_str_model += f"G1 F{int(self.retract_speed)} E-{self.retract_dist}; Retract\n"
         else:
             purge_str_model += "G10; Retract\n"
         purge_str_model += "M400; Complete all moves\n"
@@ -550,16 +550,16 @@ class SuptIntMaterialChange(Script):
         firmware_retract = bool(CuraApplication.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value"))
         if purge_amt_interface > 0 and enable_purge:
             purge_str_interface += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{round(float(purge_amt_interface)/3)}; Purge 1/3 amount\n"
-            purge_str_interface += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract to clean\n"
+            purge_str_interface += f"G1 F{int(self.retract_speed)} E-{self.retract_dist}; Retract to clean\n"
             purge_str_interface += "G4 S1; Wait 1 second\n"
-            purge_str_interface += f"G1 F{int(unretract_speed)} E{retract_dist}; UnRetract\n"
+            purge_str_interface += f"G1 F{int(self.unretract_speed)} E{self.retract_dist}; UnRetract\n"
             purge_str_interface += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{round(float(purge_amt_interface)/3)}; Purge 1/3 amount\n"
-            purge_str_interface += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract to clean\n"
+            purge_str_interface += f"G1 F{int(self.retract_speed)} E-{self.retract_dist}; Retract to clean\n"
             purge_str_interface += "G4 S1; Wait 1 second\n"
-            purge_str_interface += f"G1 F{int(unretract_speed)} E{retract_dist}; UnRetract\n"
+            purge_str_interface += f"G1 F{int(self.unretract_speed)} E{self.retract_dist}; UnRetract\n"
             purge_str_interface += f"G1 F{round(float(nozzle_size) * 8.333) * 60} E{round(float(purge_amt_interface)/3)}; Purge remainder\n"
         if not firmware_retract:
-            purge_str_interface += f"G1 F{int(retract_speed)} E-{retract_dist}; Retract\n"
+            purge_str_interface += f"G1 F{int(self.retract_speed)} E-{self.retract_dist}; Retract\n"
         else:
             purge_str_interface += "G10; Retract\n"
         purge_str_interface += "M400; Complete all moves\n"
@@ -601,11 +601,11 @@ class SuptIntMaterialChange(Script):
                 end_at_line = index_list[index_num + 1]
                 # Put the 'Revert' section together
                 return_location_list = []
-                return_location_list = self.getReturnLocation(data, dnum, end_at_line, retract_speed)
+                return_location_list = self.getReturnLocation(data, dnum, end_at_line)
                 return_location = str(return_location_list[0])
                 is_retraction = bool(return_location_list[1])
                 # Relative extrusion or not
-                if not relative_ext_mode:
+                if not self.relative_ext_mode:
                     return_e_reset_str = "G92 E" + str(return_location_list[2]) + "; Reset extruder\n"
                 else:
                     return_e_reset_str = "G92 E0; Reset extruder\n"
@@ -616,15 +616,15 @@ class SuptIntMaterialChange(Script):
                 else:
                     retract_str = retract_line
                     unretract_str = unretract_line
-                return_to_str = f"G0 F{speed_travel}{return_location}; Return to print\n"
+                return_to_str = f"G0 F{self.speed_travel}{return_location}; Return to print\n"
                 return_final_str = model_replacement_pre_string_1 + retract_str + z_raise + model_replacement_pre_string_2 + load_str + purge_str_interface + return_to_str + "G91; Relative movement\n" + z_lower + unretract_str + return_e_reset_str + flow_rate_reset + feed_rate_reset + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
 
                 # Final changes to the 'Interface' change string
                 startout_location_list = []
-                startout_location_list = self.getReturnLocation(data, dnum, start_at_line, retract_speed)
+                startout_location_list = self.getReturnLocation(data, dnum, start_at_line)
                 startout_location = startout_location_list[0]
                 is_start_retraction = bool(startout_location_list[1])
-                if not relative_ext_mode:
+                if not self.relative_ext_mode:
                     start_e_reset_str = "G92 E" + str(startout_location_list[2]) + "; Reset extruder\n"
                 else:
                     start_e_reset_str = "G92 E0; Reset extruder\n"
@@ -635,7 +635,7 @@ class SuptIntMaterialChange(Script):
                     start_retract_str = retract_line
                     start_unretract_str = unretract_line
 
-                startout_to_str = "G0 F" + str(speed_travel) + startout_location + "; Return to print\n"
+                startout_to_str = "G0 F" + str(self.speed_travel) + startout_location + "; Return to print\n"
                 startout_final_str = interface_replacement_pre_string_1 + start_retract_str + z_raise + interface_replacement_pre_string_2 + load_str + purge_str_model + startout_to_str + "G91; Relative movement\n" + z_lower + start_unretract_str + start_e_reset_str + flow_rate_str + feed_rate_str + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
 
                 # Format the return_final_str
@@ -656,7 +656,7 @@ class SuptIntMaterialChange(Script):
                 lines[start_at_line] += "\n" + startout_final_str
                 break
             data[dnum] = "\n".join(lines)
-            
+
         # Let the user know if there was an error inputting the layer numbers
         err_string = "Check if 'SUPPORT-INTERFACE' was found on the layer:\n"
         for index, layer in enumerate(error_chk_list):
@@ -665,19 +665,29 @@ class SuptIntMaterialChange(Script):
         return data
 
     # Get the return location and see if there was a retraction before the Interface
-    def getReturnLocation(self, data: str, num: int, index: int, retract_speed: str):
+    def getReturnLocation(self, data: str, num: int, index: int):
         lines = data[num].split("\n")
         is_retraction = None
         ret_x = None
         ret_y = 0
         e_loc = None
         for back_num in range(index, -1, -1):
-            if re.search("G1 F(\d*) E(\d.*)", lines[back_num]) is not None or re.search("G1 F(\d*) E-(\d.*)", lines[back_num]) is not None or "G10" in lines[back_num]:
+            if re.search("G1 F(\d*) E(-?\d.*)", lines[back_num]) is not None or "G10" in lines[back_num]:
                 is_retraction = True
                 if e_loc is None:
-                    e_loc = self.getValue(lines[back_num], "E")
+                    if " E" in lines[back_num]:
+                        e_loc = self.getValue(lines[back_num], "E")
+                        break
                     if "G10" in lines[back_num]:
-                        e_loc = "0"
+                        if self.relative_ext_mode:
+                            e_loc = 0
+                        else:
+                            go_back = back_num - 1
+                            while e_loc is None:
+                                if " E" in lines[go_back]:
+                                    e_loc = round(self.getValue(lines[go_back], "E") - self.retract_dist,5)
+                                    break
+                                go_back -= 1
                 if ret_x is not None: break
             if lines[back_num].startswith("G0") and " X" in lines[back_num] and " Y" in lines[back_num] and ret_x is None:
                 ret_x = self.getValue(lines[back_num], "X")
@@ -699,15 +709,29 @@ class SuptIntMaterialChange(Script):
                 for back_num2 in range(len(lines2)-1,0, -1):
                     if is_retraction is None and " E" in lines2[back_num2] or "G10" in lines2[back_num2] or "G11" in lines2[back_num2]:
                         # Catch a retraction whether extrusions are Absolute or Relative or whether firmware retraction is enabled.
-                        if re.search("G1 F(\d*) E-(\d.*)", lines2[back_num2]) is not None or re.search("G1 F(\d*) E(\d.*)", lines2[back_num2]) is not None or "G10" in lines2[back_num2]:
+                        if re.search("G1 F(\d*) E(-?\d.*)", lines2[back_num2]) is not None or "G10" in lines2[back_num2]:
                             is_retraction = True
                             if e_loc is None:
-                                e_loc = self.getValue(lines2[back_num2], "E")
+                                if " E" in lines2[back_num2]:
+                                    e_loc = self.getValue(lines2[back_num2], "E")
                                 if "G10" in lines2[back_num2]:
-                                    e_loc = "0"
+                                    if self.relative_ext_mode:
+                                        e_loc = 0
+                                    else:
+                                        go_back = back_num2 - 1
+                                        while e_loc is None:
+                                            if " E" in lines2[go_back]:
+                                                e_loc = round(self.getValue(lines2[go_back], "E") - self.retract_dist, 5)
+                                                break
+                                            go_back -= 1
                         elif is_retraction is None and "G11" in lines2[back_num2]:
                             is_retraction = False
-                            e_loc = 0
+                            go_back = back_num2 - 1
+                            while e_loc is None:
+                                if " E" in lines2[go_back]:
+                                    e_loc = self.getValue(lines2[go_back], "E") + self.retract_dist
+                                    break
+                                go_back -= 1
                         elif re.search("G1 F(\d*) X(\d.*) Y(\d.*) E(\d.*)", lines2[back_num2]) is not None or re.search("G1 X(\d.*) Y(\d.*) E(\d.*)", lines2[back_num2]) is not None:
                             is_retraction = False
                             if e_loc is None:
@@ -727,37 +751,35 @@ class SuptIntMaterialChange(Script):
 
     # Some printers will refuse a single long extrusion.  This breaks up long extrusions into 150mm chunks that should be acceptable to the firmware.
     # the bool 'unload_filament' tells this whether to put together the unload string or the reload string.
-    def getUnloadReloadScript(self, data: str, filament_dist: int, extrude_speed: int, retract_speed: int, unload_filament: bool, retract_dist: int)->str:
+    def getUnloadReloadScript(self, data: str, filament_dist: int, unload_filament: bool)->str:
         if unload_filament:
             filament_str = "M83; Relative extrusion\nM400; Complete all moves\n"
-            filament_str += f"G1 F{int(retract_speed)} E{round(retract_dist * 2.5,5) if float(retract_dist) > 2 else 15}; Quick purge\n"
+            filament_str += f"G1 F{int(self.retract_speed)} E{round(self.retract_dist * 2.5,5) if float(self.retract_dist) > 2 else 15}; Quick purge\n"
             if filament_dist > 150:
                 temp_unload = filament_dist
                 while temp_unload > 150:
-                    filament_str += f"G1 F{int(extrude_speed)} E-150; Unload some\n"
+                    filament_str += f"G1 F{int(self.unload_reload_speed)} E-150; Unload some\n"
                     temp_unload -= 150
                 if 0 < temp_unload <= 150:
-                    filament_str += f"G1 F{int(extrude_speed)} E-{temp_unload}; Unload the remainder\n"
+                    filament_str += f"G1 F{int(self.unload_reload_speed)} E-{temp_unload}; Unload the remainder\n"
             else:
-                filament_str += f"G1 F{int(extrude_speed)} E-{filament_dist}; Unload\n"
+                filament_str += f"G1 F{int(self.unload_reload_speed)} E-{filament_dist}; Unload\n"
         # The reload string must also be broken into chunks.  It has 2 parts...Fast reload and Slow reload.  (Purge is handled up above).
         elif not unload_filament:
-            nozzle_size = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
-            retraction_amount = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
-            firmware_retract = bool(CuraApplication.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value"))
+            nozzle_size = self.global_stack.extruderList[0].getProperty("machine_nozzle_size", "value")
             filament_str = "M83; Relative extrusion\n"
             if int(filament_dist) > 0:
                 if filament_dist * .9 > 150:
                     temp_dist = filament_dist - filament_dist * .1
                     while temp_dist > 150:
-                        filament_str += f"G1 F{int(extrude_speed)} E150; Fast Reload\n"
+                        filament_str += f"G1 F{int(self.unload_reload_speed)} E150; Fast Reload\n"
                         temp_dist -= 150
                     if 0 < temp_dist <= 150:
-                        filament_str += f"G1 F{int(extrude_speed)} E{round(temp_dist)}; Fast Reload\n"
+                        filament_str += f"G1 F{int(self.unload_reload_speed)} E{round(temp_dist)}; Fast Reload\n"
                         filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
                     else:
                         filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
                 else:
-                    filament_str += f"G1 F{int(extrude_speed)} E{round(filament_dist * .9)}; Fast Reload\n"
+                    filament_str += f"G1 F{int(self.unload_reload_speed)} E{round(filament_dist * .9)}; Fast Reload\n"
                     filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
         return filament_str
