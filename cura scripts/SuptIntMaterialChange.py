@@ -126,7 +126,7 @@ class SuptIntMaterialChange(Script):
                     "unit": "minutes",
                     "minimum_value": 0,
                     "maximum_value": 240,
-                    "enabled": "enable_supt_int_matl_change"
+                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
                 },
                 "model_str":
                 {
@@ -195,7 +195,7 @@ class SuptIntMaterialChange(Script):
                     "default_value": 440,
                     "minimum_value": 0,
                     "maximum_value": 1000,
-                    "enabled": "enable_supt_int_matl_change"
+                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
                 },
                 "cold_pull_temp_model":
                 {
@@ -228,7 +228,7 @@ class SuptIntMaterialChange(Script):
                     "default_value": 370,
                     "minimum_value": 0,
                     "maximum_value": 1000,
-                    "enabled": "enable_supt_int_matl_change"
+                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
                 },
                 "enable_purge":
                 {
@@ -236,7 +236,7 @@ class SuptIntMaterialChange(Script):
                     "description": "Enable a filament purge before resuming the print.  Not purging can have side-effects.",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "enable_supt_int_matl_change"
+                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
                 },
                 "purge_amt_model":
                 {
@@ -247,7 +247,7 @@ class SuptIntMaterialChange(Script):
                     "maximum_value": 150,
                     "minimum_value": 10,
                     "unit": "mm  ",
-                    "enabled": "enable_supt_int_matl_change and enable_purge"
+                    "enabled": "enable_supt_int_matl_change and enable_purge and not pause_method == 'klipper'"
                 },
                 "purge_amt_interface":
                 {
@@ -258,7 +258,7 @@ class SuptIntMaterialChange(Script):
                     "maximum_value": 150,
                     "minimum_value": 10,
                     "unit": "mm  ",
-                    "enabled": "enable_supt_int_matl_change and enable_purge"
+                    "enabled": "enable_supt_int_matl_change and enable_purge and not pause_method == 'klipper'"
                 },
                 "park_head":
                 {
@@ -266,7 +266,7 @@ class SuptIntMaterialChange(Script):
                     "description": "Whether to park the head when changing filament. The park position is the same for all pauses.",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "enable_supt_int_matl_change"
+                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
                 },
                 "park_x":
                 {
@@ -275,7 +275,7 @@ class SuptIntMaterialChange(Script):
                     "type": "int",
                     "default_value": 0,
                     "maximum_value": 500,
-                    "enabled": "enable_supt_int_matl_change and park_head"
+                    "enabled": "enable_supt_int_matl_change and park_head and not pause_method == 'klipper'"
                 },
                 "park_y":
                 {
@@ -284,7 +284,7 @@ class SuptIntMaterialChange(Script):
                     "type": "int",
                     "default_value": 0,
                     "maximum_value": 500,
-                    "enabled": "enable_supt_int_matl_change and park_head"
+                    "enabled": "enable_supt_int_matl_change and park_head and not pause_method == 'klipper'"
                 },
                 "m300_add":
                 {
@@ -638,6 +638,10 @@ class SuptIntMaterialChange(Script):
                 startout_to_str = "G0 F" + str(self.speed_travel) + startout_location + "; Return to print\n"
                 startout_final_str = interface_replacement_pre_string_1 + start_retract_str + z_raise + interface_replacement_pre_string_2 + load_str + purge_str_model + startout_to_str + "G91; Relative movement\n" + z_lower + start_unretract_str + start_e_reset_str + flow_rate_str + feed_rate_str + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
 
+
+                if pause_method == "klipper":
+                    return_final_str = self._simple_klipper_code(False, return_location_list[2])
+                    startout_final_str = self._simple_klipper_code(True, startout_location_list[2])
                 # Format the return_final_str
                 temp_lines = return_final_str.split("\n")
                 for temp_index, temp_line in enumerate(temp_lines):
@@ -652,6 +656,7 @@ class SuptIntMaterialChange(Script):
                 startout_final_str = "\n".join(temp_lines)
 
                 # Add the new lines to the gcode
+
                 lines[end_at_line] += "\n" + return_final_str
                 lines[start_at_line] += "\n" + startout_final_str
                 break
@@ -783,3 +788,50 @@ class SuptIntMaterialChange(Script):
                     filament_str += f"G1 F{int(self.unload_reload_speed)} E{round(filament_dist * .9)}; Fast Reload\n"
                     filament_str += f"G1 F{round(float(nozzle_size) * 16.666 * 60)} E{round(filament_dist * .1)}; Reload the last 10% slower to avoid ramming the nozzle\n"
         return filament_str
+
+    def _simple_klipper_code(self, is_interface: bool, reset_e):
+        """
+        Klipper specific code
+        M109 uses 'S' parameter instead of 'R' parameter
+        There is no 'Unloading', 'Loading' or 'Purging'
+        """
+        k_string = ";TYPE:CUSTOM---------------; Supt-Interface Material Change - "
+        if is_interface:
+            k_string += "Change to Interface Material\n"
+            k_string += f"M109 S{int(self.getSettingValueByKey("cold_pull_temp_model"))} ; Cold Pull temperature for Model Matl unload\n"
+            k_string += f"M117 {self.getSettingValueByKey("interface_str")} ; Message to LCD\n"
+            if bool(self.getSettingValueByKey("m118_add")):
+                k_string += f"M118 {self.getSettingValueByKey("interface_str")} ; Message to Print Server\n"
+            if bool(self.getSettingValueByKey("m300_add")):
+                k_string += "M300 P1000 ; Beep\n"
+            k_string += "PAUSE ; Pause\n"
+            k_string += f"M109 S{int(self.getSettingValueByKey("interface_temp"))} ; Interface material temperature\n"
+            if not self.relative_ext_mode:
+                k_string += f"G92 E{reset_e} ; Reset extruder\n"
+            else:
+                k_string += "G92 E0 ; Reset extruder\n"
+
+            k_string += f"M221 S{self.getSettingValueByKey("interface_flow")} ; Set interface flow rate\n"
+            k_string += f"M220 S{self.getSettingValueByKey("interface_feed")} ; Set interface feed rate\n"
+        else:
+            k_string += "Revert to Model Material\n"
+            k_string += f"M109 S{int(self.getSettingValueByKey("cold_pull_temp_interface"))} ; Cold Pull temperature for Interface Matl unload\n"
+            k_string += f"M117 {self.getSettingValueByKey("model_str")} ; Message to LCD\n"
+            if bool(self.getSettingValueByKey("m118_add")):
+                k_string += f"M118 {self.getSettingValueByKey("model_str")} ; Message to Print Server\n"
+            if bool(self.getSettingValueByKey("m300_add")):
+                k_string += "M300 P1000 ; Beep\n"
+            k_string += "PAUSE ; Pause\n"
+            k_string += f"M109 S{int(self.getSettingValueByKey("model_temp"))} ; Print material temperature\n"
+            if not self.relative_ext_mode:
+                k_string += f"G92 E{reset_e} ; Reset extruder\n"
+            else:
+                k_string += "G92 E0 ; Reset extruder\n"
+
+            k_string += "M221 S100 ; Reset interface flow rate\n"
+            k_string += "M220 S100 ; Reset interface feed rate\n"
+
+        k_string += "G90 ; Absolute movement\n"
+        k_string += "M83 ; Relative extrusion\n" if self.relative_ext_mode else "M82 ; Absolute extrusion\n"
+        k_string += ";--------------------------; End of Material Change"
+        return k_string
