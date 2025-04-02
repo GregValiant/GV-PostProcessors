@@ -34,6 +34,8 @@ PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machi
 
 3/24/2025  I had an idea on how to handle 'By Height' in both 'ChangeAtLayer' (which reverts to 'ChangeAtZ') and in PauseAtLayer (which reverts to 'PauseAtHeight').  The new files are posted and the previously named files are obsolete.
 
+4/1/2025  Support Interface Material Change:  Fixed a bug that allowed "firmware retraction" to always reset the extruder to 0 even when in Absolute Extrusion mode.
+
 -----------------------------------------------------------------------------
 Here is a list of the Cura post-processors and a brief description of what they do.  See the Prusa folder for the Prusa/Orca scripts.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
