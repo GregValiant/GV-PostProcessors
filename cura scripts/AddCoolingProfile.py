@@ -385,6 +385,27 @@ class AddCoolingProfile(Script):
             self._instance.setProperty("enable_bv_fan", "value", True)
 
     def execute(self, data):
+        """
+        Collect the settings from Cura and from this script
+            params:
+                t0_fan thru t3_fan:  The fan numbers for up to 4 layer cooling circuits
+                fan_mode:  Whether the fan scale will be 0-255 PWM (when true) or 0-1 RepRap (when false)
+                bed_adhesion:  Is only important if a raft is enabled
+                print_seuence:  Options are slightly different if in One-at-a-Time mode
+                is_multi-fan:  Used to distinguish between a multi-extruder with a single fan for each nozzle, or one fan for both nozzles.
+                is_multi_extr_print:  For the slight difference in handling a multi-extruder printer and a print that only uses one of the extruders.
+                fan_list:  A list of fan speeds (even numbered items) and layer numbers (odd numbered items)
+                feature_speed_list:  A list of the speeds for each ';TYPE:' in the gcode
+                feature_name_list:  The list of each 'TYPE' in the gcode
+                off_fan_speed:  The speed that will be maintained by the fan for the inactive extruder (for an anti-oozing effect)
+                init_fan:  The fan number of the first extruder used in a print
+                delete_existing_m106: The first instance of the script in the post processing list should remove the CUra M106 lines.  Following instances should not delete the changes made by the first instance.
+                feature_fan_combing:  Whether or not to shut the cooling fan off during travel moves.
+                the_start_layer:  When in By Feature this is the user selected start of the fan changes.
+                the_end_layer:  When in By Feature this is the user selected end of the fan changes
+                the_end_is_enabled:  When in By Feature, if the fan control ends before the print ends, then this will enable the Final Fan Speed to carry through to the print end.                
+                
+        """
         # Exit if the gcode has been previously post-processed.
         if ";POSTPROCESSED" in data[0]:
             return data
@@ -396,7 +417,7 @@ class AddCoolingProfile(Script):
         # For 4.x versions that don't have the 0-1 option
         try:
             fan_mode = not bool(self.extruder_list[0].getProperty("machine_scale_fan_speed_zero_to_one", "value"))
-        except:
+        except AttributeError:
             pass
 
         bed_adhesion = (self.extruder_list[0].getProperty("adhesion_type", "value"))
@@ -455,7 +476,7 @@ class AddCoolingProfile(Script):
                     # Catch a possible input error.
                     if the_end_layer < the_start_layer:
                         the_end_layer = the_start_layer
-            except:
+            except ValueError:
                 the_end_layer = -1  # If there is an input error then default to the entire gcode file.
 
             # Get the speed for each feature
@@ -481,7 +502,7 @@ class AddCoolingProfile(Script):
             if the_end_layer == -1 or the_end_is_enabled == False:
                 the_end_layer = len(data) + 2
 
-        # For multi-extruder printers with separate fans the 'idle' nozzle fan can be left on for ooze control
+        # For multi-extruder printers with separate cooling fans the 'idle' nozzle fan can be left on for ooze control
         off_fan_speed = 0
         if self.extruder_count > 1:
             if self.getSettingValueByKey("enable_off_fan_speed"):
@@ -495,7 +516,7 @@ class AddCoolingProfile(Script):
         number_of_raft_layers = 0
         layer_0_index = 0
         # Catch the number of raft layers.
-        for l_num in range(1,10,1):
+        for l_num in range(1,len(data) - 1):
             layer = data[l_num]
             if ";LAYER:-" in layer:
                 number_of_raft_layers += 1
@@ -512,7 +533,7 @@ class AddCoolingProfile(Script):
             T2_used = False
             T3_used = False
             # Bypass the file header and ending gcode.
-            for num in range(1,len(data)-1,1):
+            for num in range(1,len(data)-1):
                 lines = data[num]
                 if "T0" in lines:
                     T0_used = True
@@ -754,6 +775,7 @@ class AddCoolingProfile(Script):
             for line in lines:
                 if ";LAYER:" in line:
                     layer_number = str(line.split(":")[1])
+                    continue
                 if int(layer_number) >= int(the_start_layer) and int(layer_number) < int(the_end_layer)-1:
                     temp = line.split(" ")[0]
                     try:
@@ -839,7 +861,7 @@ class AddCoolingProfile(Script):
                     temp = line.split(" ")[0]
                     try:
                         name_index = feature_name_list.index(temp)
-                    except:
+                    except IndexError:
                         name_index = -1
 
                     if name_index != -1:
@@ -862,7 +884,6 @@ class AddCoolingProfile(Script):
                     else:
                     # Layer and Tool get inserted into modified_data above.  All other lines go into modified_data here
                         if not line.startswith("T") and not line.startswith(";LAYER:"): modified_data += line + "\n"
-
 
             if modified_data.endswith("\n"): modified_data = modified_data[0: - 1]
             multi_fan_data[l_index] = modified_data
@@ -957,7 +978,7 @@ class AddCoolingProfile(Script):
         return comment_data
 
     def _control_bv_fan(self, bv_data: str) -> str:
-        # Control the chamber fan
+        # Control any secondary fan.  Can be used for an Auxilliary/Chamber fan
         bv_start_layer = self.getSettingValueByKey("bv_fan_start_layer") - 1
         bv_end_layer = self.getSettingValueByKey("bv_fan_end_layer")
         bv_fan_nr = self.getSettingValueByKey("bv_fan_nr")

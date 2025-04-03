@@ -68,9 +68,7 @@ class SuptIntMaterialChange(Script):
                     "description": "The gcode command to use to pause the print.  This is firmware dependent.  'M0 w/message(Marlin)' may show the LCD message if there is one.  'M0 (Marlin)' is the plain 'M0' command",
                     "type": "enum",
                     "options": {
-                    "marlin": "M0 w/message(Marlin)",
-                    "marlin2": "M0 (Marlin)",
-                    "griffin": "M0 (Griffin,firmware retract)",
+                    "marlin": "M0 (Marlin)",
                     "bq": "M25 (BQ)",
                     "reprap": "M226 (RepRap)",
                     "repetier": "@pause (Repet/Octo)",
@@ -99,7 +97,7 @@ class SuptIntMaterialChange(Script):
                     "description": "Some printers require a buffer after the pause when M25 is used. Typically 6 M105's works well.  Delimit multiple commands with a comma EX: M105,M105,M105",
                     "type": "str",
                     "default_value": "M105,M105,M105,M105,M105,M105",
-                    "enabled": "enable_supt_int_matl_change and pause_method not in ['marlin','marlin2','griffin','g_4']"
+                    "enabled": "enable_supt_int_matl_change and pause_method not in ['marlin','g_4','klipper']"
                 },
                 "custom_pause_command":
                 {
@@ -126,7 +124,7 @@ class SuptIntMaterialChange(Script):
                     "unit": "minutes",
                     "minimum_value": 0,
                     "maximum_value": 240,
-                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and pause_method != 'klipper'"
                 },
                 "model_str":
                 {
@@ -195,7 +193,7 @@ class SuptIntMaterialChange(Script):
                     "default_value": 440,
                     "minimum_value": 0,
                     "maximum_value": 1000,
-                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and pause_method != 'klipper'"
                 },
                 "cold_pull_temp_model":
                 {
@@ -228,7 +226,7 @@ class SuptIntMaterialChange(Script):
                     "default_value": 370,
                     "minimum_value": 0,
                     "maximum_value": 1000,
-                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and pause_method != 'klipper'"
                 },
                 "enable_purge":
                 {
@@ -236,7 +234,7 @@ class SuptIntMaterialChange(Script):
                     "description": "Enable a filament purge before resuming the print.  Not purging can have side-effects.",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and pause_method != 'klipper'"
                 },
                 "purge_amt_model":
                 {
@@ -247,7 +245,7 @@ class SuptIntMaterialChange(Script):
                     "maximum_value": 150,
                     "minimum_value": 10,
                     "unit": "mm  ",
-                    "enabled": "enable_supt_int_matl_change and enable_purge and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and enable_purge and pause_method != 'klipper'"
                 },
                 "purge_amt_interface":
                 {
@@ -258,7 +256,7 @@ class SuptIntMaterialChange(Script):
                     "maximum_value": 150,
                     "minimum_value": 10,
                     "unit": "mm  ",
-                    "enabled": "enable_supt_int_matl_change and enable_purge and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and enable_purge and pause_method != 'klipper'"
                 },
                 "park_head":
                 {
@@ -266,7 +264,7 @@ class SuptIntMaterialChange(Script):
                     "description": "Whether to park the head when changing filament. The park position is the same for all pauses.",
                     "type": "bool",
                     "default_value": true,
-                    "enabled": "enable_supt_int_matl_change and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and pause_method != 'klipper'"
                 },
                 "park_x":
                 {
@@ -275,7 +273,7 @@ class SuptIntMaterialChange(Script):
                     "type": "int",
                     "default_value": 0,
                     "maximum_value": 500,
-                    "enabled": "enable_supt_int_matl_change and park_head and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and park_head and pause_method != 'klipper'"
                 },
                 "park_y":
                 {
@@ -284,7 +282,7 @@ class SuptIntMaterialChange(Script):
                     "type": "int",
                     "default_value": 0,
                     "maximum_value": 500,
-                    "enabled": "enable_supt_int_matl_change and park_head and not pause_method == 'klipper'"
+                    "enabled": "enable_supt_int_matl_change and park_head and pause_method != 'klipper'"
                 },
                 "m300_add":
                 {
@@ -441,8 +439,6 @@ class SuptIntMaterialChange(Script):
             custom_pause_command = ""
         pause_cmd_model = {
             "marlin": "M0 ",
-            "marlin2": "M0",
-            "griffin": "M0",
             "bq": "M25",
             "reprap": "M226",
             "repetier": "@pause now change filament and press continue printing",
@@ -461,7 +457,7 @@ class SuptIntMaterialChange(Script):
 
         #Gcode after pause
         gcode_after_pause = ""
-        if pause_method not in ["marlin","marlin2","griffin","g_4"]:
+        if pause_method not in ["marlin","g_4"]:
             gcode_after_pause = self.getSettingValueByKey("gcode_after_pause").upper()
             if gcode_after_pause != "":
                 if "," in gcode_after_pause:
@@ -794,35 +790,36 @@ class SuptIntMaterialChange(Script):
         Klipper specific code
         M109 uses 'S' parameter instead of 'R' parameter
         There is no 'Unloading', 'Loading' or 'Purging'
+        the strings do not use "f" for formatting because of the Python bug (in Cura 5.9.1 and earlier) that doesn't allow settings in formatted strings, just variables.
         """
         k_string = ";TYPE:CUSTOM---------------; Supt-Interface Material Change - "
         if is_interface:
             k_string += "Change to Interface Material\n"
-            k_string += f"M109 S{int(self.getSettingValueByKey("cold_pull_temp_model"))} ; Cold Pull temperature for Model Matl unload\n"
-            k_string += f"M117 {self.getSettingValueByKey("interface_str")} ; Message to LCD\n"
+            k_string += "M109 S" + str(int(self.getSettingValueByKey("cold_pull_temp_model"))) + " ; Cold Pull temperature for Model Matl unload\n"
+            k_string += "M117 " + str(self.getSettingValueByKey("interface_str")) + " ; Message to LCD\n"
             if bool(self.getSettingValueByKey("m118_add")):
-                k_string += f"M118 {self.getSettingValueByKey("interface_str")} ; Message to Print Server\n"
+                k_string += "M118 " + str(self.getSettingValueByKey("interface_str")) + " ; Message to Print Server\n"
             if bool(self.getSettingValueByKey("m300_add")):
                 k_string += "M300 P1000 ; Beep\n"
             k_string += "PAUSE ; Pause\n"
-            k_string += f"M109 S{int(self.getSettingValueByKey("interface_temp"))} ; Interface material temperature\n"
+            k_string += "M109 S" + str(int(self.getSettingValueByKey("interface_temp"))) + " ; Interface material temperature\n"
             if not self.relative_ext_mode:
                 k_string += f"G92 E{reset_e} ; Reset extruder\n"
             else:
                 k_string += "G92 E0 ; Reset extruder\n"
 
-            k_string += f"M221 S{self.getSettingValueByKey("interface_flow")} ; Set interface flow rate\n"
-            k_string += f"M220 S{self.getSettingValueByKey("interface_feed")} ; Set interface feed rate\n"
+            k_string += "M221 S" + str(self.getSettingValueByKey("interface_flow")) + " ; Set interface flow rate\n"
+            k_string += "M220 S" + str(self.getSettingValueByKey("interface_feed")) + " ; Set interface feed rate\n"
         else:
             k_string += "Revert to Model Material\n"
-            k_string += f"M109 S{int(self.getSettingValueByKey("cold_pull_temp_interface"))} ; Cold Pull temperature for Interface Matl unload\n"
-            k_string += f"M117 {self.getSettingValueByKey("model_str")} ; Message to LCD\n"
+            k_string += "M109 S" + str(int(self.getSettingValueByKey("cold_pull_temp_interface"))) + " ; Cold Pull temperature for Interface Matl unload\n"
+            k_string += "M117 " + str(self.getSettingValueByKey("model_str")) + " ; Message to LCD\n"
             if bool(self.getSettingValueByKey("m118_add")):
-                k_string += f"M118 {self.getSettingValueByKey("model_str")} ; Message to Print Server\n"
+                k_string += "M118 " + str(self.getSettingValueByKey("model_str")) + " ; Message to Print Server\n"
             if bool(self.getSettingValueByKey("m300_add")):
                 k_string += "M300 P1000 ; Beep\n"
             k_string += "PAUSE ; Pause\n"
-            k_string += f"M109 S{int(self.getSettingValueByKey("model_temp"))} ; Print material temperature\n"
+            k_string += "M109 S" + str(int(self.getSettingValueByKey("model_temp"))) + " ; Print material temperature\n"
             if not self.relative_ext_mode:
                 k_string += f"G92 E{reset_e} ; Reset extruder\n"
             else:
