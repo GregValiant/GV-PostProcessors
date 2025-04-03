@@ -43,9 +43,7 @@ class SuptIntMatlChangePlugin(Extension):
             "description": "The gcode command to use to pause the print.  This is firmware dependent.  'M0 w/message(Marlin)' may show the LCD message if there is one.  'M0 (Marlin)' is the plain 'M0' command",
             "type": "enum",
             "options": {
-            "marlin": "M0 w/message(Marlin)",
-            "marlin2": "M0 (Marlin)",
-            "griffin": "M0 (Griffin,firmware retract)",
+            "marlin": "M0 (Marlin)",
             "bq": "M25 (BQ)",
             "reprap": "M226 (RepRap)",
             "repetier": "@pause (Octo/Repetier)",
@@ -79,7 +77,7 @@ class SuptIntMatlChangePlugin(Extension):
             "description": "Some printers require a buffer after the pause when M25 is used. Typically 6 M105's works well.  Delimit multiple commands with a comma EX: M105,M105,M105",
             "type": "str",
             "default_value": "M105,M105,M105,M105,M105,M105",
-            "enabled": "suptintmatlchange_enable and pause_method not in ['marlin','marlin2','griffin','g_4'] and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and pause_method not in ['marlin','g_4','klipper'] and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
         }
         self._settings_dict["layers_of_interest"] = {
             "label": "    Layers #'s for Mat'l Change",
@@ -128,7 +126,7 @@ class SuptIntMatlChangePlugin(Extension):
             "minimum_value": 50,
             "maximum_value": 150,
             "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
-        }        
+        }
         self._settings_dict["interface_feed"] = {
             "label": "     Interface Feed Rate %",
             "description": "The feed rate of the support-interface material as a percentage of the Print Speed.  This will typically be 100% but can be tweaked here.  NOTE: At the end of each switch to the model material this script always sets the feed rate to 100%.  If you have other M220 lines in the gcode they will be negated by the M220 S100 line this scripts adds as a reset.",
@@ -149,7 +147,7 @@ class SuptIntMatlChangePlugin(Extension):
             "value": 0,
             "minimum_value": 0,
             "maximum_value": 800,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["cold_pull_temp_model"] = {
             "label": "    Temperature for unloading Model filament",
@@ -182,14 +180,14 @@ class SuptIntMatlChangePlugin(Extension):
             "value": 0,
             "minimum_value": 0,
             "maximum_value": 800,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["enable_purge"] = {
             "label": "    Enable Purge After Each Change",
             "description": "Enable a filament purge before resuming the print.  Not purging can have side-effects.",
             "type": "bool",
             "default_value": True,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["purge_amt_model"] = {
             "label": "        Interface Matl Purge Amt",
@@ -199,7 +197,7 @@ class SuptIntMatlChangePlugin(Extension):
             "maximum_value": 150,
             "minimum_value": 10,
             "unit": "mm  ",
-            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["purge_amt_interface"] = {
             "label": "        Model Matl Purge Amt",
@@ -209,14 +207,14 @@ class SuptIntMatlChangePlugin(Extension):
             "maximum_value": 150,
             "minimum_value": 10,
             "unit": "mm  ",
-            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and enable_purge and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["park_head"] = {
             "label": "    Park Head for changes?",
             "description": "Whether to park the head when changing filament. The park position is the same for all pauses.",
             "type": "bool",
             "default_value": True,
-            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["park_x"] = {
             "label": "        Park X",
@@ -225,7 +223,7 @@ class SuptIntMatlChangePlugin(Extension):
             "default_value": 0,
             "maximum_value": "machine_width/2 if 'machine_center_is_0' else machine_width",
             "minimum_value": "machine_width/-2 if 'machine_center_is_0' else 0",
-            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["park_y"] = {
             "label": "        Park Y",
@@ -234,7 +232,7 @@ class SuptIntMatlChangePlugin(Extension):
             "default_value": 0,
             "maximum_value": "machine_depth/2 if 'machine_center_is_0' else machine_depth",
             "minimum_value": "machine_depth/-2 if 'machine_center_is_0' else 0",
-            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable"
+            "enabled": "suptintmatlchange_enable and park_head and support_enable and extruders_enabled_count == 1 and print_sequence == 'all_at_once' and support_interface_enable and pause_method != 'klipper'"
         }
         self._settings_dict["m300_add"] = {
             "label": "    Beep at Pauses",
@@ -297,13 +295,15 @@ class SuptIntMatlChangePlugin(Extension):
         park_y = container.findDefinitions(key=list(self._settings_dict.keys())[20])
         m300_add = container.findDefinitions(key=list(self._settings_dict.keys())[21])
         m118_add = container.findDefinitions(key=list(self._settings_dict.keys())[22])
-        
+
         cura_version = str(Application.getInstance().getVersion())
         if "5.8" in cura_version:
             insert_pt = 43
         elif "5.7" in cura_version:
             insert_pt = 41
-        elif "5.9" in cura_version:            
+        elif "5.9" in cura_version:
+            insert_pt = 43
+        elif "5.10" in cura_version:
             insert_pt = 43
         else:
             insert_pt = 0
@@ -365,7 +365,7 @@ class SuptIntMatlChangePlugin(Extension):
         m118_add = extruder[0].getProperty("m118_add", "value")
         support_enable = bool(global_container_stack.getProperty("support_enable", "value"))
         support_interface_enable = bool(extruder[0].getProperty("support_interface_enable", "value"))
-        
+
         gcode_dict = getattr(scene, "gcode_dict", {})
         if not gcode_dict: # this also checks for an empty dict
             Logger.log("w", "Scene has no gcode to process")
@@ -377,7 +377,7 @@ class SuptIntMatlChangePlugin(Extension):
             if len(gcode_list) < 2:
                 Logger.log("w", "G-Code %s does not contain any layers", plate_id)
                 continue
-                
+
             # More reasons to exit
             if not support_enable:
                 Logger.log("i", "[Supt-Int Matl Change] Did not run because 'Generate Supports' was not enabled.")
@@ -392,7 +392,7 @@ class SuptIntMatlChangePlugin(Extension):
             if not suptintmatlchange_enable:
                 Logger.log("i", "[Supt-Int Matl Change] was not enabled.")
                 return
-            
+
             # If the gcode has already been processed then don't run again.
             if ";    [Support-Interface Material Change] plugin is enabled\n" not in gcode_list[0]:
 
@@ -469,8 +469,8 @@ class SuptIntMatlChangePlugin(Extension):
                     unload_reload_speed = 3000
 
                 ## Absolute or Relative Extrusion
-                relative_ext_mode = bool(global_container_stack.getProperty("relative_extrusion", "value"))
-                if relative_ext_mode:
+                self.relative_ext_mode = bool(global_container_stack.getProperty("relative_extrusion", "value"))
+                if self.relative_ext_mode:
                     ext_mode_str = "M83; Relative extrusion\n"
                 else:
                     ext_mode_str = "M82; Absolute extrusion\n"
@@ -491,8 +491,6 @@ class SuptIntMatlChangePlugin(Extension):
                     custom_pause_command = ""
                 pause_cmd_model = {
                     "marlin": "M0 ",
-                    "marlin2": "M0",
-                    "griffin": "M0",
                     "bq": "M25",
                     "reprap": "M226",
                     "repetier": "@pause ; Now change filament and press continue printing",
@@ -511,7 +509,7 @@ class SuptIntMatlChangePlugin(Extension):
 
                 ##Gcode after pause
                 gcode_after_pause = ""
-                if pause_method not in ["marlin","marlin2","griffin","g_4"]:
+                if pause_method not in ["marlin","g_4"]:
                     #gcode_after_pause = self.getSettingValueByKey("gcode_after_pause").upper()
                     if gcode_after_pause != "":
                         if "," in gcode_after_pause:
@@ -545,10 +543,10 @@ class SuptIntMatlChangePlugin(Extension):
                 cold_pull_temp_interface = "M109 R" + str(extruder[0].getProperty("cold_pull_temp_interface", "value")) + "; Cold Pull temperature for Interface Matl unload\n"
                 interface_temp = "M109 R" + str(extruder[0].getProperty("interface_temp", "value")) + "; Interface material temperature\n"
                 model_temp = "M109 R" + str(round(extruder[0].getProperty("model_temp", "value"))) + "; Print material temperature\n"
-                pre_pause_interface_temp = "M104 S" + str(extruder[0].getProperty("interface_temp", "value")) + "; Interface material temperature\n"                
+                pre_pause_interface_temp = "M104 S" + str(extruder[0].getProperty("interface_temp", "value")) + "; Interface material temperature\n"
                 pre_pause_model_temp = "M104 S" + str(round(extruder[0].getProperty("model_temp", "value"))) + "; Print material temperature\n"
                 if extruder[0].getProperty("unload_dist", "value") == 0:
-                    pre_pause_interface_temp = ""                
+                    pre_pause_interface_temp = ""
                     pre_pause_model_temp = ""
 
                 ## Flow lines
@@ -596,14 +594,14 @@ class SuptIntMatlChangePlugin(Extension):
                     purge_str_interface += "G1 F" + str(retract_speed) + " E-" + str(retract_dist) + "; Retract to clean\n"
                     purge_str_interface += "G4 S1; Wait 1 second\n"
                     purge_str_interface += "G1 F" + str(unretract_speed) + " E" + str(retract_dist) + "; UnRetract\n"
-                    purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge remainder\n"            
+                    purge_str_interface += "G1 F" + str(round(float(nozzle_size) * 8.333) * 60) + " E" + str(round(float(purge_amt_interface)/3)) + "; Purge remainder\n"
                 if not firmware_retract:
                     purge_str_interface += "G1 F" + str(int(retract_speed)) + " E-" + str(retract_dist) + "; Retract\n"
                 else:
                     purge_str_interface += "G10; Retract\n"
                 purge_str_interface += "M400; Complete all moves\n"
                 purge_str_interface += "M300 P250; Beep\n"
-                purge_str_interface += "G4 S2; Wait for 2 seconds\n"      
+                purge_str_interface += "G4 S2; Wait for 2 seconds\n"
 
                 # Put together the preliminary strings for the interface material and model material
                 interface_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Change to Interface Material" + "\n" + m84_line + "\nG91; Relative movement\nM83; Relative extrusion\n"
@@ -648,7 +646,7 @@ class SuptIntMatlChangePlugin(Extension):
                         is_retraction = bool(return_location_list[1])
 
                         ## Relative extrusion or not
-                        if not relative_ext_mode:
+                        if not self.relative_ext_mode:
                             return_e_reset_str = "G92 E" + str(return_location_list[2]) + "; Reset extruder\n"
                         else:
                             return_e_reset_str = "G92 E0; Reset extruder\n"
@@ -667,7 +665,7 @@ class SuptIntMatlChangePlugin(Extension):
                         startout_location_list = self._getReturnLocation(gcode_list, dnum, start_at_line, retract_speed)
                         startout_location = startout_location_list[0]
                         is_start_retraction = bool(startout_location_list[1])
-                        if not relative_ext_mode:
+                        if not self.relative_ext_mode:
                             start_e_reset_str = "G92 E" + str(startout_location_list[2]) + "; Reset extruder\n"
                         else:
                             start_e_reset_str = "G92 E0; Reset extruder\n"
@@ -680,7 +678,9 @@ class SuptIntMatlChangePlugin(Extension):
 
                         startout_to_str = "G0 F" + str(speed_travel) + startout_location + "; Return to print\n"
                         startout_final_str = interface_replacement_pre_string_1 + start_retract_str + z_raise + interface_replacement_pre_string_2 + load_str + purge_str_model + startout_to_str + "G91; Relative movement\n" + z_lower + start_unretract_str + start_e_reset_str + flow_rate_str + feed_rate_str + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
-
+                        if pause_method == "klipper":
+                            return_final_str = self._simple_klipper_code(False, return_location_list[2])
+                            startout_final_str = self._simple_klipper_code(True, startout_location_list[2])
                         ## Format the return_final_str
                         temp_lines = return_final_str.split("\n")
                         for temp_index, temp_line in enumerate(temp_lines):
@@ -701,12 +701,12 @@ class SuptIntMatlChangePlugin(Extension):
                     gcode_list[dnum] = "\n".join(lines)
                 gcode_list[0] += ";    [Support-Interface Material Change] plugin is enabled\n"
                 gcode_dict[plate_id] = gcode_list
-                dict_changed = True            
+                dict_changed = True
                 # Let the user know if there was an error inputting the layer numbers
                 err_string = "Check if 'SUPPORT-INTERFACE' was found on the layer:\n"
                 for index, layer in enumerate(error_chk_list):
                     err_string += "Layer: " + str(layer) + "\n"
-                Message(title = "[Support-Interface Material Change]", text = err_string).show()   
+                Message(title = "[Support-Interface Material Change]", text = err_string).show()
             else:
                 Logger.log("d", "G-Code %s has already been processed", plate_id)
                 continue
@@ -817,3 +817,52 @@ class SuptIntMatlChangePlugin(Extension):
         if " " in the_num:
             the_num = the_num.split(" ")[0]
         return the_num
+
+    def _simple_klipper_code(self, is_interface: bool, reset_e):
+        """
+        Klipper specific code
+        M109 uses 'S' parameter instead of 'R' parameter
+        There is no 'Unloading', 'Loading' or 'Purging'
+        the strings do not use "f" for formatting because of the Python bug (in Cura 5.9.1 and earlier) that doesn't allow settings in formatted strings, just variables.
+        """
+        global_container_stack = self._application.getGlobalContainerStack()
+        extruder = global_container_stack.extruderList
+        k_string = ";TYPE:CUSTOM---------------; Supt-Interface Material Change - "
+
+        if is_interface:
+            k_string += "Change to Interface Material\n"
+            k_string += "M109 S" + str(int(extruder[0].getProperty("cold_pull_temp_model", "value"))) + " ; Cold Pull temperature for Model Matl unload\n"
+            k_string += "M117 " + str(extruder[0].getProperty("interface_str", "value")) + " ; Message to LCD\n"
+            if bool(extruder[0].getProperty("m118_add", "value")):
+                k_string += "M118 " + str(extruder[0].getProperty("interface_str", "value")) + " ; Message to Print Server\n"
+            if bool(extruder[0].getProperty("m300_add", "value")):
+                k_string += "M300 P1000 ; Beep\n"
+            k_string += "PAUSE ; Pause\n"
+            k_string += "M109 S" + str(int(extruder[0].getProperty("interface_temp", "value"))) + " ; Interface material temperature\n"
+            if not self.relative_ext_mode:
+                k_string += f"G92 E{reset_e} ; Reset extruder\n"
+            else:
+                k_string += "G92 E0 ; Reset extruder\n"
+            k_string += "M221 S" + str(extruder[0].getProperty("interface_flow", "value")) + " ; Set interface flow rate\n"
+            k_string += "M220 S" + str(extruder[0].getProperty("interface_feed", "value")) + " ; Set interface feed rate\n"
+        else:
+            k_string += "Revert to Model Material\n"
+            k_string += "M109 S" + str(int(extruder[0].getProperty("cold_pull_temp_interface", "value"))) + " ; Cold Pull temperature for Interface Matl unload\n"
+            k_string += "M117 " + str(extruder[0].getProperty("model_str", "value")) + " ; Message to LCD\n"
+            if bool(extruder[0].getProperty("m118_add", "value")):
+                k_string += "M118 " + str(extruder[0].getProperty("model_str", "value")) + " ; Message to Print Server\n"
+            if bool(extruder[0].getProperty("m300_add", "value")):
+                k_string += "M300 P1000 ; Beep\n"
+            k_string += "PAUSE ; Pause\n"
+            k_string += "M109 S" + str(int(extruder[0].getProperty("model_temp", "value"))) + " ; Print material temperature\n"
+            if not self.relative_ext_mode:
+                k_string += f"G92 E{reset_e} ; Reset extruder\n"
+            else:
+                k_string += "G92 E0 ; Reset extruder\n"
+            k_string += "M221 S100 ; Reset interface flow rate\n"
+            k_string += "M220 S100 ; Reset interface feed rate\n"
+
+        k_string += "G90 ; Absolute movement\n"
+        k_string += "M83 ; Relative extrusion\n" if self.relative_ext_mode else "M82 ; Absolute extrusion\n"
+        k_string += ";--------------------------; End of Material Change"
+        return k_string
