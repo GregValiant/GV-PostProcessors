@@ -28,12 +28,12 @@ class SuptIntMaterialChange(Script):
 
     def initialize(self) -> None:
         super().initialize()
-        mycura = CuraApplication.getInstance().getGlobalContainerStack()
-        extruder = mycura.extruderList
-        ext_count = int(mycura.getProperty("machine_extruder_count", "value"))
-        machine_width = int(mycura.getProperty("machine_width", "value"))
+        global_stack = CuraApplication.getInstance().getGlobalContainerStack()
+        extruder = global_stack.extruderList
+        ext_count = int(global_stack.getProperty("machine_extruder_count", "value"))
+        machine_width = int(global_stack.getProperty("machine_width", "value"))
         self._instance.setProperty("park_x", "maximum_value", machine_width)
-        machine_depth = int(mycura.getProperty("machine_depth", "value"))
+        machine_depth = int(global_stack.getProperty("machine_depth", "value"))
         self._instance.setProperty("park_y", "maximum_value", machine_depth)
         self._instance.setProperty("model_temp", "value", extruder[0].getProperty("material_print_temperature", "value"))
         self._instance.setProperty("cold_pull_temp_model", "value", extruder[0].getProperty("material_print_temperature", "value") - 15)
@@ -43,7 +43,7 @@ class SuptIntMaterialChange(Script):
         if ext_count > 1:
             Message(title = "[Supt-Interface Material Change]", text = "Only a single extruder can be enabled in order to use this post processor.  The post processor will exit if more than a single extruder is enabled because tool change retractions interfere.").show()
             return
-        if str(mycura.getProperty("adhesion_type", "value")) == "raft":
+        if str(global_stack.getProperty("adhesion_type", "value")) == "raft":
             Message(title = "[Supt-Interface Material Change]", text = "When using a raft set the Raft Air Gap to 0.  Use the layer numbers in the Cura preview and the script will make the adjustments.").show()
 
     def getSettingDataString(self):
@@ -308,12 +308,12 @@ class SuptIntMaterialChange(Script):
             Logger.log("i", "[Supt-Interface Material Change] Is not enabled.")
             return data
         self.global_stack = CuraApplication.getInstance().getGlobalContainerStack()
-        extruder = self.global_stack.extruderList
+        self.extruder = self.global_stack.extruderList
         ext_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))
         # Exit if the printer is a multi-extruder and more than 1 tool is enabled
         ext_enabled = 0
         if ext_count > 1:
-            enabled_list = list([self.global_stack.isEnabled for self.global_stack in self.global_stack.extruderList])
+            enabled_list = list([self.global_stack.isEnabled for self.global_stack in extruder])
             for num in range(0,len(enabled_list)):
                 if bool(enabled_list[num]):
                     ext_enabled += 1
@@ -327,7 +327,7 @@ class SuptIntMaterialChange(Script):
             data[0] += ";    [Supt-Interface Material Change] Did not run because 'Generate Support' is not enabled.\n"
             Logger.log("i", "[Supt-Interface Material Change] Did not run because 'Generate Support' is not enabled.")
             return data
-        if not extruder[0].getProperty("support_interface_enable", "value"):
+        if not self.extruder[0].getProperty("support_interface_enable", "value"):
             Message(title = "[Supt-Interface Material Change]", text = "'Enable Support Interface' is not enabled.").show()
             data[0] += ";    [Supt-Interface Material Change] Did not run because 'Enable Support Interface' is not enabled.\n"
             Logger.log("i", "[Supt-Interface Material Change] Did not run because 'Enable Support Interface' is not enabled.")
@@ -394,11 +394,11 @@ class SuptIntMaterialChange(Script):
 
         # Retrieve some settings from Cura and set up some variables
         self.firmware_retraction = bool(self.global_stack.getProperty("machine_firmware_retract", "value"))
-        self.speed_travel = str(round(extruder[0].getProperty("speed_travel", "value") * 60))
-        retract_enabled = bool(extruder[0].getProperty("retraction_enable", "value"))
-        self.retract_dist = round(float(extruder[0].getProperty("retraction_amount", "value")),2)
-        self.retract_speed = int(extruder[0].getProperty("retraction_retract_speed", "value") * 60)
-        self.unretract_speed = int(extruder[0].getProperty("retraction_prime_speed", "value") * 60)
+        self.speed_travel = str(round(self.extruder[0].getProperty("speed_travel", "value") * 60))
+        retract_enabled = bool(self.extruder[0].getProperty("retraction_enable", "value"))
+        self.retract_dist = round(float(self.extruder[0].getProperty("retraction_amount", "value")),2)
+        self.retract_speed = int(self.extruder[0].getProperty("retraction_retract_speed", "value") * 60)
+        self.unretract_speed = int(self.extruder[0].getProperty("retraction_prime_speed", "value") * 60)
         max_speed_e = str(self.global_stack.getProperty("machine_max_feedrate_e", "value"))
         model_str = self.getSettingValueByKey("model_str")
         interface_str = self.getSettingValueByKey("interface_str")
@@ -527,7 +527,7 @@ class SuptIntMaterialChange(Script):
 
         # Purge Lines Model Material
         purge_str_model = "M83; Relative extrusion\n"
-        nozzle_size = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
+        nozzle_size = self.extruder[0].getProperty("machine_nozzle_size", "value")
         firmware_retract = bool(CuraApplication.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value"))
         if purge_amt_model > 0 and enable_purge:
             purge_str_model += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{purge_amt_model}; Purge full amount\n"
@@ -542,7 +542,7 @@ class SuptIntMaterialChange(Script):
         # Purge Lines Interface
         # Complete purge of the Interface material is necessary to avoid weak layers upon resumption of the model.  The interface purge is in three steps.
         purge_str_interface = "M83; Relative extrusion\n"
-        nozzle_size = CuraApplication.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value")
+        nozzle_size = self.extruder[0].getProperty("machine_nozzle_size", "value")
         firmware_retract = bool(CuraApplication.getInstance().getGlobalContainerStack().getProperty("machine_firmware_retract", "value"))
         if purge_amt_interface > 0 and enable_purge:
             purge_str_interface += f"G1 F{(round(float(nozzle_size) * 8.333) * 60)} E{round(float(purge_amt_interface)/3)}; Purge 1/3 amount\n"
@@ -767,7 +767,7 @@ class SuptIntMaterialChange(Script):
                 filament_str += f"G1 F{int(self.unload_reload_speed)} E-{filament_dist}; Unload\n"
         # The reload string must also be broken into chunks.  It has 2 parts...Fast reload and Slow reload.  (Purge is handled up above).
         elif not unload_filament:
-            nozzle_size = self.global_stack.extruderList[0].getProperty("machine_nozzle_size", "value")
+            nozzle_size = self.extruder[0].getProperty("machine_nozzle_size", "value")
             filament_str = "M83; Relative extrusion\n"
             if int(filament_dist) > 0:
                 if filament_dist * .9 > 150:
