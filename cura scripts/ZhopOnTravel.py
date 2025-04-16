@@ -28,7 +28,9 @@ import math
 from UM.Logger import Logger
 
 class ZHopOnTravel(Script):
-
+    def __init__(self):
+        super().__init__()
+        
     def getSettingDataString(self):
         return """{
             "name": "Z-Hop on Travel",

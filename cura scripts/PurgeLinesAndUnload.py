@@ -1,17 +1,14 @@
-"""
-    August 2024 - Designed by: GregValiant (Greg Foresi).  Straightened out by: Hellaholic
-
-    NOTE: You may have purge lines in your startup, or you may use this script, you should not do both.  The script will attempt to comment out existing StartUp purge lines.
-    'Add Purge Lines to StartUp' Allows the user to determine where the purge lines are on the build plate, or to not use purge lines if a print extends to the limits of the build surface.
-        This script will attempt to recognize and comment out purge lines in the StartUp Gcode but they should be removed if using this script.
-    The setting 'Purge Line Length' is only avaialble for rectangular beds because I was too lazy to calculate the 45° arcs.
-    'Move to Start' takes an orthogonal path around the periphery before moving in to the print start location.  It eliminates strings across the print area.
-    'Adjust Starting E' is a correction in the E location before the skirt/brim starts.  The user can make an adjustment so that the skirt / brim / raft starts where it should.
-    'Unload' adds code to the Ending Gcode that will unload the filament from the machine.  The unlaod distance is broken into chunks to avoid overly long E distances.
-    Added extra moves to account for Cura adding a "Travel to Prime Tower" move that can cross the middle of the build surface.
-    Added ability to take 'disallowed areas' into account.
-    Added Prime Blob
-"""
+# August 2024 - Designed by: GregValiant (Greg Foresi).  Straightened out by: Hellaholic
+#
+#  NOTE: You may have purge lines in your startup, or you may use this script, you should not do both.  The script will attempt to comment out existing StartUp purge lines.
+# 'Add Purge Lines to StartUp' Allows the user to determine where the purge lines are on the build plate, or to not use purge lines if a print extends to the limits of the build surface.
+#    This script will attempt to recognize and comment out purge lines in the StartUp Gcode but they should be removed if using this script.
+# The setting 'Purge Line Length' is only avaialble for rectangular beds because I was too lazy to calculate the 45° arcs.
+# 'Move to Start' takes an orthogonal path around the periphery before moving in to the print start location.  It eliminates strings across the print area.
+# 'Adjust Starting E' is a correction in the E location before the skirt/brim starts.  The user can make an adjustment so that the skirt / brim / raft starts where it should.
+# 'Unload' adds code to the Ending Gcode that will unload the filament from the machine.  The unlaod distance is broken into chunks to avoid overly long E distances.
+#  Added extra moves to account for Cura adding a "Travel to Prime Tower" move that can cross the middle of the build surface.
+#  Added ability to take 'disallowed areas' into account.
 
 import math
 from ..Script import Script
@@ -75,7 +72,7 @@ class PurgeLinesAndUnload(Script):
         self._instance.setProperty("move_to_prime_tower", "value", True if self.global_stack.getProperty("machine_extruder_count", "value") > 1 else False)
         # Set the default E adjustment
         self._instance.setProperty("adjust_e_loc_to", "value", -abs(round(float(self.extruder[0].getProperty("retraction_amount", "value")), 1)))
-
+        
     def getSettingDataString(self):
         return """{
             "name": "Purge Lines and Unload Filament",
@@ -499,7 +496,7 @@ class PurgeLinesAndUnload(Script):
             """Generates G-code lines for prime blob adjustment."""
             gcode_lines = [
                 f"G1 F{retract_speed} E{retract_distance} ; Unretract",
-                "G92 E0 ; Reset extruder"
+                "G92 E0 ; Reset extruder\n"
             ]
             return "\n".join(gcode_lines)
 

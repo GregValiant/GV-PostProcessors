@@ -38,7 +38,6 @@ import time
 import datetime
 import math
 from UM.Message import Message
-import re
 
 class DisplayInfoOnLCD(Script):
 
@@ -48,7 +47,11 @@ class DisplayInfoOnLCD(Script):
             if Application.getInstance().getGlobalContainerStack().getProperty("print_sequence", "value") == "all_at_once":
                 enable_countdown = True
                 self._instance.setProperty("enable_countdown", "value", enable_countdown)
-        except:
+        except AttributeError:
+            # Handle cases where the global container stack or its properties are not accessible
+            pass
+        except KeyError:
+            # Handle cases where the "print_sequence" property is missing
             pass
 
     def getSettingDataString(self):
@@ -241,7 +244,6 @@ class DisplayInfoOnLCD(Script):
         self.add_m118_line = self.getSettingValueByKey("add_m118_line")
         self.add_m118_a1 = self.getSettingValueByKey("add_m118_a1")
         self.add_m118_p0 = self.getSettingValueByKey("add_m118_p0")
-        self.m118_str = "M118 "
         self.m118_text = "M118 "
         self.add_m73_line = self.getSettingValueByKey("add_m73_line")
         self.add_m73_time = self.getSettingValueByKey("add_m73_time")
@@ -302,15 +304,11 @@ class DisplayInfoOnLCD(Script):
                     if self.add_m117_line:
                         lines.insert(line_index + 1, display_text)
                     if self.add_m118_line:
-                        if not (self.add_m118_p0 and self.add_m118_a1):
-                            self.m118_str = self.m118_text
-                        if self.add_m118_a1 and not self.add_m118_p0:
-                            self.m118_str = self.m118_text.replace("M118 ","M118 A1 ")
-                        if self.add_m118_p0 and not self.add_m118_a1:
-                            self.m118_str = self.m118_text.replace("M118 ","M118 P0 ")
-                        if self.add_m118_p0 and self.add_m118_a1:
-                            self.m118_str = self.m118_text.replace("M118 ","M118 A1 P0 ")
-                        lines.insert(line_index + 2, self.m118_str)
+                        if self.add_m118_a1:
+                            self.m118_text = self.m118_text.replace("M118 ","M118 A1 ")
+                        if self.add_m118_p0:
+                            self.m118_text = self.m118_text.replace("M118 ","M118 P0 ")
+                        lines.insert(line_index + 2, self.m118_text)
                     i += 1
             final_lines = "\n".join(lines)
             data[layer_index] = final_lines
@@ -321,7 +319,7 @@ class DisplayInfoOnLCD(Script):
 
     # This is from 'Show Progress on LCD'
     def _display_progress(self, data: str) -> str:
-        # Add some print settings to the start of the gcode
+        # Add some common print settings to the start of the gcode
         data[0] = self._add_stats(data)
         # Get settings
         print_sequence = Application.getInstance().getGlobalContainerStack().getProperty("print_sequence", "value")
@@ -346,6 +344,7 @@ class DisplayInfoOnLCD(Script):
         # If at least one of the settings is disabled, there is enough room on the display to display "layer"
         first_section = data[0]
         lines = first_section.split("\n")
+        pause_cmd = []
         for line in lines:
             if line.startswith(";TIME:"):
                 tindex = lines.index(line)
@@ -466,13 +465,12 @@ class DisplayInfoOnLCD(Script):
                     if self.add_m117_line:
                         lines[l_index] += "\nM117 " + display_text
                     if self.add_m118_line:
-                        a1_str = ""
-                        p0_str = ""
+                        m118_text = "\nM118 "
                         if self.add_m118_a1:
-                            a1_str = "A1 "
+                            m118_text += "A1 "
                         if self.add_m118_p0:
-                            p0_str = "P0 "
-                        lines[l_index] += "\nM118 " + a1_str + p0_str + display_text
+                            m118_text += "P0 "
+                        lines[l_index] += m118_text + display_text
                     # add M73 line
                     if display_remaining_time:
                         mins = int(60 * h + m)
@@ -487,7 +485,7 @@ class DisplayInfoOnLCD(Script):
             # overwrite the layer with the modified layer
             data[layer_index] = "\n".join(lines)
 
-        # If enabled then change the ET to TP for 'Time To Pause'        
+        # If enabled then change the ET to TP for 'Time To Pause'
         time_list = []
         if bool(self.getSettingValueByKey("countdown_to_pause")):
             time_list.append("0")
@@ -533,7 +531,9 @@ class DisplayInfoOnLCD(Script):
         return data
 
     def _message_to_user(self, data: str, speed_factor: float, pause_cmd: str) -> str:
-        # Message the user of the projected finish time of the print
+        """
+        Message the user of the projected finish time of the print and when any pauses might occur
+        """
         print_time = Application.getInstance().getPrintInformation().currentPrintTime.getDisplayString(DurationFormat.Format.ISO8601)
         print_start_time = self.getSettingValueByKey("print_start_time")
         # If the user entered a print start time make sure it is in the correct format or ignore it.
@@ -595,8 +595,8 @@ class DisplayInfoOnLCD(Script):
             print_start_str = "Print Start Time.................Now"
         estimate_str = "Cura Time Estimate.........." + str(print_time)
         adjusted_str = "Adjusted Time Estimate..." + str(time_change)
-        finish_str = week_day + " " + str(mo_str) + " " + str(new_time.strftime("%d")) + ", " + str(new_time.strftime("%Y")) + " at " + str(show_hr) + str(new_time.strftime("%M")) + str(show_ampm)
-        
+        finish_str = f"{week_day} {mo_str} {new_time.strftime('%d')}, {new_time.strftime('%Y')} at {show_hr}{new_time.strftime('%M')}{show_ampm}"
+
         # If there are pauses and if countdown is enabled, then add the time-to-pause to the message.
         if bool(self.getSettingValueByKey("countdown_to_pause")):
             num = 1
@@ -608,22 +608,28 @@ class DisplayInfoOnLCD(Script):
         return finish_str, estimate_str, adjusted_str, print_start_str
 
     def _get_time_to_go(self, time_str: str):
+        """
+        Converts a time string in seconds to a human-readable format (e.g., "2h30m").
+        :param time_str: The time string in seconds.
+        :return: A formatted string representing the time.
+        """
         alt_time = time_str[:-1]
-        hhh = int(float(alt_time) / 3600)
-        if hhh > 0:
-            hhr = str(hhh) + "h"
-        else:
-            hhr = ""
-        mmm = ((float(alt_time) / 3600) - (int(float(alt_time) / 3600))) * 60
-        sss = int((mmm - int(mmm)) * 60)
-        mmm = str(round(mmm)) + "m"
-        time_to_go = str(hhr) + str(mmm)
-        if hhr == "": time_to_go = time_to_go + str(sss) + "s"
+        total_seconds = float(alt_time)
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = int(total_seconds % 60)
+        time_to_go = f"{hours}h" if hours > 0 else ""
+        time_to_go += f"{minutes}m"
+        if hours == 0:
+            time_to_go += f"{seconds}s"
         return time_to_go
 
     def _add_stats(self, data: str) -> str:
         global_stack = Application.getInstance().getGlobalContainerStack()
-        # Create a list of the models in the file
+        """
+        Make a list of the models in the file.
+        Add some of the filament stats to the first section of the gcode.
+        """
         model_list = []
         for mdex, layer in enumerate(data):
             layer = data[mdex].split("\n")
@@ -632,23 +638,37 @@ class DisplayInfoOnLCD(Script):
                     model_name = line.split(":")[1]
                     if not model_name in model_list:
                         model_list.append(model_name)
-        # Add some settings to data[0]
+        # Filament stats
         extruder_count = global_stack.getProperty("machine_extruder_count", "value")
         init_layer_hgt_line = ";Initial Layer Height: " + str(global_stack.getProperty("layer_height_0", "value"))
-        nozzle_size_line = ";Nozzle Size (T0): " + str(global_stack.extruderList[0].getProperty("machine_nozzle_size", "value"))
-        filament_type = "\n;Filament Type (T0): " + str(global_stack.extruderList[0].material.getMetaDataEntry("material", ""))
-        print_temperature_line = ";Print Temperature (T0): " + str(global_stack.extruderList[0].getProperty("material_print_temperature", "value"))
+        filament_line_t0 = ";Extruder 1 (T0)\n"
+        filament_amount = Application.getInstance().getPrintInformation().materialLengths
+        filament_line_t0 += f";  Filament used: {filament_amount[0]}m\n"
+        filament_line_t0 += f";  Filament Type: {global_stack.extruderList[0].material.getMetaDataEntry("material", "")}\n"
+        filament_line_t0 += f";  Filament Dia.: {global_stack.extruderList[0].getProperty("material_diameter", "value")}mm\n"
+        filament_line_t0 += f";  Nozzle Size  : {global_stack.extruderList[0].getProperty("machine_nozzle_size", "value")}mm\n"
+        filament_line_t0 += f";  Print Temp.  : {global_stack.extruderList[0].getProperty("material_print_temperature", "value")}°"
+
+        # if there is more than one extruder then get the stats for the second one.
+        filament_line_t1 = ""
         if extruder_count > 1:
-            nozzle_size_line += "\n;Nozzle Size (T1): " + str(global_stack.extruderList[1].getProperty("machine_nozzle_size", "value"))
-            filament_type += "\n;Filament type (T1): " + str(global_stack.extruderList[1].material.getMetaDataEntry("material", ""))
-            print_temperature_line += "\n;Print Temperature (T1): " + str(global_stack.extruderList[1].getProperty("material_print_temperature", "value"))
+            filament_line_t1 = "\n;Extruder 2 (T1)\n"
+            filament_line_t1 += f";  Filament used: {filament_amount[1]}m\n"
+            filament_line_t1 += f";  Filament Type: {global_stack.extruderList[1].material.getMetaDataEntry("material", "")}\n"
+            filament_line_t1 += f";  Filament Dia.: {global_stack.extruderList[1].getProperty("material_diameter", "value")}mm\n"
+            filament_line_t1 += f";  Nozzle Size  : {global_stack.extruderList[1].getProperty("machine_nozzle_size", "value")}mm\n"
+            filament_line_t1 += f";  Print Temp.  : {global_stack.extruderList[1].getProperty("material_print_temperature", "value")}°"
+
+        # Add the stats to the gcode file
         lines = data[0].split("\n")
         for index, line in enumerate(lines):
             if line.startswith(";Layer height:"):
-                lines[index] += "\n" + init_layer_hgt_line + "\n" + nozzle_size_line + "\n" + print_temperature_line
+                lines[index] += f"\n{init_layer_hgt_line}"
+                lines[index] += f"\n;Base Quality Name  : '{global_stack.quality.getMetaDataEntry("name", "")}'"
+                lines[index] += f"\n;Custom Quality Name: '{global_stack.qualityChanges.getMetaDataEntry("name")}'"
             if line.startswith(";Filament used"):
-                lines[index] += filament_type
+                lines[index] = filament_line_t0 + filament_line_t1
             if "MINX" in line or "MIN.X" in line:
-                # Add the model list
+                # Add the Object List
                 lines[index - 1] += f"\n;Model List: {str(model_list)}"
         return "\n".join(lines)

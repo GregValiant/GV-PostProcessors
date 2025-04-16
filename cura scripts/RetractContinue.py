@@ -10,7 +10,6 @@ from UM.Math.Vector import Vector
 
 from typing import List, Tuple
 
-
 class RetractContinue(Script):
     """Continues retracting during all travel moves."""
 

@@ -17,12 +17,11 @@ from UM.Preferences import Preferences
 from UM.Message import Message
 
 class AddCuraSettings(Script):
-    """Add the Cura settings as a post-script to the g-code.
-    """
+    """Add the Cura settings as a post-script to the g-code."""
 
     def getSettingDataString(self):
         return """{
-            "name": "Add Cura Settings 5.10.b",
+            "name": "Add Cura Settings 5.10.0",
             "key": "AddCuraSettings",
             "metadata": {},
             "version": 2,
@@ -196,7 +195,7 @@ class AddCuraSettings(Script):
             }
         }"""
 
-    def execute(self, data): # Application.getInstance().getPrintInformation().
+    def execute(self, data):
         global_stack = Application.getInstance().getGlobalContainerStack()
         cura_version = CuraApplication.getInstance().getVersion()
         cura_version_int = cura_version.split("-")[0]
@@ -213,7 +212,8 @@ class AddCuraSettings(Script):
         setting_data = ";\n;  <<< Cura User Settings >>>\n"
         setting_data += ";    Cura Version: " + str(Application.getInstance().getVersion()) + "\n"
         setting_data += ";    Machine Name: " + str(global_stack.getProperty("machine_name", "value")) + "\n"
-        # Extruder Assignments-------------------------------------------------------------------------------------------------------------
+
+        # Extruder Assignments
         wall_extruder_nr = int(global_stack.getProperty("wall_extruder_nr", "value"))
         if wall_extruder_nr == -1: wall_extruder_nr = 0
         wall_0_extruder_nr = int(global_stack.getProperty("wall_0_extruder_nr", "value"))
@@ -243,19 +243,21 @@ class AddCuraSettings(Script):
         if support_roof_extruder_nr == -1: support_roof_extruder_nr = 0
         support_bottom_extruder_nr = int(global_stack.getProperty("support_bottom_extruder_nr", "value"))
         if support_bottom_extruder_nr == -1: support_bottom_extruder_nr = 0
-        #  For Compatibility with 4.x------------------------------------------------------------------------------------------------------
+
+        # For Compatibility with 4.x
         try:
             skirt_brim_extruder_nr = int(global_stack.getProperty("skirt_brim_extruder_nr", "value"))
             if skirt_brim_extruder_nr == -1: skirt_brim_extruder_nr = 0
         except:
             pass
+
         adhesion_extruder_nr = int(global_stack.getProperty("adhesion_extruder_nr", "value"))
         if adhesion_extruder_nr == -1: adhesion_extruder_nr = 0
         raft_base_extruder_nr = int(global_stack.getProperty("raft_base_extruder_nr", "value"))
         raft_interface_extruder_nr = int(global_stack.getProperty("raft_interface_extruder_nr", "value"))
         raft_surface_extruder_nr = int(global_stack.getProperty("raft_surface_extruder_nr", "value"))
 
-        #General Settings------------------------------------------------------------------------------------------------------------------
+        # General Settings
         if bool(self.getSettingValueByKey("general_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [General Settings]\n"
             setting_data += ";Job Name: " + str(Application.getInstance().getPrintInformation().jobName) + "\n"
@@ -275,6 +277,8 @@ class AddCuraSettings(Script):
             filament_amt = Application.getInstance().getPrintInformation().materialLengths
             filament_wt = Application.getInstance().getPrintInformation().materialWeights
             filament_cost = Application.getInstance().getPrintInformation().materialCosts
+            setting_data += ";Quality Base Name: " + str(global_stack.quality.getMetaDataEntry("name", "")) + "\n"
+            setting_data += ";Quality Changes Custom Name: " + str(global_stack.qualityChanges.getMetaDataEntry("name")) + "\n"
             for num in range(0,machine_extruder_count):
                 setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                 setting_data += ";  Filament Diameter: " + str(extruder[num].getProperty("material_diameter", "value")) + " mm\n"
@@ -288,7 +292,7 @@ class AddCuraSettings(Script):
             setting_data += ";Keep Models Apart: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_push_free")) + "\n"
             setting_data += ";Drop Models to Build Plate: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_drop_down")) + "\n"
 
-        #Machine Settings------------------------------------------------------------------------------------------------------------------
+        # Machine Settings
         if bool(self.getSettingValueByKey("machine_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Machine Settings]\n"
             if complete_set: setting_data += ";Wait for bed heatup: " + str(global_stack.getProperty("material_bed_temp_wait", "value")) + "\n"
@@ -307,9 +311,10 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Machine Center is Zero: " + str(global_stack.getProperty("machine_center_is_zero", "value")) + "\n"
             if complete_set: setting_data += ";Machine Extruder Count: " + str(global_stack.getProperty("machine_extruder_count", "value")) + "\n"
             enabled_list = list([global_stack.isEnabled for global_stack in global_stack.extruderList])
+            setting_data += ";Extruders Enabled Count: " + str(len(enabled_list)) + " \n"
             for num in range(0,len(enabled_list)):
-                setting_data += ";  Extruder " + str(num + 1) + " (T" + str(num) + ") Enabled: " + str(enabled_list[num]) + "\n"
-            if complete_set: setting_data += ";Enable Nozzle Temperature Control: " + str(global_stack.getProperty("machine_nozzle_temp_enabled", "value")) + "\n"
+                setting_data += ";  Extruder " + str(num + 1) + " (T" + str(num) + ") Enabled: " + str(enabled_list[num]) + " \n"
+            if complete_set: setting_data += ";Enable Nozzle Temperature Control: " + str(global_stack.getProperty("machine_nozzle_temp_enabled", "value")) + " \n"
             if complete_set: setting_data += ";Heat Up Speed: " + str(global_stack.getProperty("machine_nozzle_heat_up_speed", "value")) + "°/sec\n"
             if complete_set: setting_data += ";Cool Down Speed: " + str(global_stack.getProperty("machine_nozzle_cool_down_speed", "value")) + "°/sec\n"
             if complete_set: setting_data += ";Minimal Time Standby Temperature: " + str(global_stack.getProperty("machine_min_cool_heat_time_window", "value")) + " sec\n"
@@ -372,7 +377,6 @@ class AddCuraSettings(Script):
                     setting_data += ";  Extruder PreStart Gcode: " + ext_prestart + " \n"
                     setting_data += ";  Extruder Start Gcode: " + ext_start + " \n"
                     setting_data += ";  Extruder End Gcode: " + ext_end + " \n"
-
             setting_data += ";Start GCode must be first: " + str(global_stack.getProperty("machine_start_gcode_first", "value")) + "\n"
             setting_data += ";Z Position for Extruder Prime: " + str(global_stack.getProperty("extruder_prime_pos_z", "value")) + "\n"
             setting_data += ";Absolute Extruder Prime: " + str(global_stack.getProperty("extruder_prime_pos_abs", "value")) + "\n"
@@ -398,7 +402,7 @@ class AddCuraSettings(Script):
             except:
                 pass
 
-        #Quality Settings-------------------------------------------------------
+        # Quality Settings
         if bool(self.getSettingValueByKey("quality_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Quality Settings]\n"
             setting_data += ";Layer Height: " + str(global_stack.getProperty("layer_height", "value")) + " mm\n"
@@ -423,7 +427,7 @@ class AddCuraSettings(Script):
                 setting_data += ";Prime Tower Line Width: " + str(global_stack.getProperty("prime_tower_line_width", "value")) + " mm\n"
             setting_data += ";Initial Layer Line Width: " + str(global_stack.getProperty("initial_layer_line_width_factor", "value")) + " %\n"
 
-        #Wall Settings---------------------------------------------------------------------------------------------------------------------
+        # Wall Settings
         if bool(self.getSettingValueByKey("wall_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Walls]\n"
             if complete_set and machine_extruder_count > 1: setting_data += ";Wall Extruder: E" + str(wall_extruder_nr + 1) + " (T" + str(wall_extruder_nr) + ")\n"
@@ -459,7 +463,7 @@ class AddCuraSettings(Script):
             setting_data += ";Z Seam Corner: " + str(extruder[wall_0_extruder_nr].getProperty("z_seam_corner", "value")) + "\n"
             setting_data += ";Z Seam Relative: " + str(extruder[wall_0_extruder_nr].getProperty("z_seam_relative", "value")) + "\n"
 
-        #Top/Bottom Settings---------------------------------------------------------------------------------------------------------------
+        # Top/Bottom Settings
         if bool(self.getSettingValueByKey("topbot_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Top/Bottom]\n"
             if complete_set and machine_extruder_count > 1: setting_data += ";Top Surface Skin Extruder: " + str(roofing_extruder_nr + 1) + " (T" + str(roofing_extruder_nr) + ")\n"
@@ -505,7 +509,6 @@ class AddCuraSettings(Script):
                 setting_data += ";  Ironing Speed: " + str(round(extruder[top_bottom_extruder_nr].getProperty("speed_ironing", "value"),2)) + " mm/sec\n"
                 if complete_set: setting_data += ";  Ironing Acceleration: " + str(round(extruder[top_bottom_extruder_nr].getProperty("acceleration_ironing", "value"),2)) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Ironing Jerk: " + str(round(extruder[top_bottom_extruder_nr].getProperty("jerk_ironing", "value"),2)) + " mm/sec\n"
-
             if complete_set: setting_data += ";Skin Overlap Percentage: " + str(extruder[top_bottom_extruder_nr].getProperty("skin_overlap", "value")) + "°\n"
             if complete_set: setting_data += ";Skin Overlap: " + str(extruder[top_bottom_extruder_nr].getProperty("skin_overlap_mm", "value")) + " mm\n"
             if complete_set: setting_data += ";Skin Removal Width: " + str(round(extruder[top_bottom_extruder_nr].getProperty("skin_preshrink", "value"), 2)) + " mm\n"
@@ -517,7 +520,7 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Maximum Skin Angle for Expansion: " + str(extruder[top_bottom_extruder_nr].getProperty("max_skin_angle_for_expansion", "value")) + "°\n"
             if complete_set: setting_data += ";Minimum Skin Width for Expansion: " + str(round(extruder[top_bottom_extruder_nr].getProperty("min_skin_width_for_expansion", "value"), 2)) + " mm\n"
 
-        #Infill Settings-------------------------------------------------------------------------------------------------------------------
+        # Infill Settings
         if bool(self.getSettingValueByKey("infill_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Infill]\n"
             if complete_set and machine_extruder_count > 1: setting_data += ";Infill Extruder: " + str(infill_extruder_nr + 1) + " (T" + str(infill_extruder_nr) + ")\n"
@@ -553,7 +556,7 @@ class AddCuraSettings(Script):
                 setting_data += ";Lightning Infill Prune Angle: " + str(extruder[infill_extruder_nr].getProperty("lightning_infill_prune_angle", "value")) + "°\n"
                 setting_data += ";Lightning Infill Straightening Angle: " + str(extruder[infill_extruder_nr].getProperty("lightning_infill_straightening_angle", "value")) + "°\n"
 
-        #Material Settings-----------------------------------------------------------------------------------------------------------------
+        # Material Settings
         if bool(self.getSettingValueByKey("material_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Material Settings]\n"
             if complete_set: setting_data += ";Heated Build Volume: " + str(global_stack.getProperty("machine_heated_build_volume", "value")) + "\n"
@@ -598,7 +601,7 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Gradual flow discretisation step size: " + str(extruder[num].getProperty("gradual_flow_discretisation_step_size", "value")) + " sec\n"
                 if complete_set: setting_data += ";  Pressure Advance Factor: " + str(extruder[num].getProperty("material_pressure_advance_factor", "value")) + "\n"
 
-        #Speed Settings--------------------------------------------------------------------------------------------------------------------
+        # Speed Settings
         if bool(self.getSettingValueByKey("speed_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Speed Settings]\n"
             for num in range(0,machine_extruder_count):
@@ -632,13 +635,9 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Accel Top Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_roofing", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Top Surface Skin: " + str(extruder[num].getProperty("acceleration_roofing", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Top/Bottom: " + str(extruder[num].getProperty("acceleration_topbottom", "value")) + " mm/sec²\n"
-
                 if complete_set: setting_data += ";  Accel Bottom Surface Skin: " + str(extruder[num].getProperty("acceleration_flooring", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Bottom Surface Inner Wall: " + str(extruder[num].getProperty("acceleration_wall_x_flooring", "value")) + " mm/sec²\n"
                 if complete_set: setting_data += ";  Accel Bottom Surface Outer Wall: " + str(extruder[num].getProperty("acceleration_wall_0_flooring", "value")) + " mm/sec²\n"
-
-
-
                 if complete_set: setting_data += ";  Accel Support: " + str(extruder[num].getProperty("acceleration_support", "value")) + " mm/sec²\n"# true
                 if complete_set: setting_data += ";  Accel Support Infill: " + str(extruder[num].getProperty("acceleration_support_infill", "value")) + " mm/sec²\n"# true
                 if complete_set: setting_data += ";  Accel Support Interface: " + str(extruder[num].getProperty("acceleration_support_interface", "value")) + " mm/sec²\n"# true
@@ -654,12 +653,9 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Jerk Top Surface Wall: " + str(extruder[num].getProperty("jerk_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Top Surface Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0_roofing", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Top Surface Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x_roofing", "value")) + " mm/sec\n"
-
                 if complete_set: setting_data += ";  Jerk Bottom Surface Skin: " + str(extruder[num].getProperty("jerk_flooring", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Bottom Surface Wall Outer: " + str(extruder[num].getProperty("jerk_wall_0_flooring", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Bottom Surface Wall Inner: " + str(extruder[num].getProperty("jerk_wall_x_flooring", "value")) + " mm/sec\n"
-
-
                 if complete_set: setting_data += ";  Jerk Top/Bottom: " + str(extruder[num].getProperty("jerk_topbottom", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Support: " + str(extruder[support_extruder_nr].getProperty("jerk_support", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Jerk Support Infill: " + str(extruder[support_extruder_nr].getProperty("jerk_support_infill", "value")) + " mm/sec\n"
@@ -677,15 +673,18 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Speed Support Interface: " + str(extruder[support_interface_extruder_nr].getProperty("speed_support_interface", "value")) + " mm/sec\n"
             setting_data += ";Speed Support Interface Roof: " + str(extruder[support_roof_extruder_nr].getProperty("speed_support_roof", "value")) + " mm/sec\n"
             setting_data += ";Speed Support Interface Bottom: " + str(extruder[support_bottom_extruder_nr].getProperty("speed_support_bottom", "value")) + " mm/sec\n"
-            try: #  For compatibility with 4.x
+
+            # For compatibility with 4.x
+            try:
                 setting_data += ";Speed Skirt/Brim: " + str(extruder[skirt_brim_extruder_nr].getProperty("skirt_brim_speed", "value")) + " mm/sec\n"
             except:
                 pass
             if bool(global_stack.getProperty("prime_tower_enable", "value")) and machine_extruder_count > 1:
                 if complete_set: setting_data += ";Speed Prime Tower: " + str(global_stack.getProperty("speed_prime_tower", "value")) + " mm/sec\n"
             setting_data += ";Slower Initial Layers: " + str(global_stack.getProperty("speed_slowdown_layers", "value")) + "\n"
+
+        # Get the actual speeds from the gcode
         if self.getSettingValueByKey("speed_set_max_min_calc"):
-            #  Get the actual speeds from the gcode
             f_extrusion_speed_hi = 0.0
             f_extrusion_speed_lo = 100000.0
             f_travel_speed_hi = 0.0
@@ -694,13 +693,13 @@ class AddCuraSettings(Script):
                 layer = data[num]
                 lines = layer.split("\n")
                 for line in lines:
-                    #  If a line is a Z-hop or a retraction then ignore it.
+                    # If a line is a Z-hop or a retraction then ignore it.
                     if re.match("G1 F(\d*) Z", line) is not None or re.match("G1 F(\d*) E", line) is not None:
                         continue
                     if line.startswith("G"):
                         cmd = self.getValue(line, "G")
                         if cmd is not None:
-                            #   Extrusion speeds
+                            # Extrusion speeds
                             if cmd in [1, 2, 3]:
                                 if " X" in line and " Y" in line and " E" in line and " F" in line:
                                     f_temp = int(self.getValue(line, "F"))
@@ -708,7 +707,7 @@ class AddCuraSettings(Script):
                                         f_extrusion_speed_hi = int(f_temp)
                                     if f_temp < int(f_extrusion_speed_lo):
                                         f_extrusion_speed_lo = f_temp
-                            #  Travel speeds
+                            # Travel speeds
                             elif cmd == 0:
                                 if " X" in line and " Y" in line and " F" in line and not " Z" in line:
                                     f_temp = int(self.getValue(line, "F"))
@@ -726,7 +725,7 @@ class AddCuraSettings(Script):
         else:
             setting_data += ";The speed ranges for this print >\n;  Calculation is not enabled\n"
 
-        # Travel Settings------------------------------------------------------------------------------------------------------------------
+        # Travel Settings
         if bool(self.getSettingValueByKey("travel_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Travel Settings]\n"
             for num in range(0,machine_extruder_count):
@@ -761,7 +760,7 @@ class AddCuraSettings(Script):
                     setting_data += ";  Z-Hop After Extruder Switch: " + str(extruder[num].getProperty("retraction_hop_after_extruder_switch", "value")) + "\n"
                     setting_data += ";  Z-Hop Height After Extruder Switch: " + str(extruder[num].getProperty("retraction_hop_after_extruder_switch_height", "value")) + " mm\n"
 
-        # Cooling Settings-----------------------------------------------------------------------------------------------------------------
+        # Cooling Settings
         if bool(self.getSettingValueByKey("cooling_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Cooling Fan Settings]\n"
             for num in range(0,machine_extruder_count):
@@ -785,7 +784,7 @@ class AddCuraSettings(Script):
                     if machine_extruder_count > 1:
                         setting_data += ";  Cooling during extruder switch: " + str(extruder[num].getProperty("cool_during_extruder_switch", "value")) + "\n"
 
-        # Support Settings-----------------------------------------------------------------------------------------------------------------
+        # Support Settings
         if bool(self.getSettingValueByKey("support_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Support Settings]\n"
             setting_data += ";Enable Support: " + str(global_stack.getProperty("support_enable", "value")) + "\n"
@@ -801,7 +800,6 @@ class AddCuraSettings(Script):
                         setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                         setting_data += "; Support Z Seam Away from Model: " + str(extruder[support_extruder_nr].getProperty("support_z_seam_away_from_model", "value")) + "\n"
                         setting_data += "; Min Z Seam Distance from Model: " + str(extruder[support_extruder_nr].getProperty("support_z_seam_min_distance", "value")) + "\n"
-
                 setting_data += ";Support Structure: " + str(extruder[support_extruder_nr].getProperty("support_structure", "value")) + "\n"
                 setting_data += ";Support Type: " + str(extruder[support_extruder_nr].getProperty("support_type", "value")) + "\n"
                 if complete_set and str(extruder[support_extruder_nr].getProperty("support_structure", "value")) == "tree":
@@ -865,7 +863,7 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";Dropdown Support Mesh: " + str(global_stack.getProperty("support_mesh_drop_down", "value")) + "\n"
                 if complete_set: setting_data += ";Scene Has Support Meshes: " + str(global_stack.getProperty("support_meshes_present", "value")) + "\n"
 
-        # Bed Adhesion Settings------------------------------------------------------------------------------------------------------------
+        # Bed Adhesion Settings
         if bool(self.getSettingValueByKey("adhesion_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Bed Adhesion]\n"
             if complete_set:
@@ -961,7 +959,7 @@ class AddCuraSettings(Script):
                     if complete_set: setting_data += ";Raft Base Flow: " + str(extruder[raft_base_extruder_nr].getProperty("raft_base_flow", "value")) + "%\n"
                     if complete_set: setting_data += ";Raft Interface Flow: " + str(extruder[raft_interface_extruder_nr].getProperty("raft_interface_flow", "value")) + "%\n"
 
-        # Dual Extrusion Settings----------------------------------------------------------------------------------------------------------
+        # Dual Extrusion Settings
         if (bool(self.getSettingValueByKey("dualext_set")) or all_or_some == "all_settings") and machine_extruder_count > 1:
             setting_data += ";\n;  [Dual Extrusion Settings]\n"
             setting_data += ";Initial Extruder Number: E" + str(extruderMgr.getInitialExtruderNr() + 1) + " (T" + str(extruderMgr.getInitialExtruderNr()) + ")\n"
@@ -985,7 +983,6 @@ class AddCuraSettings(Script):
             if bool(global_stack.getProperty("ooze_shield_enabled", "value")):
                 if complete_set: setting_data += ";  Ooze Shield Angle: " + str(global_stack.getProperty("ooze_shield_angle", "value")) + "°\n"
                 if complete_set: setting_data += ";  Ooze Shield Distance: " + str(global_stack.getProperty("ooze_shield_dist", "value")) + " mm\n"
-
             if machine_extruder_count > 1:
                 for num in range(0, machine_extruder_count):
                     setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
@@ -995,7 +992,7 @@ class AddCuraSettings(Script):
                     if complete_set: setting_data += ";  Nozzle Switch Prime Speed: " + str(extruder[num].getProperty("switch_extruder_prime_speed", "value")) + " mm/sec\n"
                     setting_data += ";  Extruder Switch Extra Prime: " + str(extruder[num].getProperty("switch_extruder_extra_prime_amount", "value")) + " mm³\n"
 
-        # Mesh Fixes Settings--------------------------------------------------------------------------------------------------------------
+        # Mesh Fixes Settings
         if bool(self.getSettingValueByKey("meshfix_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Mesh Fixes Settings]\n"
             setting_data += ";Union Overlapping Volumes: " + str(global_stack.getProperty("meshfix_union_all", "value")) + "\n"
@@ -1015,7 +1012,7 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Fluid Motion Small Distance: " + str(global_stack.getProperty("meshfix_fluid_motion_small_distance", "value")) + " mm\n"
             if complete_set: setting_data += ";Fluid Motion Angle: " + str(global_stack.getProperty("meshfix_fluid_motion_angle", "value")) + "°\n"
 
-        # Special Modes--------------------------------------------------------------------------------------------------------------------
+        # Special Modes
         if bool(self.getSettingValueByKey("special_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Special Modes]\n"
             setting_data += ";Print Sequence: " + str(global_stack.getProperty("print_sequence", "value")) + "\n"
@@ -1030,7 +1027,7 @@ class AddCuraSettings(Script):
                 setting_data += ";  Smooth Spiralized Contours : " + str(global_stack.getProperty("smooth_spiralized_contours", "value")) + "\n"
             setting_data += ";Relative Extrusion: " + str(global_stack.getProperty("relative_extrusion", "value")) + "\n"
 
-        # Experimental---------------------------------------------------------------------------------------------------------------------
+        # Experimental
         if bool(self.getSettingValueByKey("experimental_set")) or all_or_some == "all_settings":
             setting_data += ";\n;  [Experimental Settings]\n"
             setting_data += ";Slicing Tolerance: " + str(global_stack.getProperty("slicing_tolerance", "value")) + "\n"
@@ -1123,7 +1120,6 @@ class AddCuraSettings(Script):
                     if complete_set: setting_data += ";      Bridge Skin Matl Flow 3: " + str(global_stack.getProperty("bridge_skin_material_flow_3", "value")) + " %\n"
                     if complete_set: setting_data += ";      Bridge Skin Density 3: " + str(global_stack.getProperty("bridge_skin_density_3", "value")) + " %\n"
                     if complete_set: setting_data += ";      Bridge Fan Speed 3: " + str(global_stack.getProperty("bridge_fan_speed_3", "value")) + " %\n"
-
             setting_data += ";Alternate Wall Directions: " + str(global_stack.getProperty("material_alternate_walls", "value")) + "\n"
             for num in range(0, machine_extruder_count):
                 if bool(extruder[num].getProperty("clean_between_layers", "value")):
@@ -1169,7 +1165,7 @@ class AddCuraSettings(Script):
             except:
                 pass
 
-        # PostProcessor Settings-----------------------------------------------------------------------------------------------------------
+        # PostProcessor Settings
         if bool(self.getSettingValueByKey("postprocess_set")):
             setting_data += ";\n;  [Post-Processor Settings]\n"
             scripts_list = global_stack.getMetaDataEntry("post_processing_scripts")
@@ -1177,14 +1173,14 @@ class AddCuraSettings(Script):
                 script_str = script_str.replace(r"\\\n", "\n;  ").replace("\n;  \n;  ", "\n")
                 setting_data += ";" + str(script_str)
 
-        # End of Settings------------------------------------------------------------------------------------------------------------------
+        # End of Settings
         setting_data += ";\n;  <<< End of Cura Settings >>>\n;\n"
         setting_data = self._format_string(setting_data)
         data[len(data)-1] += setting_data
         return data
 
+    # Format the setting_data string.  No reason it shouldn't look nice.
     def _format_string(self, any_gcode_str: str):
-        # Format the setting_data string.  No reason it shouldn't look nice.
         temp_lines = any_gcode_str.split("\n")
         gap_len = 0
         for temp_line in temp_lines:

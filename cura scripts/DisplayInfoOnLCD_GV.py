@@ -47,7 +47,7 @@ class DisplayInfoOnLCD_GV(Script):
                 self._instance.setProperty("enable_countdown", "value", enable_countdown)
         except:
             pass
-            
+
     def getSettingDataString(self):
         return """{
             "name": "Display Info on LCD_GV",
@@ -312,7 +312,7 @@ class DisplayInfoOnLCD_GV(Script):
             # Add the Initial Layer Height just below Layer Height in data[0]
             extruder_count = Application.getInstance().getGlobalContainerStack().getProperty("machine_extruder_count", "value")
             init_layer_hgt_line = ";Initial Layer Height: " + str(Application.getInstance().getGlobalContainerStack().getProperty("layer_height_0", "value"))
-            nozzle_size_line = ";Nozzle Size T0: " + str(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value"))            
+            nozzle_size_line = ";Nozzle Size T0: " + str(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("machine_nozzle_size", "value"))
             filament_type = "\n;Filament type for T0: " + str(Application.getInstance().getGlobalContainerStack().extruderList[0].getProperty("material_type", "value"))
             if extruder_count > 1:
                 nozzle_size_line += "\n;Nozzle Size T1: " + str(Application.getInstance().getGlobalContainerStack().extruderList[1].getProperty("machine_nozzle_size", "value"))
@@ -360,7 +360,7 @@ class DisplayInfoOnLCD_GV(Script):
                     if add_m118_line: lines.insert(tindex + 6,"M118 Adjusted Print Time " + str(hr) + "hr " + str(mmm) + "min")
                     if add_m117_line: lines.insert(tindex + 6,"M117 ET " + str(hr) + "hr " + str(mmm) + "min")
                     # Add M73 line at beginning
-                    mins = int(60 * hr + mmm)   
+                    mins = int(60 * hr + mmm)
                     if add_m73_line and (add_m73_time or add_m73_percent):
                         if m73_time:
                             m73_str += " R{}".format(mins)
@@ -464,7 +464,7 @@ class DisplayInfoOnLCD_GV(Script):
                             a1_str = ""
                             p0_str = ""
                             if add_m118_a1:
-                                a1_str = "A1 "                            
+                                a1_str = "A1 "
                             if add_m118_p0:
                                 p0_str = "P0 "
                             lines[l_index] += "\nM118 " + a1_str + p0_str + display_text
@@ -593,8 +593,8 @@ class DisplayInfoOnLCD_GV(Script):
         adjusted_str = "Adjusted Time Estimate..." + str(time_change)
         finish_str = week_day + " " + str(mo_str) + " " + str(new_time.strftime("%d")) + ", " + str(new_time.strftime("%Y")) + " at " + str(show_hr) + str(new_time.strftime("%M")) + str(show_ampm)
         return finish_str, estimate_str, adjusted_str, print_start_str
-        
-    def get_time_to_go(self, time_str: str):    
+
+    def get_time_to_go(self, time_str: str):
         alt_time = time_str[:-1]
         hhh = int(float(alt_time) / 3600)
         if hhh > 0:

@@ -20,7 +20,7 @@ class DiscoverSettings(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Discover Settings 5.10 beta1",
+            "name": "Discover Settings 5.10.0",
             "key": "DiscoverSettings",
             "metadata": {},
             "version": 2,
@@ -32,7 +32,7 @@ class DiscoverSettings(Script):
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
-                        "v5_10b": "5.10beta",
+                        "v5_100": "5.10.0",
                         "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
@@ -75,8 +75,8 @@ class DiscoverSettings(Script):
 
     def execute(self, data): #Application.getInstance().getPrintInformation().
         init_version = self.getSettingValueByKey("cura_version")
-        if init_version == "v5_10b":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.10.0-beta.1\share\cura\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_100":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.10.0\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_91":
             init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_90":

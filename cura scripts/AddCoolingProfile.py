@@ -286,7 +286,7 @@ class AddCoolingProfile(Script):
                     "description": "For machines with independent layer cooling fans.  Leaving a fan running while the other nozzle is printing can help with oozing.  You can pick the speed % for the idle nozzle layer cooling fan to hold at.",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "enable_off_fan_speed_enable"
+                    "enabled": "enable_off_fan_speed_enable and self.extruder_count > 1"
                 },
                 "off_fan_speed":
                 {
@@ -297,7 +297,7 @@ class AddCoolingProfile(Script):
                     "minimum_value": 0,
                     "maximum_value": 100,
                     "unit": "%    ",
-                    "enabled": "enable_off_fan_speed_enable and enable_off_fan_speed"
+                    "enabled": "enable_off_fan_speed_enable and enable_off_fan_speed and self.extruder_count > 1"
                 },
                 "enable_off_fan_speed_enable":
                 {
@@ -378,6 +378,7 @@ class AddCoolingProfile(Script):
             if script_count > 0:
                 # Set 'Remove M106 lines' to "false" if there is already an instance of this script running.
                 self._instance.setProperty("delete_existing_m106", "value", False)
+        self._instance.setProperty("enable_off_fan_speed_enable", "value", False)
         if self.extruder_count > 1:
             if self.extruder_list[0].getProperty("machine_extruder_cooling_fan_number", "value") != self.extruder_list[1].getProperty("machine_extruder_cooling_fan_number", "value"):
                 self._instance.setProperty("enable_off_fan_speed_enable", "value", True)
@@ -708,7 +709,7 @@ class AddCoolingProfile(Script):
             try:
                 if int(fan_list[num]) < int(start_index):
                     start_index = str(fan_list[num])
-            except IndexError:
+            except ValueError:
                 pass
         # Move the start point if delete_existing_m106 is false
         start_index = int(start_index) + int(layer_0_index)
@@ -775,7 +776,6 @@ class AddCoolingProfile(Script):
             for line in lines:
                 if ";LAYER:" in line:
                     layer_number = str(line.split(":")[1])
-                    continue
                 if int(layer_number) >= int(the_start_layer) and int(layer_number) < int(the_end_layer)-1:
                     temp = line.split(" ")[0]
                     try:
@@ -788,6 +788,7 @@ class AddCoolingProfile(Script):
                         if feature_fan_combing == True:
                             modified_data += "M106 S0" + t0_fan + "\n"
                 modified_data += line + "\n"
+                
                 # If an End Layer is defined and is less than the last layer then insert the Final Speed
                 if line == ";LAYER:" + str(the_end_layer) and the_end_is_enabled == True:
                     modified_data += feature_speed_list[len(feature_speed_list) - 1] + t0_fan + "\n"

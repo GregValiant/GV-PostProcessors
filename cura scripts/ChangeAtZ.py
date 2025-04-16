@@ -1,21 +1,19 @@
 """
- This version by GregValiant (Greg Foresi) March 2025
-    This script is makeover of the earlier 'ChangeAtZ'.
+ This version of ChangeAtZ is by GregValiant (Greg Foresi) March 2025
     Differences from the previous version (5.3.0):
-        "By Height" will work with Z-hops enabled, Adaptive Layers, Scarf Z-seam, and Rafts.  The changes will be commence at the first layer where the height is reached or exceeded.  The changes will end at the start of the layer where the End Height is reached or exceeded.  Ex:  End Height = 25.34 then the changes will end when the Z of the next layer >= 25.34.
-        The user can opt to change just the print speed or both print and travel speeds.  The 'F' parameters are re-calculated line-by-line using the percentage that the user inputs.  Speeds can now be changed 'per extruder'.  M220 is no longer used to change speeds as it affected all speeds.
-        The retract/prime speeds are split out so changing the print speed no longer affects retract/prime speeds.
-        The Z-hop speed is never affected.
-        Output to LCD is obsolete to avoid flooding the screen with messages that were quickly over-written.
-        Allows the user to select a Range of Layers (rather than just 'Single Layer' or 'To the End'.)
-        Support added for a Build Volume Fan.
-        Changes to the Layer Cooling Fan(s) are removed in favor of AddCoolingProfile script.
-        Added support for Relative Extrusion
-        Added support for Firmware Retraction
-        Added support for 'G2' and 'G3' moves.
-        The script supports up to 2 extruders.
-        'One-at-a-Time' is not supported and a kick-out is added
-        Version number changed to 6.0.0
+        ~"By Height" will work with Z-hops enabled, Adaptive Layers, Scarf Z-seam, and Rafts.  The changes will commence at the first layer where the height is reached or exceeded.  The changes will end at the start of the layer where the End Height is reached or exceeded.
+        ~The user can opt to change just the print speed or both print and travel speeds.  The 'F' parameters are re-calculated line-by-line using the percentage that the user inputs.  Speeds can now be changed 'per extruder'.  M220 is no longer used to change speeds as it affected all speeds.
+        ~Changing the print speed no longer affects retraction or unretract speeds.
+        ~The Z-hop speed is never affected.
+        ~Output to LCD is obsolete to avoid flooding the screen with messages that were quickly over-written.
+        ~Allows the user to select a Range of Layers (rather than just 'Single Layer' or 'To the End'.)
+        ~Added support for single fan control.  This might be a Build Volume Fan, Auxilliary Fan, or a Layer Cooling Fan.  It would depend on the fan circuit number that the user inputs.
+        ~Added support for Relative Extrusion
+        ~Added support for Firmware Retraction
+        ~Added support for 'G2' and 'G3' moves.
+        ~The script supports up to 2 extruders.
+        ~'One-at-a-Time' is not supported and a kick-out is added
+        ~Version number changed to 6.0.0
 
     Previous contributions by:
         Original Authors and contributors to the ChangeAtZ post-processing script and the earlier TweakAtZ:
@@ -39,7 +37,9 @@ class ChangeAtZ(Script):
     version = "6.0.0"
 
     def initialize(self) -> None:
-        # Prepare the script settings for the current machine
+        """
+        Prepare the script settings for the machine hardware configuration on Cura opening
+        """
         super().initialize()
         self.global_stack = Application.getInstance().getGlobalContainerStack()
         self.extruder_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))
@@ -144,7 +144,7 @@ class ChangeAtZ(Script):
                     "label": "    Include Travel Speeds",
                     "description": "Check this box to change the Travel Speeds as well as the Print Speeds.",
                     "type": "bool",
-                    "default_value": true,
+                    "default_value": false,
                     "enabled": "b_change_speed and caz_enabled"
                 },
                 "b_speed": {
@@ -377,9 +377,9 @@ class ChangeAtZ(Script):
         self.z_hop_enabled = bool(self.extruder_list[0].getProperty("retraction_hop_enabled", "value"))
         self.raft_enabled = True if str(self.global_stack.getProperty("adhesion_type", "value")) == "raft" else False
         # The Start and end layer numbers are used when 'By Layer' is selected
-        start_layer = self.getSettingValueByKey("a_start_layer") - 1
+        self.start_layer = self.getSettingValueByKey("a_start_layer") - 1
         end_layer = int(self.getSettingValueByKey("a_end_layer"))
-        nbr_raft_layers = 0        
+        nbr_raft_layers = 0
         if self.raft_enabled:
             for layer in data:
                 if ";LAYER:-" in layer:
@@ -387,14 +387,14 @@ class ChangeAtZ(Script):
                 if ";LAYER:0\n" in layer:
                     break
         # Adjust the start layer to account for any raft layers
-        start_layer -= nbr_raft_layers
+        self.start_layer -= nbr_raft_layers
         # Find the indexes of the Start and End layers if 'By Layer'
         self.start_index = 0
         # When retraction is enabled it adds a single line item to the data list
         self.end_index = len(data) - 1 - int(self.retract_enabled)
         if self.getSettingValueByKey("by_layer_or_height") == "by_layer":
             for index, layer in enumerate(data):
-                if ";LAYER:" + str(start_layer) + "\n" in layer:
+                if ";LAYER:" + str(self.start_layer) + "\n" in layer:
                     self.start_index = index
                     break
             # If the changes continue to the top layer
@@ -413,7 +413,7 @@ class ChangeAtZ(Script):
                     if ";LAYER:" + str(end_layer) + "\n" in layer:
                         self.end_index = index
                         break
-                        
+
         # The Start and End heights are used to find the Start and End indexes when changes are 'By Height'
         elif self.getSettingValueByKey("by_layer_or_height") == "by_height":
             start_height = float(self.getSettingValueByKey("a_height_start"))
@@ -612,9 +612,8 @@ class ChangeAtZ(Script):
         """
         Changes to the hot end temperature(s).
         :params:
-            extruders_share_heater: Lets the script know how to handle temperature at tool changes
+            extruders_share_heater: Lets the script know how to handle the differences
             active_tool: Tracks the active tool through the gcode
-            extruders_share_neater: From the Cura setting, this insures the hot end is treated as a single extruder.
             new_hotend_temp_0: The new temperature for the primary extruder T0
             orig_hot_end_temp_0: The print temperature for the primary extruder T0 as set in Cura
             orig_standby_temp_0: The standby temperature for the primary extruder T0 from Cura.  This marks a temperature line to ignore.
@@ -622,12 +621,12 @@ class ChangeAtZ(Script):
             orig_hot_end_temp_1: The print temperature for the secondary extruder T1 as set in Cura
             orig_standby_temp_1: The standby temperature for the secondary extruder T1 from Cura.  This marks a temperature line to ignore.
         """
-
-        # Change the hot end temperature
         extruders_share_heater = bool(self.global_stack.getProperty("machine_extruders_share_heater", "value"))
-        new_hotend_temp_0 = self.getSettingValueByKey("f_extruder_temperature_t0")
-        orig_hot_end_temp_0 = int(self.extruder_list[0].getProperty("material_print_temperature", "value"))
-        orig_standby_temp_0 = int(self.extruder_list[0].getProperty("material_standby_temperature", "value"))
+        self.active_tool = "T0"
+        self.new_hotend_temp_0 = self.getSettingValueByKey("f_extruder_temperature_t0")
+        self.orig_hot_end_temp_0 = int(self.extruder_list[0].getProperty("material_print_temperature", "value"))
+        self.orig_standby_temp_0 = int(self.extruder_list[0].getProperty("material_standby_temperature", "value"))
+
         # Start with single extruder machines
         if self.extruder_count == 1:
             if self.start_index == 2:
@@ -638,90 +637,77 @@ class ChangeAtZ(Script):
             # Add the temperature change at the beginning of the start layer
             lines = data[self.start_index].splitlines()
             for index, line in enumerate(lines):
-                lines[0] += "\n" + "M104 S" + str(new_hotend_temp_0) + " ; ChangeAtZ: Change Nozzle Temperature"
+                lines[0] += "\n" + "M104 S" + str(self.new_hotend_temp_0) + " ; ChangeAtZ: Change Nozzle Temperature"
                 data[self.start_index] = "\n".join(lines) + "\n"
                 break
             # Revert the temperature to the Cura setting at the end of the end layer
             lines = data[self.end_index].splitlines()
             for index, line in enumerate(lines):
-                lines[len(lines) - 2] += "\n" + "M104 S" + str(orig_hot_end_temp_0) + " ; ChangeAtZ: Reset Nozzle Temperature"
+                lines[len(lines) - 2] += "\n" + "M104 S" + str(self.orig_hot_end_temp_0) + " ; ChangeAtZ: Reset Nozzle Temperature"
                 data[self.end_index] = "\n".join(lines) + "\n"
                 break
 
         # Multi-extruder machines
         elif self.extruder_count > 1:
-            active_tool = "T0"
-            new_hotend_temp_1 = self.getSettingValueByKey("f_extruder_temperature_t1")
-            orig_hot_end_temp_1 = int(self.extruder_list[1].getProperty("material_print_temperature", "value"))
-            orig_standby_temp_1 = int(self.extruder_list[1].getProperty("material_standby_temperature", "value"))
-            # Track the tool number
+            self.new_hotend_temp_1 = self.getSettingValueByKey("f_extruder_temperature_t1")
+            self.orig_hot_end_temp_1 = int(self.extruder_list[1].getProperty("material_print_temperature", "value"))
+            self.orig_standby_temp_1 = int(self.extruder_list[1].getProperty("material_standby_temperature", "value"))
+            # Track the tool number up to the start of the start layer
+            self.getTool("T0")
+            for index, layer in enumerate(data):
+                lines = layer.split("\n")
+                for line in lines:
+                    if line.startswith("T"):
+                        self.getTool(line)
+                if index == self.start_index - 1:
+                    break
+            # Add the active extruder initial temperature change at the start of the starting layer
+            data[self.start_index] = data[self.start_index].replace("\n", f"\nM104 S{self.active_print_temp} ; ChangeAtZ: Start Temperature Change\n",1)
+            # At the start layer commence making the changes
             for index, layer in enumerate(data):
                 if index < self.start_index:
-                    lines = layer.splitlines()
-                    for line in lines:
-                        if line.startswith("T0"):
-                            active_tool = "T0"
-                        if line.startswith("T1"):
-                            active_tool = "T1"
-                # At the start layer start making the changes
-                elif index >= self.start_index:
-                    lines = layer.splitlines()
-                    for l_index, line in enumerate(lines):
-                        # Continue to track the tool number
-                        if line.startswith("T0"):
-                            active_tool = "T0"
-                        if line.startswith("T1"):
-                            active_tool = "T1"
-                        # Make the temperature changes to lines that are not standby temperature lines
-                        if line.startswith(("M104", "M109")):
-                            temp = int(self.getValue(line, "S"))
-                            if active_tool == "T0" and "T0" not in line and "T1" not in line:
-                                if temp == orig_hot_end_temp_0:
-                                    lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_0} ; ChangeAtZ: Alter temperature")
-                                else:
-                                    # Machines with 'multiple-in-one-out extruders' are handled differently
-                                    if not extruders_share_heater:
-                                        lines[l_index] = line.replace(f"S{temp}", f"S{orig_standby_temp_0} ; ChangeAtZ: Alter temperature")
-                                    else:
-                                        if active_tool == "T0":
-                                            lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_1} ; ChangeAtZ: Alter temperature")
-                                        elif active_tool == "T1":
-                                            lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_0} ; ChangeAtZ: Alter temperature")
-
-                            elif active_tool == "T1" and "T1" not in line and "T0" not in line:
-                                if temp == orig_hot_end_temp_1:
-                                    lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_1} ; ChangeAtZ: Alter temperature")
-                                else:
-                                    # Machines with 'multiple-in-one-out extruders' are handled differently
-                                    if not extruders_share_heater:
-                                        lines[l_index] = line.replace(f"S{temp}", f"S{orig_standby_temp_1} ; ChangeAtZ: Alter temperature")
-                                    else:
-                                        if active_tool == "T0":
-                                            lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_1} ; ChangeAtZ: Alter temperature")
-                                        elif active_tool == "T1":
-                                            lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_0} ; ChangeAtZ: Alter temperature")
-                            # These are for the 'Heat up prior to tool change' lines
-                            elif active_tool == "T0" and "T1" in line:
-                                if temp == orig_hot_end_temp_1:
-                                    lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_1} ; ChangeAtZ: Alter temperature")
-                            elif active_tool == "T1" and "T0" in line:
-                                if temp == orig_hot_end_temp_0:
-                                    lines[l_index] = line.replace(f"S{temp}", f"S{new_hotend_temp_0} ; ChangeAtZ: Alter temperature")
-                    # Kick out when the end of the end layer is reached
-                    if index > self.end_index:
-                        break
-
-                    data[index] = "\n".join(lines) + "\n"
-                # Reset the active extruder temperature at the end of the changes
-                if index == self.end_index:
-                    lines = data[self.end_index].splitlines()
-                    if active_tool == "T0":
-                        lines[len(lines) - 2] += "\nM104 T0 S" + str(orig_hot_end_temp_0) + " ; Original Temperature T0"
-                    if active_tool == "T1":
-                        lines[len(lines) - 2] += "\nM104 T1 S" + str(orig_hot_end_temp_1) + " ; Original Temperature T1"
-                    data[self.end_index] = "\n".join(lines) + "\n"
+                    continue
+                if index > self.end_index:
                     break
+                lines = layer.splitlines()
+                for l_index, line in enumerate(lines):
+                    # Continue to track the tool number
+                    if line.startswith("T"):
+                        self.getTool(line)
+                    if line.startswith("M109"):
+                        lines[l_index] = f"M109 S{self.active_print_temp} ; ChangeAtZ: Alter temperature"
+                    elif line.startswith("M104"):
+                        if self.getValue(line, "S") == self.inactive_standby_temp:
+                            continue
+                        elif self.getValue(line, "S") == self.inactive_tool_orig_temp:
+                            lines[l_index] = re.sub("S(\d+|\d.+)", f"S{self.inactive_print_temp} ; ChangeAtZ: Alter temperature", line)
+                        elif self.getValue(line, "S") == self.active_tool_orig_temp:
+                            lines[l_index] = re.sub("S(\d+|\d.+)", f"S{self.active_print_temp} ; ChangeAtZ: Alter temperature", line)
+                data[index] = "\n".join(lines) + "\n"
+            # Revert the active extruder temperature at the end of the changes
+            lines = data[self.end_index].split("\n")
+            lines[len(lines) - 3] += f"\nM104 {self.active_tool} S{self.active_tool_orig_temp} ; ChangeAtZ: Original Temperature active tool"
+            data[self.end_index] = "\n".join(lines)
         return data
+
+    def getTool(self, line):
+        if line.startswith("T1"):
+            self.active_tool = "T1"
+            self.active_tool_orig_temp = self.orig_hot_end_temp_1
+            self.active_print_temp = self.new_hotend_temp_1
+            self.inactive_tool = "T0"
+            self.inactive_tool_orig_temp = self.orig_hot_end_temp_0
+            self.inactive_print_temp = self.new_hotend_temp_0
+            self.inactive_standby_temp = self.orig_standby_temp_0
+        else:
+            self.active_tool = "T0"
+            self.active_tool_orig_temp = self.orig_hot_end_temp_0
+            self.active_print_temp = self.new_hotend_temp_0
+            self.inactive_tool = "T1"
+            self.inactive_tool_orig_temp = self.orig_hot_end_temp_1
+            self.inactive_print_temp = self.new_hotend_temp_1
+            self.inactive_standby_temp = self.orig_standby_temp_1
+        return
 
     def _change_retract(self, data:str)->str:
         """
@@ -845,7 +831,7 @@ class ChangeAtZ(Script):
 
     def _format_lines(self, temp_data: str) -> str:
         """
-        This adds '-' as padding so the setting descriptions line up in the gcode
+        This adds '-' as padding so the setting descriptions are more readable in the gcode
         """
         for l_index, layer in enumerate(temp_data):
             lines = layer.split("\n")
@@ -857,7 +843,7 @@ class ChangeAtZ(Script):
 
     def _change_bv_fan_speed(self, temp_data: str) -> str:
         """
-        This can control an additional fan - Auxilliary or Build Volume fan
+        This can be used to control any fan.  Typically this would be an Auxilliary or Build Volume fan
         :params:
             bv_fan_nr:  The 'P' number of the fan
             bv_fan_speed:  The new speed for the fan
@@ -890,7 +876,7 @@ class ChangeAtZ(Script):
     # Get the starting index or ending index of the change range when 'By Height'
     def _is_legal_z(self, data: str, the_height: float) -> int:
         """
-        When in 'By Height' mode, this will return the index of the layer where the working Z is >= the input Z height, or the index of the layer where the working Z >= the Ending Z height
+        When in 'By Height' mode, this will return the index of the layer where the working Z is >= the Starting Z height, or the index of the layer where the working Z >= the Ending Z height
         :params:
             max_z:  The maximum Z height within the Gcode.  This is used to determine the upper limit of the data list that should be returned.
             the_height:  The user input height.  This will be adjusted if rafts are enabled and/or Z-hops are enabled
@@ -959,7 +945,7 @@ class ChangeAtZ(Script):
             if the_index > 0:
                 break
 
-        # Fudge factor to insure an entry of the 'model_height' allows the changes to continue to the end of the top layer
+        # Catch-all to insure an entry of the 'model_height'.  This allows the changes to continue to the end of the top layer
         if the_height >= max_z:
             the_index = len(data) - 2
         return the_index

@@ -746,6 +746,9 @@ class LittleUtilities_v18(Script):
         }"""
 
     def execute(self, data):
+        """
+        The order in which the selected scripts run can matter.  The order below seems to work well.
+        """
         self.global_stack = Application.getInstance().getGlobalContainerStack()
         if not self.getSettingValueByKey("enable_little_utilities"):
             data[0] += ";    [Little Utilities] Not enabled\n"
@@ -798,11 +801,13 @@ class LittleUtilities_v18(Script):
             data = self._adjust_startup_gcode(data)
         if self.getSettingValueByKey("wipe_before_hop"):
             data = self._wipe_before_z_hop(data)
+        if self.getSettingValueByKey("ortho_supt_travel"):
+            data = self._ortho_supt_travel(data)
         data[1] = self.format_string(data[1])
         data[len(data) - 1] = self.format_string(data[len(data) - 1])
         return data
 
-    # Add Extruder Ending Gcode-------------------------------------------
+    # Add Extruder Ending Gcode
     def _add_extruder_end(self, data:str)->str:
         t_nr = 0
         try:
@@ -839,7 +844,7 @@ class LittleUtilities_v18(Script):
             data[len(data)-1] += ";" + str(">" * 33) + "End of DATA[" + str(num+1) + "]" + str("<" * 33) + "\n"
         return
 
-    # Remove Comments----------------------------------------------------------
+    # Remove Comments
     def _remove_comments(self, data:str)->str:
         me_opening = bool(self.getSettingValueByKey("remove_comments_inc_opening"))
         me_startup = bool(self.getSettingValueByKey("remove_comments_inc_startup"))
@@ -898,7 +903,7 @@ class LittleUtilities_v18(Script):
             data[num] = modified_data[0:-1]
         return
 
-    # Renumber Layers----------------------------------------------------------
+    # Renumber Layers
     def _renumber_layers(self, data:str)->str:
         renum_layers = str(self.getSettingValueByKey("renum_layers"))
         one_at_a_time = Application.getInstance().getGlobalContainerStack().getProperty("print_sequence", "value")
@@ -990,7 +995,7 @@ class LittleUtilities_v18(Script):
                     model_lay_count = 0
         return
 
-    # Lift Head Parking--------------------------------------------------------
+    # Lift Head Parking
     def _lift_head_park(self, data:str)->str:
         # Send a message and exit if Lift Head is not enabled
         if not bool(self.extruder[0].getProperty("cool_lift_head", "value")):
@@ -1058,7 +1063,7 @@ class LittleUtilities_v18(Script):
             data[lay_num] = "\n".join(lines)
         return
 
-    # Change printer settings--------------------------------------------------
+    # Change printer settings
     def _change_printer_settings(self, data:str)->str:
         change_feed_string = ";-------------------------------Change Printer Settings\n"
         change_accel_string = ""
@@ -1174,7 +1179,7 @@ class LittleUtilities_v18(Script):
                 data[1] = "\n".join(lines) + "\n"
         return
 
-    # Very_cool cooling--------------------------------------------------------
+    # Very_cool cooling
     def _very_cool(self, data:str)->str:
         all_layers = self.getSettingValueByKey("very_cool_layer")
         add_layers = ""
@@ -1399,7 +1404,7 @@ class LittleUtilities_v18(Script):
             Message(title = "[Little Utilities] ABL is DISABLED", text = "The print is either small or of short duration so ABL IS DISABLED for this print.").show()
         return
 
-    # Line Numbering-----------------------------------------------------------
+    # Line Numbering
     def _line_numbering(self, data:str)->str:
         prefix = self.getSettingValueByKey("add_line_nr_sentence_number_prefix")
         line_number = int(self.getSettingValueByKey("add_line_nr_starting_number"))
@@ -1417,7 +1422,7 @@ class LittleUtilities_v18(Script):
             data[layer_index] = "\n".join(lines)
         return
 
-    # Debug Practice File with no extrusions or heating -----------------------
+    # Debug Practice File with no extrusions or heating 
     def _practice_file(self, data:str)->str:
         start_layer = int(self.getSettingValueByKey("debug_start_layer")) - 1
         end_layer = int(self.getSettingValueByKey("debug_end_layer"))
