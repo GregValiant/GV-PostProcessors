@@ -1,11 +1,15 @@
-# Modified 5/15/2023 - Greg Valiant (Greg Foresi)
-#    Created by Wayne Porter
-#    Added insertion frequency
-#    Adjusted for use with Relative Extrusion
-#    Changed Retract to a boolean and when true use the regular Cura retract settings.
-#    Use the regular Cura settings for Travel Speed and Speed_Z instead of asking.
-#    Added code to check the E location to prevent retracts if the filament was already retracted.
-#    Added 'Pause before image' per LemanRus
+""" Modified 5/15/2023 - Greg Valiant (Greg Foresi)
+    Created by Wayne Porter
+    GregValiant added:
+    ~ Insertion Frequency
+    ~ Compatibility with Relative Extrusion
+    ~ Changed Retract to a boolean and when selected will use the regular Cura retract settings.
+    ~ Use the Cura settings for Travel Speed and Speed_Z.
+    ~ Added code to check the E location to prevent retracts if the filament was already retracted.
+    ~ Added 'anti_shake_wait' to allow the printer to settle down before taking the image.
+    ~ Added 'insure_final_image' so an image will be taken at print end regarless of the frequency.
+    ~ Added compatibility with Cura 4.x by removing the 'Match' and replacing it with the 'if' statement.
+"""
 
 from ..Script import Script
 from UM.Application import Application
@@ -46,14 +50,14 @@ class TimeLapse(Script):
                         "every_100th": "Every 100th"},
                     "default_value": "every_layer"
                 },
-                "anti_shake_length":
+                "anti_shake_wait":
                 {
                     "label": "Pause before image",
                     "description": "How long to wait (in ms) before capturing the image.  This is to allow the printer to 'settle down' after movement.  To disable set this to '0'.",
                     "type": "int",
                     "default_value": 0,
                     "minimum_value": 0,
-                    "unit": "ms  "
+                    "unit": "ms"
                 },
                 "pause_length":
                 {
@@ -62,7 +66,7 @@ class TimeLapse(Script):
                     "type": "int",
                     "default_value": 500,
                     "minimum_value": 0,
-                    "unit": "ms  "
+                    "unit": "ms"
                 },
                 "park_print_head":
                 {
@@ -84,7 +88,7 @@ class TimeLapse(Script):
                 {
                     "label": "Park Print Head Y",
                     "description": "What Y location does the head move to for photo.",
-                    "unit": "mm  ",
+                    "unit": "mm",
                     "type": "float",
                     "default_value": 0,
                     "enabled": "park_print_head"
@@ -100,7 +104,7 @@ class TimeLapse(Script):
                 {
                     "label": "Z-Hop Height When Parking",
                     "description": "The height to lift the nozzle off the print before parking.",
-                    "unit": "mm  ",
+                    "unit": "mm",
                     "type": "float",
                     "default_value": 2.0,
                     "minimum_value": 0.0
@@ -138,45 +142,44 @@ class TimeLapse(Script):
         zhop = self.getSettingValueByKey("zhop")
         ensure_final_image = bool(self.getSettingValueByKey("ensure_final_image"))
         when_to_insert = self.getSettingValueByKey("insert_frequency")
-        last_x = 0.0
-        last_y = 0.0
-        last_z = 0.0
-        last_e = 0.0
-        prev_e = 0.0
+        last_x = 0
+        last_y = 0
+        last_z = 0
+        last_e = 0
+        prev_e = 0
         is_retracted = False
         gcode_to_append = ""
         if park_print_head:
             gcode_to_append += f"G0 F{travel_speed} X{x_park} Y{y_park} ;Park print head\n"
         gcode_to_append += "M400 ;Wait for moves to finish\n"
-        anti_shake_length = self.getSettingValueByKey("anti_shake_length")
-        if anti_shake_length > 0:
-            gcode_to_append += f"G4 P{anti_shake_length} ;Wait for printer to settle down\n"
+        anti_shake_wait = self.getSettingValueByKey("anti_shake_wait")
+        if anti_shake_wait > 0:
+            gcode_to_append += f"G4 P{anti_shake_wait} ;Wait for printer to settle down\n"
         gcode_to_append += trigger_command + " ;Snap the Image\n"
         gcode_to_append += f"G4 P{pause_length} ;Wait for camera to finish\n"
-        match when_to_insert:
-            case "every_layer":
-                step_freq = 1
-            case "every_2nd":
-                step_freq = 2
-            case "every_3rd":
+        if when_to_insert == "every_layer":
+            step_freq = 1
+        elif when_to_insert == "every_2nd":
+            step_freq = 2
+        elif when_to_insert == "every_3rd":
                 step_freq = 3
-            case "every_5th":
-                step_freq = 5
-            case "every_10th":
-                step_freq = 10
-            case "every_25th":
-                step_freq = 25
-            case "every_50th":
-                step_freq = 50
-            case "every_100th":
-                step_freq = 100
-            case _:
-                step_freq = 1
-        # Use the step_freq to index through the layers----------------------------------------
+        elif when_to_insert == "every_5th":
+            step_freq = 5
+        elif when_to_insert ==  "every_10th":
+            step_freq = 10
+        elif when_to_insert ==  "every_25th":
+            step_freq = 25
+        elif when_to_insert ==  "every_50th":
+            step_freq = 50
+        elif when_to_insert ==  "every_100th":
+            step_freq = 100
+        else:
+            step_freq = 1
+        # Use the step_freq to index through the layers
         for num in range(2,len(data)-1,step_freq):
             layer = data[num]
             try:
-                # Track X,Y,Z location.--------------------------------------------------------
+                # Track X,Y,Z location
                 for line in layer.split("\n"):
                     if self.getValue(line, "G") in {0, 1}:
                         last_x = self.getValue(line, "X", last_x)
@@ -185,7 +188,7 @@ class TimeLapse(Script):
                 #Track the E location so that if there is already a retraction we don't double dip.
                         if rel_cmd == 82:
                             if " E" in line:
-                                last_e = float(get.value(line("E")))
+                                last_e = line.split("E")[1]
                                 if float(last_e) < float(prev_e):
                                     is_retracted = True
                                 else:
@@ -208,7 +211,7 @@ class TimeLapse(Script):
                             last_e = float(prev_e) + float(retract_dist)
                         prev_e = last_e
                 lines = layer.split("\n")
-                # Insert the code----------------------------------------------------
+                # Insert the code
                 camera_code = ""
                 for line in lines:
                     if ";LAYER:" in line:

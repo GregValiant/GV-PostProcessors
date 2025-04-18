@@ -155,27 +155,26 @@ class InsertAtLayerChange(Script):
                 mycode = re.sub(",", "\n",mycode)
             gcode_to_add = mycode
         #Get the insertion frequency
-        match when_to_insert:
-            case "every_layer":
-                freq = 1
-            case "every_2nd":
-                freq = 2
-            case "every_3rd":
-                freq = 3
-            case "every_5th":
-                freq = 5
-            case "every_10th":
-                freq = 10
-            case "every_25th":
-                freq = 25
-            case "every_50th":
-                freq = 50
-            case "every_100th":
-                freq = 100
-            case "once_only":
-                the_insert_layer = int(self.getSettingValueByKey("single_end_layer"))-1
-            case _:
-                raise ValueError(f"Unexpected insertion frequency {when_to_insert}")
+        if when_to_insert == "every_layer":
+            freq = 1
+        elif when_to_insert == "every_2nd":
+            freq = 2
+        elif when_to_insert == "every_3rd":
+            freq = 3
+        elif when_to_insert == "every_5th":
+            freq = 5
+        elif when_to_insert == "every_10th":
+            freq = 10
+        elif when_to_insert == "every_25th":
+            freq = 25
+        elif when_to_insert == "every_50th":
+            freq = 50
+        elif when_to_insert == "every_100th":
+            freq = 100
+        elif when_to_insert == "once_only":
+            the_insert_layer = int(self.getSettingValueByKey("single_end_layer"))-1
+        else:
+            raise ValueError(f"Unexpected insertion frequency {when_to_insert}")
         #Single insertion
         if when_to_insert == "once_only":
             # For print sequence 'All at once'
@@ -206,7 +205,7 @@ class InsertAtLayerChange(Script):
                     if ";LAYER:" in line:
                         layer_number = int(line.split(":")[1])
                         if layer_number == next_layer and layer_number <= end_layer:
-                            lines.insert(l_index + 1,gcode_to_add)
+                            lines.insert(l_index + 1, gcode_to_add)
                             data[index] = "\n".join(lines)
                             next_layer += freq
                         # Reset the next_layer for one-at-a-time

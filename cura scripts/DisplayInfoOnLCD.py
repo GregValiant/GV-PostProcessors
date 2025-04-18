@@ -29,6 +29,7 @@ Display Filename and Layer on the LCD by Amanda de Castilho on August 28, 2018
            - 'Add M118 Line' is available with either option.  M118 will bounce the message back to a remote print server through the USB connection.
            - 'Add M73 Line' is used by 'Display Progress' only.  There are options to incluse M73 P(percent) and M73 R(time remaining)
            - Enable 'Finish-Time' Message - when enabled, takes the Print Time and calculates when the print will end.  It uses the Time Fudge Factor.  The user may enter a print start time.
+    ~ Added compatibility with Cura 4.x by replacing 'getSetting' with variable names in the 'f' formatting lines.
 """
 
 from ..Script import Script
@@ -638,34 +639,46 @@ class DisplayInfoOnLCD(Script):
                     model_name = line.split(":")[1]
                     if not model_name in model_list:
                         model_list.append(model_name)
+        
+        # The following stat "f" format is compatible with Cura 4.x
         # Filament stats
         extruder_count = global_stack.getProperty("machine_extruder_count", "value")
         init_layer_hgt_line = ";Initial Layer Height: " + str(global_stack.getProperty("layer_height_0", "value"))
         filament_line_t0 = ";Extruder 1 (T0)\n"
         filament_amount = Application.getInstance().getPrintInformation().materialLengths
         filament_line_t0 += f";  Filament used: {filament_amount[0]}m\n"
-        filament_line_t0 += f";  Filament Type: {global_stack.extruderList[0].material.getMetaDataEntry("material", "")}\n"
-        filament_line_t0 += f";  Filament Dia.: {global_stack.extruderList[0].getProperty("material_diameter", "value")}mm\n"
-        filament_line_t0 += f";  Nozzle Size  : {global_stack.extruderList[0].getProperty("machine_nozzle_size", "value")}mm\n"
-        filament_line_t0 += f";  Print Temp.  : {global_stack.extruderList[0].getProperty("material_print_temperature", "value")}°"
+        Filament_Type_t0 = global_stack.extruderList[0].material.getMetaDataEntry("material", "")
+        filament_line_t0 += ";  Filament Type: " + str(Filament_Type_t0) + "\n"
+        Filament_Dia_t0 = global_stack.extruderList[0].getProperty("material_diameter", "value")
+        filament_line_t0 += ";  Filament Dia.: " + str(Filament_Dia_t0) + "mm\n"
+        Nozzle_Size_t0 = global_stack.extruderList[0].getProperty("machine_nozzle_size", "value")
+        filament_line_t0 += f";  Nozzle Size  : {Nozzle_Size_t0}mm\n"
+        Print_Temp_t0 = global_stack.extruderList[0].getProperty("material_print_temperature", "value")
+        filament_line_t0 += f";  Print Temp.  : {Print_Temp_t0}°"
 
         # if there is more than one extruder then get the stats for the second one.
         filament_line_t1 = ""
         if extruder_count > 1:
             filament_line_t1 = "\n;Extruder 2 (T1)\n"
             filament_line_t1 += f";  Filament used: {filament_amount[1]}m\n"
-            filament_line_t1 += f";  Filament Type: {global_stack.extruderList[1].material.getMetaDataEntry("material", "")}\n"
-            filament_line_t1 += f";  Filament Dia.: {global_stack.extruderList[1].getProperty("material_diameter", "value")}mm\n"
-            filament_line_t1 += f";  Nozzle Size  : {global_stack.extruderList[1].getProperty("machine_nozzle_size", "value")}mm\n"
-            filament_line_t1 += f";  Print Temp.  : {global_stack.extruderList[1].getProperty("material_print_temperature", "value")}°"
+            Filament_Type_t1 = global_stack.extruderList[0].material.getMetaDataEntry("material", "")
+            filament_line_t1 += ";  Filament Type: " + str(Filament_Type_t1) + "\n"
+            Filament_Dia_t1 = global_stack.extruderList[0].getProperty("material_diameter", "value")
+            filament_line_t1 += ";  Filament Dia.: " + str(Filament_Dia_t1) + "mm\n"
+            Nozzle_Size_t1 = global_stack.extruderList[0].getProperty("machine_nozzle_size", "value")
+            filament_line_t1 += f";  Nozzle Size  : {Nozzle_Size_t1}mm\n"
+            Print_Temp_t1 = global_stack.extruderList[0].getProperty("material_print_temperature", "value")
+            filament_line_t1 += f";  Print Temp.  : {Print_Temp_t1}°"
 
         # Add the stats to the gcode file
         lines = data[0].split("\n")
         for index, line in enumerate(lines):
             if line.startswith(";Layer height:"):
                 lines[index] += f"\n{init_layer_hgt_line}"
-                lines[index] += f"\n;Base Quality Name  : '{global_stack.quality.getMetaDataEntry("name", "")}'"
-                lines[index] += f"\n;Custom Quality Name: '{global_stack.qualityChanges.getMetaDataEntry("name")}'"
+                Base_Quality_Name = global_stack.quality.getMetaDataEntry("name", "")
+                lines[index] += f"\n;Base Quality Name  : '{Base_Quality_Name}'"
+                Custom_Quality_Name = global_stack.qualityChanges.getMetaDataEntry("name")
+                lines[index] += f"\n;Custom Quality Name: '{Custom_Quality_Name}'"
             if line.startswith(";Filament used"):
                 lines[index] = filament_line_t0 + filament_line_t1
             if "MINX" in line or "MIN.X" in line:
