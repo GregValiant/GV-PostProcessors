@@ -1,12 +1,11 @@
 """
-01/01/24 Revised by GregValiant (Greg Foresi)
-
+04/01/25 Revised by GregValiant (Greg Foresi)
     Changes and additions:
         Added more 'Pause Command' options
         Added 'Unload' option (prior to pause) and 'Reload' and 'Purge' options (after the pause).
         Added 'Reason for Pause' options.
             ~If 'Reason_for_pause' == 'Filament Change' then Unload, Reload, and Purge become available.
-            ~If 'Reason for Pause' == 'All Others' then the unload options are hidden as then are not required.
+            ~If 'Reason for Pause' == 'All Others' then the filament change options are hidden as then are not required.
         Added 'Multiple Pause Layers' option.
             ~This works when all pauses will have the same settings.  Delimit the layer numbers with commas.
                 ~~If pauses require different settings then add another instance of the script.
@@ -19,10 +18,10 @@
             ~A pause at 'Layer:5' will only result in a pause at the first layer:5 encountered whereas pauses at '15,23,67' might be in different models.
             ~Models can be skipped, or have pauses at different layers than other models, and some models could be entirely different colors or material.
         Added 'Flow Rate' option for 'Redo Layer'.
-        Multi-extruder printers now use the Cura settings of the active tool (retraction amount, retract and prime speeds, etc.)
-        The 'Stepper Timeout' has (hopefully) been de-confused.
+        Multi-extruder printers now use the Cura settings of the active tool at the pause (retraction amount, retract and prime speeds, etc.)
+        The 'Stepper Timeout' has been de-confused.
     Obsolete:
-        The retraction option.  Retractions are added when required (provided that retractions are enabled).
+        The retraction option.  Retractions are added if there was none, and if retractions are enabled.
 """
 
 from ..Script import Script
@@ -33,6 +32,48 @@ from typing import List, Tuple
 from UM.Message import Message
 
 class PauseAtHeight(Script):
+
+    #  Alter some settings per the configuration of the printer and user
+    def initialize(self) -> None:
+        """
+        Adjusts the script settings depending on the Cura setup and Machine settings.
+        :param global_stack: is local here as it might change prior to the script actually running
+        """
+        super().initialize()
+        # Set up some defaults when loading.
+        global_stack = Application.getInstance().getGlobalContainerStack()
+        if global_stack is None or self._instance is None:
+            return
+
+        for key in ["machine_name", "machine_gcode_flavor"]:
+            self._instance.setProperty(key, "value", global_stack.getProperty(key, "value"))
+        extruder = global_stack.extruderList
+        machine_extruder_count = int(global_stack.getProperty("machine_extruder_count", "value"))
+        self._instance.setProperty("tool_temp_overide_enable", "value", machine_extruder_count > 1)
+        self._instance.setProperty("tool_temp_overide", "value", machine_extruder_count > 1)
+        standby_temperature = extruder[0].getProperty("material_print_temperature", "value")
+        self._instance.setProperty("standby_temperature", "value", standby_temperature)
+        resume_print_temperature = extruder[0].getProperty("material_print_temperature", "value")
+        self._instance.setProperty("resume_print_temperature", "value", resume_print_temperature)
+        unload_reload_speed = int(global_stack.getProperty("machine_max_feedrate_e", "value"))
+        # If Cura has the max E speed at 299792458000 knock it down to something reasonable
+        if unload_reload_speed > 100: unload_reload_speed = 100
+        # Set the machine limits to catch user typos
+        self._instance.setProperty("unload_reload_speed", "value", unload_reload_speed)
+        self._machine_width = int(global_stack.getProperty("machine_width", "value"))
+        self._machine_depth = int(global_stack.getProperty("machine_depth", "value"))
+        self._machine_height = int(global_stack.getProperty("machine_height", "value"))
+        origin_at_center = bool(global_stack.getProperty("machine_center_is_zero", "value"))
+        if not origin_at_center:
+            self._instance.setProperty("x_max_value", "value", self._machine_width)
+            self._instance.setProperty("y_max_value", "value", self._machine_depth)
+            self._instance.setProperty("x_min_value", "value", 0)
+            self._instance.setProperty("y_min_value", "value", 0)
+        else:
+            self._instance.setProperty("x_max_value", "value", round(self._machine_width/2))
+            self._instance.setProperty("y_max_value", "value", round(self._machine_depth/2))
+            self._instance.setProperty("x_min_value", "value", -abs(round(self._machine_width/2,1)))
+            self._instance.setProperty("y_min_value", "value", -abs(round(self._machine_depth/2,1)))
 
     def getSettingDataString(self) -> str:
         return """{
@@ -134,7 +175,7 @@ class PauseAtHeight(Script):
                     "description": "When using 'One_at_a_Time' mode you can add pauses to each model.  Use the Cura preview layer numbers from the bottom through to the top.  Your model may be 150 layers tall and the pauses may be at '100,200,300' per the preview layer numbers.  Check the gcode to insure you get what you intended.  It is possible to give each model a pause at a different layer, or pause in some models but not others.  If this is disabled then only the first model will have pauses",
                     "type": "bool",
                     "default_value": false,
-                    "enabled": "enable_pause_at_height and pause_method != 'griffin'"
+                    "enabled": "enable_pause_at_height and pause_method != 'griffin' and by_layer_or_height == 'by_layer'"
                 },
                 "unload_amount":
                 {
@@ -300,7 +341,6 @@ class PauseAtHeight(Script):
                     "type": "int",
                     "default_value": 15,
                     "minimum_value": 0,
-                    "maximum_value": 50,
                     "enabled": "enable_pause_at_height and head_park_enabled and pause_method != 'repetier'"
                 },
 
@@ -439,52 +479,10 @@ class PauseAtHeight(Script):
             }
         }"""
 
-    #  Alter some settings per the configuration of the printer and user
-    def initialize(self) -> None:
-        """
-        Adjusts the script settings depending on the Cura setup and Machine settings.
-        :param global_stack: is local here as it might change prior to the script actually running
-        """
-        super().initialize()
-        # Set up some defaults when loading.
-        global_stack = Application.getInstance().getGlobalContainerStack()
-        if global_stack is None or self._instance is None:
-            return
-
-        for key in ["machine_name", "machine_gcode_flavor"]:
-            self._instance.setProperty(key, "value", global_stack.getProperty(key, "value"))
-        extruder = global_stack.extruderList
-        machine_extruder_count = int(global_stack.getProperty("machine_extruder_count", "value"))
-        self._instance.setProperty("tool_temp_overide_enable", "value", machine_extruder_count > 1)
-        self._instance.setProperty("tool_temp_overide", "value", machine_extruder_count > 1)
-        standby_temperature = extruder[0].getProperty("material_print_temperature", "value")
-        self._instance.setProperty("standby_temperature", "value", standby_temperature)
-        resume_print_temperature = extruder[0].getProperty("material_print_temperature", "value")
-        self._instance.setProperty("resume_print_temperature", "value", resume_print_temperature)
-        unload_reload_speed = int(global_stack.getProperty("machine_max_feedrate_e", "value"))
-        # If Cura has the max E speed at 299792458000 knock it down to something reasonable
-        if unload_reload_speed > 100: unload_reload_speed = 100
-        # Set the machine limits to catch user typos
-        self._instance.setProperty("unload_reload_speed", "value", unload_reload_speed)
-        self._machine_width = int(global_stack.getProperty("machine_width", "value"))
-        self._machine_depth = int(global_stack.getProperty("machine_depth", "value"))
-        self._machine_height = int(global_stack.getProperty("machine_height", "value"))
-        origin_at_center = bool(global_stack.getProperty("machine_center_is_zero", "value"))
-        if not origin_at_center:
-            self._instance.setProperty("x_max_value", "value", self._machine_width)
-            self._instance.setProperty("y_max_value", "value", self._machine_depth)
-            self._instance.setProperty("x_min_value", "value", 0)
-            self._instance.setProperty("y_min_value", "value", 0)
-        else:
-            self._instance.setProperty("x_max_value", "value", round(self._machine_width/2))
-            self._instance.setProperty("y_max_value", "value", round(self._machine_depth/2))
-            self._instance.setProperty("x_min_value", "value", -abs(round(self._machine_width/2,1)))
-            self._instance.setProperty("y_min_value", "value", -abs(round(self._machine_depth/2,1)))
-
     def execute(self, data):
         """
         Adds pauses 'By Layer' or 'By Height' based on the user input
-        
+
         :param data: The G-code data as a list of strings.
         :param one_at_a_time: The Print Sequence from Cura
         :param one_at_a_time_renum: If the print sequence is One-at-a-Time then the user can opt to renumber the gcode to All-at-Once mode and then revert to One-at-a-Time mode.  It allows different effects for PauseAtHeight.
@@ -493,7 +491,7 @@ class PauseAtHeight(Script):
         :param display_text_list: The text that will be displayed at each layer change.
         :param pause_layer_list: The pause layer or pause height numbers can be a comma delimited string and so a list is used
         :param pause_layer: The items from the pause_layer_list
-        
+
         :return: The modified G-code data.
         """
         # Exit if the script is not enabled
@@ -501,45 +499,49 @@ class PauseAtHeight(Script):
             data[0] += ";  [Pause at Layer or Height] Not enabled\n"
             Logger.log("i", "[Pause at Layer or Height] Not enabled")
             return data
-        
-        # Exit is the gcode has already been post-processed
+
+        # Exit if the gcode has already been post-processed
         if ";POSTPROCESSED" in data[0]:
             return data
-            
+
         # Set some variables
         self.global_stack = Application.getInstance().getGlobalContainerStack()
-        self.extruder_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))        
+        self.extruder_count = int(self.global_stack.getProperty("machine_extruder_count", "value"))
         self.extruder_list = self.global_stack.extruderList
         self.initial_layer_height = float(self.global_stack.getProperty("layer_height_0", "value"))
         self.layer_height = float(self.global_stack.getProperty("layer_height", "value"))
         self.z_hop_enabled = bool(self.extruder_list[0].getProperty("retraction_hop_enabled", "value"))
         one_at_a_time = self.global_stack.getProperty("print_sequence", "value")
-        one_at_a_time_renum = bool(self.getSettingValueByKey("one_at_a_time_renum"))
-        
-        # If in One-at-a-Time mode then renumber the layers to All-at-Once mode
-        if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
-            data = self._renumber_layers(data, "renum")
-            
-        # Get the command that will be used to pause the printer
-        pause_layer_setting = str(self.getSettingValueByKey("pause_layer"))
-        
-        # Get the text that will be displayed at the pause
-        display_text = str(self.getSettingValueByKey("display_text"))
         
         # Get the 'By Layer' or 'By Height' user preference
         by_layer_or_height = self.getSettingValueByKey("by_layer_or_height")
-        
+        one_at_a_time_renum = bool(self.getSettingValueByKey("one_at_a_time_renum"))
+        if by_layer_or_height == "by_height" or one_at_a_time == "all_at_once":
+            one_at_a_time_renum = False
+
+        # If in One-at-a-Time mode then renumber the layers to All-at-Once mode
+        if one_at_a_time == "one_at_a_time" and one_at_a_time_renum:
+            data = self._renumber_layers(data, "renum")
+
+        # Get the command that will be used to pause the printer
+        pause_layer_setting = str(self.getSettingValueByKey("pause_layer"))
+
+        # Get the text that will be displayed at the pause
+        display_text = str(self.getSettingValueByKey("display_text"))
+
         # Get the pause layers or pause heights
         if by_layer_or_height == "by_layer":
             # When 'By Layer' the setting can be used
             pause_layer_list = pause_layer_setting.split(",")
         else:
+            # Renumbering is only available in By Layer mode
+            one_at_a_time_renum = False
             # When 'By Height' the heights need to be translated into layer numbers
             pause_layer_list = self._pause_layer_from_height(data)
-        
+
         # The display_text_list can match the pauses so color changes can be noted
         display_text_list = display_text.split(",")
-        
+
         # Go through the pause layer list and add pauses as necessary
         for index, pause_layer in enumerate(pause_layer_list):
             # Track the tool numbers so the settings will match the tool that is active at the pause
@@ -693,7 +695,7 @@ class PauseAtHeight(Script):
                 # Couldn't cast to int. Something is wrong with this g-code data
                 except ValueError:
                     continue
-                    
+
                 if current_layer < pause_layer - nbr_negative_layers:
                     continue
 
@@ -729,7 +731,7 @@ class PauseAtHeight(Script):
                     prev_layer = "\n".join(temp_list)
                     layer = prev_layer + redo_layer_flow_reset + layer
                     new_data[index] = layer
-                    
+
                     # Get the X Y position and the extruder's absolute position at the beginning of the redone layer.
                     x, y = self.getNextXY(layer)
                     prev_lines = prev_layer.split("\n")
@@ -833,14 +835,14 @@ class PauseAtHeight(Script):
                 # Set a custom GCODE section after pause
                 if gcode_after:
                     prepend_gcode += gcode_after + "\n"
-                
+
                 # If redoing a layer then move back own to the previous layer height.
                 if redo_layer:
                     working_z = current_z - (self.layer_height if not self.z_hop_enabled else 0)
                     working_z_txt = "; Move down to redo layer height\n"
                 else:
                     working_z = current_z
-                    working_z_txt = "; Move down to resume height\n"                    
+                    working_z_txt = "; Move down to resume height\n"
                 if pause_method == "repetier":
                     # Optionally extrude material
                     if int(purge_amount) != 0:
@@ -853,7 +855,7 @@ class PauseAtHeight(Script):
                         prepend_gcode += self.putValue(G = 1, E = -self.retraction_amount, F = self.retraction_retract_speed) + ";Retract\n"
 
                     # Move the head back to the resume position
-                           
+
                     if park_enabled:
                         prepend_gcode += self.putValue(G = 0, F = self.speed_travel, X = x, Y = y) + ";Return to print location\n"
                         prepend_gcode += self.putValue(G = 0, F = self.speed_z_hop, Z = working_z) + working_z_txt
@@ -1079,7 +1081,7 @@ class PauseAtHeight(Script):
                 if tool_line.startswith("T"):
                     self.tool_nr = self.getValue(tool_line, "T")
         return self.tool_nr
-        
+
     def _pause_layer_from_height(self, data: str) -> str:
         """
         If 'By_Height' - convert the heights to corresponding layer numbers and return the list.
@@ -1100,7 +1102,7 @@ class PauseAtHeight(Script):
                 continue
             temporary_layer_list.append(str(self._is_legal_z(data, p_hgt)))
         return temporary_layer_list
-        
+
     def _is_legal_z(self, data: str, the_height: float) -> int:
         """
         This returns the index of any 'height' that is passed to it.  If rafts are enabled this returns an index adjusted by the raft height.
@@ -1118,7 +1120,7 @@ class PauseAtHeight(Script):
                                     starting_z = round(float(self.getValue(line, "Z")),2)
                                     the_height += starting_z
                                     break
-                            except IndexError:                                
+                            except IndexError:
                                 starting_z = round(float(self.getValue(line, "Z")),2)
                                 the_height += starting_z
                                 break
@@ -1132,11 +1134,10 @@ class PauseAtHeight(Script):
                         if ";LAYER:0" in line:
                             the_height += starting_z
                             break
-                        
-        Logger.log("i", f"  The Height = {the_height}  starting Z  = {starting_z} \n")
-        the_data
+
         for index, layer in enumerate(data):
             # Don't bother with the opening paragraph or the startup gcode
+            the_index = 0
             if index < 2:
                 continue
             lines = layer.splitlines()
