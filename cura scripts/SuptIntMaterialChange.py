@@ -1,5 +1,5 @@
 """
-        By GregValiant (Greg Foresi) November 2023
+By GregValiant (Greg Foresi) November 2023
     This script allows the users of single extruder printers to print Support-Interface with a second material.  It adds filament change pauses (to the selected layers) before and after any 'Support-Interface' sections within the layer.  Be advised that there can be a lot of filament changing going on as there are two pauses for each Interface on each affected layer.  Check your gcode to insure it is correct.  Searching the gcode for 'custom' will find the pauses.
     This script works really well with large flat interfaces.  Because horizontal holes have limited contact with the support on any individual layer there can be a lot of pauses and the value of this script falls off as the annoyance factor goes up.
     I tried printing a TPU model with both PLA as the interface and PETG as the interface.  TPU seems to stick well to both of them so the testing failed.
@@ -13,9 +13,10 @@
         > It was apparent that too high of a temperature during unload could cause filament to break off in the hot end.  The 'Unload Temperature' for the model material and the interface material have been added.  Those temperatures should be near the 'Cold Pull' temperature of each material.
         > My normal setup is for the Interface 100% density and 0 air gap.  That is dependent on how many interfaces occur in the model because the density and air gap will be the same for all of them when can make it hard to remove the supports from areas where the interface is still Model Material.
         > 75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My bowden printer works will with 440mm of unload and 370mm of reload.  That would be way too much for a direct drive hot end.  Yours will vary according to the length of the filament path from the extruder to the hot end.  You can set the unload and reload amounts to '0' to disable the features.
+        > I found that increasing the flow rate for the interface material to 110% helped when removing the thin layer of interface material.  It always comes off well, but when it's thicker it tends to come off in one piece rather than having to unravel it.
     Let me know if you find any problems, bugs, or have suggestions.  You can post them on the Git page under "Issues" or "Discussions".
+    
     GregValiant
--------------------------------------------------------------------------------------
 """
 
 from ..Script import Script
