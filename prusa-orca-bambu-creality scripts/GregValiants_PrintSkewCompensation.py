@@ -70,7 +70,7 @@ def main(lines):
     # Get the name of the active printer and use it to create the name of the log file.
     active_printer = os.environ["SLIC3R_PRINTER_MODEL"]
     script_path = os.path.dirname(__file__)
-    log_file_name = script_path + str("\\") + active_printer + ".log"
+    log_file_name = script_path + str("\\") + active_printer + ".skew.log"
 
     if how_to == "from_existing" or how_to == "edit_settings":
         try:
