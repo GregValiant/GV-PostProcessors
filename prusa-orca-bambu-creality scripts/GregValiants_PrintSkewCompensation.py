@@ -54,24 +54,25 @@ def main(lines):
     how_to = ""
     how_to_str = ""
     while how_to_str == "":
-        how_to_str = input("\n 'Print Skew Compensation'\n 1) Use existing measurements (from a log file for the Active Printer).\n 2) Enter measurements and calculate new Skew Factors\n <enter>\n")
+        how_to_str = input("\n 'Print Skew Compensation'\n 1) Use existing measurements (from a log file for the Active Printer).\n 2) Use the measurements from the log file but change the Compensation Method (Slicer, Marln, Klipper)\n 3) Enter measurements and calculate new Skew Factors\n<enter>\n")
         match how_to_str:
             case "1":
                 how_to = "from_existing"
             case "2":
+                how_to = "edit_settings"
+            case "3":
                 how_to = "create_new"
             case _:
-                print("Invalid response.  Must be 1 or 2.")
+                print("Invalid response.  Must be 1, 2, or 3.")
                 how_to = ""
                 how_to_str = ""
-                continue
 
     # Get the name of the active printer and use it to create the name of the log file.
     active_printer = os.environ["SLIC3R_PRINTER_MODEL"]
     script_path = os.path.dirname(__file__)
     log_file_name = script_path + str("\\") + active_printer + ".log"
 
-    if how_to == "from_existing":
+    if how_to == "from_existing" or how_to == "edit_settings":
         try:
             read_file = open(log_file_name, "r")
             the_log = read_file.readlines()
@@ -95,6 +96,22 @@ def main(lines):
         xz_skew_factor = float(the_log[12].split(":")[1].strip())
         yz_skew_factor = float(the_log[13].split(":")[1].strip())
         add_settings_to_gcode = bool(the_log[14].split(":")[1].strip())
+        if how_to == "edit_settings":
+            compensation_method_str = ""
+            while compensation_method_str == "":
+                compensation_method_str = input("\n 'Compensation Method'\n    NOTE: Marlin and Klipper methods must be enabled in the printer firmware.\n\n 1) Slicer Compensation (Post-Process the Gode)\n 2) Marlin (add M852 line)\n 3) Klipper (add SET_SKEW line)\n<enter>\n")
+                match compensation_method_str:
+                    case "1":
+                        compensation_method = "method_slicer"
+                    case "2":
+                        compensation_method = "method_marlin"
+                    case "3":
+                        compensation_method = "method_klipper"
+                    case _:
+                        print("Invalid response.  Must be 1, 2, or 3.")
+                        compensation_method = ""
+                        compensation_method_str = ""
+            
     elif how_to == "create_new":
         script_settings_list = get_post_settings(lines)
         printer_name = active_printer
@@ -109,7 +126,7 @@ def main(lines):
         yz_bd_dist = script_settings_list[8]
         yz_ad_dist = script_settings_list[9]
         add_settings_to_gcode = script_settings_list[10]
-
+    
         # Skew Factors
         xy_skew_factor = calculate_skew_factor(xy_ac_dist, xy_bd_dist, xy_ad_dist)
         xz_skew_factor = calculate_skew_factor(xz_ac_dist, xz_bd_dist, xz_ad_dist)
