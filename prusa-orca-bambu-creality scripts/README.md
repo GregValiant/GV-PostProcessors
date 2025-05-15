@@ -161,4 +161,22 @@ Redo Layer Flow Rate........ Flow % for the 'redo layer'
 
 Some of the commands are options, but there can be a lot of questions to answer.  There is a checklist before continuing and that allows you to go back and make changes to your settings, or to simply exit.  
 
+**Print Skew Calibration**  
+The script will correct hardware skew in prints.  
+Start out by printing the 3 skew calibration models.  
+Carefully measure the models across the diagonals (A to C and B to D) and then the width of the models (A to D).  Those numbers will get entered into the script.
+The numbers will be saved to a log file that is based on the name of the active printer.  
+Settings:  
+	StartUp  
+	1) Use existing skew factors from a log file and use those numbers to adjust the skew.  
+	2) Bring up the individual settings and start from scratch.  
+	
+When using the second option (start from scratch) you can elect to:  
+~ Slicer COmpensation will post-process the gcode to counter the skew.  
+~ Marlin M852 will add a line to the gcode.  
+~ Klipper SET_SKEW will add a line to the gode.  
+
+
+
+
 
