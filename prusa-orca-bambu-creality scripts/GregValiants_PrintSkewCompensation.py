@@ -2,12 +2,12 @@
 '''
 Copyright (c) 2025 GregValiant (Greg Foresi)
     Suitable to Prusa, Orca, Bambu, Creality slicers
-    
+
     NOTES:
     To 'initialize' the Skew Compensation you must print calibration models for each plane (XY, XZ, YZ).  They must be printed with no skew compensation. (The models can be printed together or individually but you will need all three.)
     Measure the models and choose option 2 'Enter Measurements' to enter the measurements into this script.  The measurements will be saved in a log file that is based on the printer name (EX: ENDER3.log) and will be in the same folder as this file.
-    Print a model and check for skew.
-    The models are available at:
+    Once you have the meaurements in then you may print a model and check it for skew.
+    The Skew Calibration Models are available at:
     https://github.com/GregValiant/GV-PostProcessors/tree/StartPoint/cura%20scripts/Skew%20Calibration%20Models
 '''
 
@@ -21,6 +21,16 @@ sourceFile = sys.argv[1]
 final_file = open(sourceFile, "r")
 lines = final_file.readlines()
 final_file.close()
+
+# Check if 'Add Layer Numbers' ran first.
+layer_numbers_added = False
+for line in lines:
+    if "[Add Layer Numbers]" in line:
+        layer_numbers_added = True
+        break
+if not layer_numbers_added:
+    input("'Print Skew Compensation' requires that 'Add Layer Numbers' runs before it.  The script will exit.")
+    exit(0)
 
 # Whether to run the script or exit without without making changes.
 response = "r"
@@ -55,12 +65,12 @@ def main(lines):
                 how_to = ""
                 how_to_str = ""
                 continue
-    
+
     # Get the name of the active printer and use it to create the name of the log file.
     active_printer = os.environ["SLIC3R_PRINTER_MODEL"]
     script_path = os.path.dirname(__file__)
-    log_file_name = script_path + str("\\") + active_printer + ".log"    
-    
+    log_file_name = script_path + str("\\") + active_printer + ".log"
+
     if how_to == "from_existing":
         try:
             read_file = open(log_file_name, "r")
@@ -69,7 +79,7 @@ def main(lines):
         except:
             input("Unable to find the log file " + str(log_file_name) + ".\n The script will exit without making changes.\n <enter>")
             exit(0)
-            
+
         printer_name = the_log[0].split(":")[1].strip()
         compensation_method = the_log[1].split(":")[1].strip()
         xy_ac_dist = float(the_log[2].split(":")[1].strip())
@@ -84,7 +94,7 @@ def main(lines):
         xy_skew_factor = float(the_log[11].split(":")[1].strip())
         xz_skew_factor = float(the_log[12].split(":")[1].strip())
         yz_skew_factor = float(the_log[13].split(":")[1].strip())
-        add_settings_to_gcode = bool(the_log[14].split(":")[1].strip())   
+        add_settings_to_gcode = bool(the_log[14].split(":")[1].strip())
     elif how_to == "create_new":
         script_settings_list = get_post_settings(lines)
         printer_name = active_printer
@@ -98,8 +108,8 @@ def main(lines):
         yz_ac_dist = script_settings_list[7]
         yz_bd_dist = script_settings_list[8]
         yz_ad_dist = script_settings_list[9]
-        add_settings_to_gcode = script_settings_list[10]        
-        
+        add_settings_to_gcode = script_settings_list[10]
+
         # Skew Factors
         xy_skew_factor = calculate_skew_factor(xy_ac_dist, xy_bd_dist, xy_ad_dist)
         xz_skew_factor = calculate_skew_factor(xz_ac_dist, xz_bd_dist, xz_ad_dist)
@@ -130,7 +140,7 @@ def main(lines):
         setting_string += f";         YZ skew factor:    {round(yz_skew_factor,8)}\n"
         lines.insert(len(lines) - 1, setting_string)
 
-    # Write the log file.    
+    # Write the log file.
     write_settings_to_log(log_file_name,
                    active_printer,
                    compensation_method,
@@ -146,14 +156,14 @@ def main(lines):
                    xy_skew_factor,
                    xz_skew_factor,
                    yz_skew_factor,
-                   add_settings_to_gcode)        
-    
+                   add_settings_to_gcode)
+
     # Write the altered gode for the slicer
     dest_file = open(sourceFile, "w+")
     for line in lines:
         dest_file.write(line)
     dest_file.close()
-    
+
 def get_post_settings(lines) -> str:
     carry_on = False
     # Get the skew measurements from the user
@@ -184,7 +194,7 @@ def get_post_settings(lines) -> str:
                 xy_ac_dist = float(xy_ac_dist_str)
             except:
                 xy_ac_dist = 0.0
-                
+
         xy_bd_dist = 0.0
         while xy_bd_dist == 0.0:
             xy_bd_dist_str = input("\n 'The XY plane B to D diagonal distance'\nEnter the meaurement from the non-compensated 'XY Calibration Model'.\n (The default for a 100mm calibration model is 141.42.)\n")
@@ -195,7 +205,7 @@ def get_post_settings(lines) -> str:
                 xy_bd_dist = float(xy_bd_dist_str)
             except:
                 xy_bd_dist = 0.0
-                
+
         xy_ad_dist = 0.0
         while xy_ad_dist == 0.0:
             xy_ad_dist_str = input("\n 'The XY plane A to D width measurement'\nEnter the meaurement from the non-compensated 'XY Calibration Model'.\n (The default for a 100mm calibration model is 100.00.)\n")
@@ -217,7 +227,7 @@ def get_post_settings(lines) -> str:
                 xz_ac_dist = float(xz_ac_dist_str)
             except:
                 xz_ac_dist = 0.0
-                
+
         xz_bd_dist = 0.0
         while xz_bd_dist == 0.0:
             xz_bd_dist_str = input("\n 'The XZ plane B to D diagonal distance'\nEnter the meaurement from the non-compensated 'XZ Calibration Model'.\n (The default for a 100mm calibration model is 141.42.)\n")
@@ -228,7 +238,7 @@ def get_post_settings(lines) -> str:
                 xz_bd_dist = float(xz_bd_dist_str)
             except:
                 xz_bd_dist = 0.0
-                
+
         xz_ad_dist = 0.0
         while xz_ad_dist == 0.0:
             xz_ad_dist_str = input("\n 'The XZ plane A to D width measurement'\nEnter the meaurement from the non-compensated 'XZ Calibration Model'.\n (The default for a 100mm calibration model is 100.00.)\n")
@@ -250,7 +260,7 @@ def get_post_settings(lines) -> str:
                 yz_ac_dist = float(yz_ac_dist_str)
             except:
                 yz_ac_dist = 0.0
-                
+
         yz_bd_dist = 0.0
         while yz_bd_dist == 0.0:
             yz_bd_dist_str = input("\n 'The YZ plane B to D diagonal distance'\nEnter the meaurement from the non-compensated 'YZ Calibration Model'.\n (The default for a 100mm calibration model is 141.42.)\n")
@@ -261,7 +271,7 @@ def get_post_settings(lines) -> str:
                 yz_bd_dist = float(yz_bd_dist_str)
             except:
                 yz_bd_dist = 0.0
-                
+
         yz_ad_dist = 0.0
         while yz_ad_dist == 0.0:
             yz_ad_dist_str = input("\n 'The YZ plane A to D width measurement'\nEnter the meaurement from the non-compensated 'YZ Calibration Model'.\n (The default for a 100mm calibration model is 100.00.)\n")
@@ -272,7 +282,7 @@ def get_post_settings(lines) -> str:
                 yz_ad_dist = float(yz_ad_dist_str)
             except:
                 yz_ad_dist = 0.0
-        
+
         add_settings_str = None
         while add_settings_str == None:
             add_settings_str = input("\n 'Add the settings to the Gcode'\n You can add these settings to the end of the gcode so there is a record.\nEnter <y> for Yes or <n> for No\n")
@@ -284,7 +294,7 @@ def get_post_settings(lines) -> str:
                 add_settings_to_gcode = True
             else:
                 add_settings_to_gcode = False
-                
+
         # Review the user settings
         input_str = "\nReview your Skew measurements and settings:\n\n"
         input_str += f"Compensation Method....... {compensation_method}\n"
