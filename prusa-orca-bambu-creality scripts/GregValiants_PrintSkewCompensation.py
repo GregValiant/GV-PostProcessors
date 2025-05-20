@@ -15,6 +15,7 @@ import sys
 import os
 import math
 import os.path
+import re
 
 # Get the file information from the slicer
 sourceFile = sys.argv[1]
@@ -54,7 +55,7 @@ def main(lines):
     how_to = ""
     how_to_str = ""
     while how_to_str == "":
-        how_to_str = input("\n 'Print Skew Compensation'\n 1) Use existing measurements (from a log file for the Active Printer).\n 2) Use the measurements from the log file but change the Compensation Method (Slicer, Marln, Klipper)\n 3) Enter measurements and calculate new Skew Factors\n<enter>\n")
+        how_to_str = input("\n 'Print Skew Compensation'\n 1) Use existing measurements (from the 'skew.log' file for the Active Printer).\n 2) Use the measurements from the log file but change the Compensation Method (Slicer, Marln, Klipper)\n 3) Enter measurements and calculate new Skew Factors\n<enter>\n")
         match how_to_str:
             case "1":
                 how_to = "from_existing"
@@ -143,18 +144,18 @@ def main(lines):
     # If requested, add the settings to the end of the gcode file.
     if add_settings_to_gcode:
         setting_string = ";  Print Skew Compensation Settings:\n"
-        setting_string += f";      xy_ac_measurement:    {xy_ac_dist}\n"
-        setting_string += f";      xy_bd_measurement:    {xy_bd_dist}\n"
-        setting_string += f";      xy_ad_measurement:    {xy_ad_dist}\n"
-        setting_string += f";         XY skew factor:    {round(xy_skew_factor,8)}\n"
-        setting_string += f";      xz_ac_measurement:    {xz_ac_dist}\n"
-        setting_string += f";      xz_bd_measurement:    {xz_bd_dist}\n"
-        setting_string += f";      xz_ad_measurement:    {xz_ad_dist}\n"
-        setting_string += f";         XZ skew factor:    {round(xz_skew_factor,8)}\n"
-        setting_string += f";      yz_ac_measurement:    {yz_ac_dist}\n"
-        setting_string += f";      yz_bd_measurement:    {yz_bd_dist}\n"
-        setting_string += f";      yz_ad_measurement:    {yz_ad_dist}\n"
-        setting_string += f";         YZ skew factor:    {round(yz_skew_factor,8)}\n"
+        setting_string += f";    xy_ac_measurement: {xy_ac_dist}\n"
+        setting_string += f";    xy_bd_measurement: {xy_bd_dist}\n"
+        setting_string += f";    xy_ad_measurement: {xy_ad_dist}\n"
+        setting_string += f";       XY skew factor: {round(xy_skew_factor,8)}\n"
+        setting_string += f";    xz_ac_measurement: {xz_ac_dist}\n"
+        setting_string += f";    xz_bd_measurement: {xz_bd_dist}\n"
+        setting_string += f";    xz_ad_measurement: {xz_ad_dist}\n"
+        setting_string += f";       XZ skew factor: {round(xz_skew_factor,8)}\n"
+        setting_string += f";    yz_ac_measurement: {yz_ac_dist}\n"
+        setting_string += f";    yz_bd_measurement: {yz_bd_dist}\n"
+        setting_string += f";    yz_ad_measurement: {yz_ad_dist}\n"
+        setting_string += f";       YZ skew factor: {round(yz_skew_factor,8)}\n"
         lines.insert(len(lines) - 1, setting_string)
 
     # Write the log file.
@@ -382,8 +383,8 @@ def slicer_compensation(gcode: str, xy_skew_factor: float, xz_skew_factor: float
                 z_input = cur_z
 
             # Calculate the skew compensation
-            x_out = round(x_input - y_input * xy_skew_factor, 3)
-            x_out = round(x_out - z_input * xz_skew_factor, 3)
+            x_pre = x_input - (y_input * xy_skew_factor)
+            x_out = round(x_pre - (z_input * xz_skew_factor), 3)
             y_out = round(y_input - z_input * yz_skew_factor, 3)
 
             # If the first layer hasn't started then jump out (after tracking the XYZ).
@@ -478,23 +479,26 @@ def write_settings_to_log(
     dest_file.close()
     return None
 
-# Helper function to pull the values from Gcode lines
-def getValue(line, param):
-    if ";" in line:
-        line = line.split(";")[0]
-        if not line.endswith(" "):
-            line += " "
-    if ":" in line:
-        param = param + ":"
+
+    
+def getValue(line: str, key: str, default = None):
+    """Convenience function that finds the value in a line of g-code.
+    When requesting key = x from line "G1 X100" the value 100 is returned.
+    """
+    if not key in line or (';' in line and line.find(key) > line.find(';')):
+        return default
+    sub_part = line[line.find(key) + 1:]
+    m = re.search('^-?[0-9]+\.?[0-9]*', sub_part)
+    if m is None:
+        return default
     try:
-        temp = line.split(param)[1][:-1]
-        if " " in temp:
-            the_value = temp.split(" ")[0]
-        else:
-            the_value = temp
-    except:
-        return None
-    return float(the_value)
+        return int(m.group(0))
+    except ValueError: #Not an integer.
+        try:
+            return float(m.group(0))
+        except ValueError: #Not a number at all.
+            return default
+    
 
 # Register 'main' so it will run
 if __name__ == "__main__":
