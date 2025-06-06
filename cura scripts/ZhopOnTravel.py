@@ -192,7 +192,7 @@ class ZHopOnTravel(Script):
         elif list_or_range == "range_of_layers":
             start_layer = self.getSettingValueByKey("start_layer")
             end_layer = self.getSettingValueByKey("end_layer")
-
+            end_index = None
             # Get the indexes for the start and end layers
             start_index = 2
             for num in range(1, len(data) - 1):
@@ -210,6 +210,8 @@ class ZHopOnTravel(Script):
                         end_layer = data[num].splitlines()[0].split(":")[1]
                         end_index = num
                         break
+            if end_index == None:
+                end_index = len(data)-1
             for num in range(start_index, end_index):
                 index_list.append(num)
 
@@ -397,7 +399,7 @@ class ZHopOnTravel(Script):
             reset_type += 4
         if extra_prime_dist > 0 and hop_retraction:
             reset_type += 8
-        up_lines = f"G0 F{speed_zhop} Z{round(self._cur_z + hop_height,2)} ; Hop Up"
+        up_lines = f"G1 F{speed_zhop} Z{round(self._cur_z + hop_height,2)} ; Hop Up"
         if reset_type in [1, 9] and hop_retraction: # add retract only when necessary
             up_lines = f"G1 F{retract_speed} E{round(self._cur_e - retraction_amount, 5)} ; Retract\n" + up_lines
             self._cur_e = round(self._cur_e - retraction_amount, 5)
@@ -444,7 +446,7 @@ class ZHopOnTravel(Script):
             reset_type += 4
         if extra_prime_dist > 0.0 and hop_retraction:
             reset_type += 8
-        dn_lines = f"G0 F{speed_zhop} Z{self._cur_z} ; Hop Down"
+        dn_lines = f"G1 F{speed_zhop} Z{self._cur_z} ; Hop Down"
         # Format the line and return if the retraction option is unchecked
         if "G11" in next_line or re.search("G1 F(\d+\.\d+|\d+) E(-?\d+\.\d+|-?\d+)", next_line) and reset_type == 0:
             front_txt = dn_lines.split(";")[0]
@@ -502,7 +504,7 @@ class ZHopOnTravel(Script):
         This function tracks the XYZE locations prior to the beginning of the first 'layer-of-interest'
 
         """
-        for num in range(2, start_index - 1):
+        for num in range(2, start_index):
             lines = data[num].split("\n")
             for line in lines:
                 # Get the XYZ values from movement commands
