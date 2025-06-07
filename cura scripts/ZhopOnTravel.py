@@ -250,12 +250,17 @@ class ZHopOnTravel(Script):
         # Make the insertions
         in_the_infill = False
         for num in range(start_index, len(data)-1):
+            # Leave if the num > highest index number to speed up the script.
+            if num > index_list[len(index_list)-1]:
+                break
+            # If the num is not an "index of interest" then just track the Z through the layer
             if num not in index_list:
                 lines = data[num].splitlines()
                 for line in lines:
                     if " Z" in line and self.getValue(line, "Z"):
                         self._cur_z = self.getValue(line, "Z")
                         continue
+            # If the num is in the index_list then make changes
             elif num in index_list:
                 lines = data[num].splitlines()
                 for index, line in enumerate(lines):
