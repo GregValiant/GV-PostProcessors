@@ -40,8 +40,8 @@ class RetractAndWipe(Script):
             "version": 2,
             "settings": {
                 "retract_and_wipe_enabled": {
-                    "label": "Enable Retract and Wipe",
-                    "description": "Enables the script so it will run.  This script works as a "retract continue" with an initial retraction as a percentage, then the rest of the retraction is spread across the following travel moves.The total retraction distance is limited to the Cura setting of "Retraction Distance".,
+                    "label": "Enable 'Retract and Wipe'",
+                    "description": "Enables the script so it will run.  The script will split retractions so that part of the retraction occurs during the follow-up travel moves.",
                     "type": "bool",
                     "default_value": true,
                     "enabled": true
@@ -66,7 +66,7 @@ class RetractAndWipe(Script):
                 },
                 "initial_retract_percentage": {
                     "label": "Initial Retract Percentage",
-                    "description": "All retraction lines will be altered to this percentage of the Cura Retract Distance.  The remainder will be retracted during the follow-up travel moves.",
+                    "description": "Each retraction line in the layer range will be altered to this % of the Cura 'Retraction Distance' with the remaining percentage being spread across the travel moves.",
                     "unit": "%  ",
                     "type": "int",
                     "default_value": 70,
@@ -79,7 +79,15 @@ class RetractAndWipe(Script):
 
     def execute(self, data):
         """
-        The script will parse the gcode and check the cumulative length of travel moves.  All 'Initial Retraction' will be reduced to 'Initial Retract %' with the remaining % spread across the follow-up travel moves.
+        The script will parse the gcode and check the cumulative length of travel moves.  All 'Initial Retraction' will be reduced to 'Initial Retract %' with the remaining % spread across the following travel moves.
+        params:
+            layer_list:  The list of 'layers-of-interest' for both 'Layer Range' and a 'Layer List'.
+            index_list:  A list of the indexes within the data[] for the layers-of-interest.
+            self._add_retract:  User setting of whether to insure a retraction at inserted Z-hops
+            self._is_retracted:  Whether a retraction has occurred prior to the added Z-hop
+            min_travel_dist:  The user setting for the minimum distance of travel for Z-hops to be inserted
+            start_index:  The index (in data[]) of the first layer-of-interest.  The Z-hops start at the beginning of this layer.
+            end_index:  The index (in data[]) of the last layer-of-interest.  The Z-hops end at the end of this layer.
         """
         
         # Exit if the script is not enabled
@@ -98,7 +106,8 @@ class RetractAndWipe(Script):
         script_index = active_script_keys.index(self.script_key)
         if script_index < len(active_script_keys) - 1:
             Message(
-                    text="Should be last in the Post-Processor list. It will run if it's not last, but any post-processors that follow it might have the dreaded 'Unexpected Consequences' due to changes made by this script.",
+                    text="'Retract and Wipe' Should be last in the Post-Processor list. It will run if it's not last, " \
+                    "but any following post-processors might have a unexpected effect because of the changes made by 'Retract and Wipe'.",
                     title=catalog.i18n("[Retract and Wipe]"),
                     message_type=Message.MessageType.WARNING).show()
 
@@ -229,6 +238,8 @@ class RetractAndWipe(Script):
                                 lines[index] = re.sub(f"E{self._cur_e}", f"E-{e_val_new} {retract_text}", lines[index])
                                 wdex = index + 1
                                 for wdist in dist_list:
+                                    while lines[wdex].startswith(";") or (lines[wdex].startswith("G1 F") and " Z" in lines[wdex]):
+                                        wdex += 1
                                     if not " E" in lines[wdex]:
                                         lines[wdex] = re.sub("G0 ", "G1 ", lines[wdex])
                                         partial_e = ((wdist  / total_travel_dist) * self.wipe_amt)
