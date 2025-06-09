@@ -1,0 +1,316 @@
+"""
+    By GregValiant (Greg Foresi) July of 2024
+    This script splits retractions into an "Initial Retraction" and "Additional Retraction(s)" that are spread across any following travel moves.
+    Retractions must be enabled in Cura.
+
+    Compatibility:
+        Multi-Extruder printers:  NOTE - The retraction settings for a multi-extruder printer are always taken from Extruder 1 (T0).
+        There is support for:
+            Absolute and Relative Extrusion
+            Adaptive Layers
+
+    Incompatibility:
+        "One at a Time" mode is not supported
+        "Firmware Retraction" is not supported
+
+    Please Note:
+        This is a slow running post processor as it must check the distances of all travel moves in the range of layers.
+"""
+
+from UM.Application import Application
+from ..Script import Script
+import re
+from UM.Message import Message
+import math
+from UM.Logger import Logger
+from UM.i18n import i18nCatalog
+
+catalog = i18nCatalog("cura")
+
+class RetractAndWipe(Script):
+    def __init__(self):
+        self.script_key = "RetractAndWipe"
+        super().__init__()
+        
+    def getSettingDataString(self):
+        return """{
+            "name": "Retract and Wipe",
+            "key": "RetractAndWipe",
+            "metadata": {},
+            "version": 2,
+            "settings": {
+                "retract_and_wipe_enabled": {
+                    "label": "Enable Retract and Wipe",
+                    "description": "Enables the script so it will run.  This script works as a "retract continue" with an initial retraction as a percentage, then the rest of the retraction is spread across the following travel moves.The total retraction distance is limited to the Cura setting of "Retraction Distance".,
+                    "type": "bool",
+                    "default_value": true,
+                    "enabled": true
+                },
+                "start_layer": {
+                    "label": "Start Layer",
+                    "description": "Layer number to start the changes at.  Use the Cura preview layer numbers.  The changes will start at the start of the layer.",
+                    "unit": "Lay# ",
+                    "type": "int",
+                    "default_value": 1,
+                    "minimum_value": "1",
+                    "enabled": "retract_and_wipe_enabled"
+                },
+                "end_layer": {
+                    "label": "End Layer",
+                    "description": "Enter '-1' to indicate the top layer, or enter a specific Layer number from the Cura preview.  The changes will end at the end of this layer.",
+                    "unit": "Lay# ",
+                    "type": "int",
+                    "default_value": -1,
+                    "minimum_value": "-1",
+                    "enabled": "retract_and_wipe_enabled"
+                },
+                "initial_retract_percentage": {
+                    "label": "Initial Retract Percentage",
+                    "description": "All retraction lines will be altered to this percentage of the Cura Retract Distance.  The remainder will be retracted during the follow-up travel moves.",
+                    "unit": "%  ",
+                    "type": "int",
+                    "default_value": 70,
+                    "minimum_value": 10,
+                    "maximum_value": 100,
+                    "enabled": "retract_and_wipe_enabled"
+                }
+            }
+        }"""
+
+    def execute(self, data):
+        """
+        The script will parse the gcode and check the cumulative length of travel moves.  All 'Initial Retraction' will be reduced to 'Initial Retract %' with the remaining % spread across the follow-up travel moves.
+        """
+        
+        # Exit if the script is not enabled
+        if not self.getSettingValueByKey("retract_and_wipe_enabled"):
+            data[0] += ";  [Retract and Wipe] Not enabled\n"
+            Logger.log("i", "[Retract and Wipe] Not enabled")
+            return data
+
+        # Exit if the gcode has already been post-processed
+        if ";POSTPROCESSED" in data[0]:
+            return data
+            
+        # Notify the user that this script should run last
+        post_processing_plugin = Application.getInstance().getPluginRegistry().getPluginObject("PostProcessingPlugin")
+        active_script_keys = post_processing_plugin.scriptList
+        script_index = active_script_keys.index(self.script_key)
+        if script_index < len(active_script_keys) - 1:
+            Message(
+                    text="Should be last in the Post-Processor list. It will run if it's not last, but any post-processors that follow it might have the dreaded 'Unexpected Consequences' due to changes made by this script.",
+                    title=catalog.i18n("[Retract and Wipe]"),
+                    message_type=Message.MessageType.WARNING).show()
+
+        # Define the global_stack to access the Cura settings
+        global_stack = Application.getInstance().getGlobalContainerStack()
+
+        # Exit if 'Firmware Retraction' is enabled because the amount of retraction is unknown.
+        if bool(global_stack.getProperty("machine_firmware_retract", "value")):
+            Message(
+                title = "[Retract and Wipe]",
+                text = "Is not compatible with 'Firmware Retraction'.").show()
+            data[0] += ";  [Retract and Wipe] did not run because it is not compatible with Firmware Retraction."
+            return data
+        # Define some variables
+        extruder = global_stack.extruderList
+        retraction_enabled = extruder[0].getProperty("retraction_enable", "value")
+        self._retraction_amt = extruder[0].getProperty("retraction_amount", "value")
+        initial_retract_adjustment = self.getSettingValueByKey("initial_retract_percentage") / 100
+        retract_text = f"; Retract {self.getSettingValueByKey("initial_retract_percentage")}%"
+        self.wipe_amt = self._retraction_amt * (1 - initial_retract_adjustment)
+        self.init_retract_amt = self._retraction_amt - self.wipe_amt
+        self._absolute_extrusion = not bool(global_stack.getProperty("relative_extrusion", "value"))
+        filament_dia = extruder[0].getProperty("material_diameter", "value")
+        extra_prime_vol = extruder[0].getProperty("retraction_extra_prime_amount", "value")
+        extra_prime_dist = extra_prime_vol / (math.pi * (filament_dia / 2)**2)
+        layer_list = []
+        index_list = []
+        end_index = None
+        # Get either the 'range_of_layers' or the 'list_of_layers' and convert them to 'layer_list' and then 'index_list'
+
+        start_layer = self.getSettingValueByKey("start_layer")
+        end_layer = self.getSettingValueByKey("end_layer")
+        
+        # Get the indexes for the start and end layers
+        start_index = 2
+        for num in range(1, len(data) - 1):
+            if ";LAYER:" + str(start_layer - 1) + "\n" in data[num]:
+                start_index = num
+                break
+        if end_layer == -1:
+            if retraction_enabled:
+                end_index = len(data) - 3
+            else:
+                end_index = len(data) - 2
+        elif end_layer != -1:
+            for num in range(1, len(data) - 1):
+                if ";LAYER:" + str(end_layer) + "\n" in data[num]:
+                    end_index = num
+                    break
+        if end_index == None:
+            end_index = len(data) -1
+        for num in range(start_index, end_index):
+            index_list.append(num)
+
+        # Initialize variables
+        self._cur_x = 0.0
+        self._cur_y = 0.0
+        self._prev_x = 0.0
+        self._prev_y = 0.0
+        self._cur_e = 0.0
+        self._prev_e = 0.0
+        self._cur_z = float(global_stack.getProperty("layer_height_0", "value"))
+        self._is_retracted = False
+        cmd_list = ["G0 ", "G1 ", "G2 ", "G3 "]
+        for qnum in range(1, start_index):
+            self._track_all_axes(data, cmd_list, qnum)
+
+        for ldex in range(start_index, end_index):
+            if ldex not in index_list:
+                self._track_all_axes(data, cmd_list, ldex)
+                continue
+            lines = data[ldex].split("\n")
+            for index, line in enumerate(lines):
+                if line[0:3] in cmd_list:
+                    if self.getValue(line, "X") is not None:
+                        self._prev_x = self._cur_x
+                        self._cur_x = self.getValue(line, "X")
+                    if self.getValue(line, "Y") is not None:
+                        self._prev_y = self._cur_y
+                        self._cur_y = self.getValue(line, "Y")
+                    if self.getValue(line, "E") is not None:
+                        self._cur_e = self.getValue(line, "E")
+                        if self._absolute_extrusion:
+                            if self._cur_e < self._prev_e:
+                                self._is_retracted = True
+                            elif self._cur_e >= self._prev_e:
+                                self._is_retracted = False
+                        elif not self._absolute_extrusion:
+                            if self._cur_e < 0:
+                                self._is_retracted = True
+                            elif self._cur_e > 0:
+                                self._is_retracted = False
+                    if line.startswith("G10"):
+                        self._is_retracted = True
+                    if line.startswith("G11"):
+                        self._is_retracted = False
+                    if line.startswith("G92 "):
+                        self._prev_e = cur_e
+                        self._cur_e = round(self.getValue(line, " E"), 5)
+                    if line.startswith("M82"):
+                        self._absolute_extrusion = True
+                    if line.startswith("M83"):
+                        self._absolute_extrusion = False
+                    if not "X" in line and not "Y" in line and re.search(r"G1 F(\d+|\d.+) E(-?\d+|\d.+)", line) is not None:
+                        distance_lists = self._total_travel_length(index, lines)
+                        dist_list = distance_lists[0]
+                        total_travel_dist = round(distance_lists[1],3)
+                        if total_travel_dist == 0:
+                            self._prev_e = self._cur_e
+                            dist_list = []
+                            continue
+                        else:
+                            if self._absolute_extrusion:
+                                e_val_new = round(self._cur_e + self.wipe_amt, 5)
+                                lines[index] = re.sub(f" E(-?\d+\d.+)", f" E{e_val_new} {retract_text}", line)
+                                wdex = index + 1
+                                for wdist in dist_list:
+                                    while lines[wdex].startswith(";") or (lines[wdex].startswith("G1 F") and " Z" in lines[wdex]):
+                                        wdex += 1
+                                    if not " E" in lines[wdex]:
+                                        lines[wdex] = re.sub("G0 ", "G1 ", lines[wdex])
+                                        partial_e = e_val_new - ((wdist  / total_travel_dist) * self.wipe_amt)
+                                        lines[wdex] += f" E{round(partial_e, 5)} ; Wipe"
+                                        e_val_new -= round(((wdist  / total_travel_dist) * self.wipe_amt), 5)
+                                        wdex += 1
+                            else:
+                                e_val_new = round(self.init_retract_amt,5)
+                                lines[index] = re.sub(f"E{self._cur_e}", f"E-{e_val_new} {retract_text}", lines[index])
+                                wdex = index + 1
+                                for wdist in dist_list:
+                                    if not " E" in lines[wdex]:
+                                        lines[wdex] = re.sub("G0 ", "G1 ", lines[wdex])
+                                        partial_e = ((wdist  / total_travel_dist) * self.wipe_amt)
+                                        lines[wdex] += f" E-{round(partial_e, 5)} ; Wipe"
+                                        wdex += 1
+            data[ldex] = "\n".join(lines)
+        return data
+
+    def _total_travel_length(self, l_index: int, lines: str) -> int:
+        """
+        Get the length of each travel move.
+        Get total distance of the moves.
+        For each travel move; get the percentage of the overall travel distance
+        Each travel move add an E value equal to the % of the overall travel distance.
+        """
+        g_num = l_index + 1
+        travel_total = 0.0
+        dist_list = []
+        while lines[g_num].startswith(";") or (lines[g_num].startswith("G1 F") and " Z" in lines[g_num]):
+            g_num += 1
+        # Total the lengths of each move and compare them to the Minimum Distance for a Z-hop to occur
+        while lines[g_num].startswith("G0 "):
+            if self.getValue(lines[g_num], "X"):
+                self._cur_x = self.getValue(lines[g_num], "X")
+            if self.getValue(lines[g_num], "Y"):
+                self._cur_y = self.getValue(lines[g_num], "Y")
+            move_length = self._get_distance()
+            dist_list.append(round(move_length,3))
+            travel_total += round(move_length,3)
+            self._prev_x = self._cur_x
+            self._prev_y = self._cur_y
+            g_num += 1
+            if g_num == len(lines):
+                break
+        return dist_list, travel_total
+
+    def _get_distance(self) -> float:
+        """
+        This function gets the distance from the previous location to the current location.
+        """
+        try:
+            dist = math.sqrt((self._prev_x - self._cur_x)**2 + (self._prev_y - self._cur_y)**2)
+        except ValueError:
+            return 0
+        return dist
+
+    def _track_all_axes(self, data: str, cmd_list: str, cont_index: int) -> str:
+        """
+        This function tracks the XYZE locations prior to the beginning of the first 'layer-of-interest'
+
+        """
+        lines = data[cont_index].split("\n")
+        for line in lines:
+            # Get the XYZ values from movement commands
+            if line[0:3] in cmd_list:
+                if " X" in line and self.getValue(line, "X"):
+                    self._prev_x = self._cur_x
+                    self._cur_x = self.getValue(line, "X")
+                if " Y" in line and self.getValue(line, "Y"):
+                    self._prev_y = self._cur_y
+                    self._cur_y = self.getValue(line, "Y")
+                if " Z" in line and self.getValue(line, "Z"):
+                    self._cur_z = self.getValue(line, "Z")
+
+            # Check whether retractions have occured and track the E location
+            if not self._absolute_extrusion:
+                if line.startswith("G1 ") and " X" in line and " Y" in line and " E" in line:
+                    self._is_retracted = False
+                    self._cur_e = self.getValue(line, "E")
+                elif line.startswith("G1 ") and " F" in line and " E" in line and not " X" in line and not " Y" in line:
+                    if self.getValue(line, "E"):
+                        self._cur_e = self.getValue(line, "E")
+                elif line.startswith("G10"):
+                    self._is_retracted = True
+                elif line.startswith("G11"):
+                    self._is_retracted = False
+            elif self._absolute_extrusion:
+                if self._cur_e < 0 or "G10" in line:
+                    self._is_retracted = True
+                    self._cur_e = 0
+                if line.startswith("G11"):
+                    self._is_retracted = False
+                    self._cur_e = 0
+        self._prev_e = self._cur_e
+        return None
