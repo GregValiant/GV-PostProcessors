@@ -1,5 +1,5 @@
 """
-    By GregValiant (Greg Foresi) July of 2024
+    By GregValiant (Greg Foresi) June of 2025
     This script splits retractions into an "Initial Retraction" and "Additional Retraction(s)" that are spread across any following travel moves.
     Retractions must be enabled in Cura.
 
