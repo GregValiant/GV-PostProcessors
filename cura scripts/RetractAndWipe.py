@@ -1,7 +1,7 @@
 """
     By GregValiant (Greg Foresi) June of 2025
-    This script splits retractions into an "Initial Retraction" and "Retraction during travel" so that the remainder of the retraction occurs in any following travel moves.
-    Retractions must be enabled in Cura and Cura's rules for when a retraction occurs remain in place.
+    This script splits retractions into an "Initial Retraction" and "Additional Retraction(s)" that are spread across any following travel moves.
+    Retractions must be enabled in Cura.
 
     Compatibility:
         NOTE - The retraction settings for a multi-extruder printer are always taken from Extruder 1 (T0).
