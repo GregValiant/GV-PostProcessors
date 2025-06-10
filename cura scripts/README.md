@@ -36,6 +36,8 @@ PurgeLinesAndUnload - found a couple of bugs (typos) and added support for machi
 
 4/1/2025  Support Interface Material Change:  Fixed a bug that allowed "firmware retraction" to always reset the extruder to 0 even when in Absolute Extrusion mode.
 
+6/7/2025  Added a new script "RetractAndWipe".  It is meant to emulate the way that PrusaSlicer/Bambu/Orca handle "initial retraction and additional retraction".  It is much like "retract continue" with with a limit on the total retract length, and z-hops doesn't bother it.
+
 -----------------------------------------------------------------------------
 Here is a list of the Cura post-processors and a brief description of what they do.  See the Prusa folder for the Prusa/Orca scripts.
 Most of these provide tweaks to a gcode.  Some are my own ideas and others are ideas from posters on various forums.  Then it becomes "I wonder if I can do that...".
@@ -129,6 +131,10 @@ Most of these provide tweaks to a gcode.  Some are my own ideas and others are i
 	Jerk settings are included for the extruder(s).
 	NOTE This has been superceded by the Cura Engine plugin for Max Volumetric Speed that actually changes the F values in the gcode file.
 
+**Retract and Wipe:**
+	This splits retractions into two pieces.  An "initial retraction" which will be user defined percentage of the "Retraction Distance".  The remainder of the retraction will be spread across the following travel moves.  Retractions must be enabled in Cura.  It is not compatible with Print Sequence in "One-at-a-Time" mode (layer issues) nor with "Firmware Retraction" (don't know the actual retraction distance).
+	This is compatible with relative extrusion.  You can leave "z-hop on retraction" disabled in Cura and use this script to hop for just a couple of layers when necessary.  
+	
 -----------------------------------------------------------------------------
 Plugin Extensions for Cura:
 
