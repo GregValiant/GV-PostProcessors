@@ -15,7 +15,7 @@ By GregValiant (Greg Foresi) November 2023
         > 75mm of purge seems to be a sufficient for PLA and PETG.  If you purge then there will be a beep and a 2 second wait before the print resumes.  That allows you to grab the string.  My bowden printer works well with 440mm of unload and 370mm of reload.  That would be way too much for a direct drive hot end.  Yours will vary according to the length of the filament path from the extruder to the hot end.  You can set the unload and reload amounts to '0' to disable the features.
         > I found that increasing the flow rate for the interface material to 110% helped when removing the thin layer of interface material.  It always comes off well, but when it's thicker it tends to come off in one piece rather than having to unravel it.
     Let me know if you find any problems, bugs, or have suggestions.  You can post them on the Git page under "Issues" or "Discussions".
-    
+
     GregValiant
 """
 
@@ -384,14 +384,16 @@ class SuptIntMaterialChange(Script):
         layer_height = self.global_stack.getProperty("layer_height", "value")
         layer_height_0 = self.global_stack.getProperty("layer_height_0", "value")
         z_lift_list = []
+        z_drop_list = []
         for num in range(0,len(layer_list)):
             the_layer = int(layer_list[num])
-            z_lift = layer_height_0 + (layer_height * the_layer)
-            if z_lift < 25:
-                z_lift = 25
+            z_drop = layer_height_0 + (layer_height * the_layer)
+            if z_drop < 25:
+                z_lift = z_drop + 25
             else:
-                z_lift = 3
-            z_lift_list.append(z_lift)
+                z_lift = z_drop + 3
+            z_lift_list.append(round(z_lift,2))
+            z_drop_list.append(round(z_drop,2))
 
         # Retrieve some settings from Cura and set up some variables
         self.firmware_retraction = bool(self.global_stack.getProperty("machine_firmware_retract", "value"))
@@ -564,10 +566,10 @@ class SuptIntMaterialChange(Script):
         purge_str_interface += "G4 S2; Wait for 2 seconds\n"
 
         # Put together the preliminary strings for the interface material and model material
-        interface_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Change to Interface Material" + "\n" + m84_line + "\nG91; Relative movement\nM83; Relative extrusion\n"
+        interface_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Change to Interface Material" + "\n" + m84_line + "M83; Relative extrusion\n"
         interface_replacement_pre_string_2 = f"G90; Absolute movement\n{park_str}{cold_pull_temp_model}{m300_str}{unload_str}{interface_str}{m118_interface_str}{pre_pause_interface_temp}{pause_cmd_interface}{gcode_after_pause}{interface_temp}"
-        model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "G91; Relative movement\n" + "M83; Relative extrusion\n"
-        model_replacement_pre_string_2 = "G90; Absolute movement" + "\n" + park_str + cold_pull_temp_interface + m300_str + unload_str + model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
+        model_replacement_pre_string_1 = ";TYPE:CUSTOM" + str('-' * 15) + "; Supt-Interface Material Change - Revert to Model Material" + "\n" + m84_line + "\n" + "M83; Relative extrusion\n"
+        model_replacement_pre_string_2 = park_str + cold_pull_temp_interface + m300_str + unload_str + model_str + m118_model_str + pre_pause_model_temp + pause_cmd_model + gcode_after_pause + model_temp
 
         # Make a list of the layers and whether or not 'Support-Interface' was found on the layer.  Use in a message at the end.
         error_chk_list = []
@@ -581,14 +583,14 @@ class SuptIntMaterialChange(Script):
             index_list = []
             dnum = data_list[lnum]
             z_raise = f"G0 F2400 Z{z_lift_list[lnum]}; Move up\n"
-            z_lower = f"G0 F2400 Z-{z_lift_list[lnum]}; Move back down\n"
+            z_lower = f"G0 F2400 Z{z_drop_list[lnum]}; Move back down\n"
             lines = data[dnum].split("\n")
             # get in index within each layer of the start and end of the support interface section
             for index, line in enumerate(lines):
                 if ";TYPE:SUPPORT-INTERFACE" in line:
                     index_list.append(index)
                     for check in range(index + 1, len(lines) - 1):
-                        if lines[check].startswith(";"):
+                        if lines[check].startswith(";") and not "NONMESH" in lines[check] and not ";TYPE:SUPPORT-INTERFACE" in lines[check]:
                             index_list.append(check)
                             break
 
@@ -614,7 +616,7 @@ class SuptIntMaterialChange(Script):
                     retract_str = retract_line
                     unretract_str = unretract_line
                 return_to_str = f"G0 F{self.speed_travel}{return_location}; Return to print\n"
-                return_final_str = model_replacement_pre_string_1 + retract_str + z_raise + model_replacement_pre_string_2 + load_str + purge_str_interface + return_to_str + "G91; Relative movement\n" + z_lower + unretract_str + return_e_reset_str + flow_rate_reset + feed_rate_reset + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
+                return_final_str = model_replacement_pre_string_1 + retract_str + z_raise + model_replacement_pre_string_2 + load_str + purge_str_interface + return_to_str + "G90; Absolute movement\n" + z_lower + unretract_str + return_e_reset_str + flow_rate_reset + feed_rate_reset + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
 
                 # Final changes to the 'Interface' change string
                 startout_location_list = []
@@ -633,7 +635,7 @@ class SuptIntMaterialChange(Script):
                     start_unretract_str = unretract_line
 
                 startout_to_str = "G0 F" + str(self.speed_travel) + startout_location + "; Return to print\n"
-                startout_final_str = interface_replacement_pre_string_1 + start_retract_str + z_raise + interface_replacement_pre_string_2 + load_str + purge_str_model + startout_to_str + "G91; Relative movement\n" + z_lower + start_unretract_str + start_e_reset_str + flow_rate_str + feed_rate_str + "G90; Absolute movement\n" + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
+                startout_final_str = interface_replacement_pre_string_1 + start_retract_str + z_raise + interface_replacement_pre_string_2 + load_str + purge_str_model + startout_to_str + "G90; Absolute movement\n" + z_lower + start_unretract_str + start_e_reset_str + flow_rate_str + feed_rate_str + ext_mode_str + ";" + str('-' * 26) + "; End of Material Change"
 
 
                 if pause_method == "klipper":
