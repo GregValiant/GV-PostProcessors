@@ -1542,9 +1542,17 @@ class LittleUtilities_v18(Script):
                     break
 
         end_gcode = data[len(data)-1].split("\n")
+        end_gcode.reverse()
+        
+        # Add the final Z move either after the "G90" line, or before the line with " ; Present" in it.
         for index, line in enumerate(end_gcode):
             if "G90" in line:
                 end_gcode[index] += f"\nG0 F{speed_z} Z{transit_hgt} ; {print_sequence} final Z move"
+                break
+            elif "Present" in line:
+                end_gcode[index] = f"G0 F{speed_z} Z{transit_hgt} ; {print_sequence} final Z move\n" + end_gcode[index]
+                break
+        end_gcode.reverse()
         data[len(data)-1] = "\n".join(end_gcode)
         return
 
