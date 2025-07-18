@@ -676,22 +676,12 @@ class SuptIntMaterialChange(Script):
         ret_y = 0
         e_loc = None
         for back_num in range(index, -1, -1):
-            if re.search("G1 F(\d*) E(-?\d.*)", lines[back_num]) is not None or "G10" in lines[back_num]:
+            if re.search("G1 F(\d*) E(\d.*)", lines[back_num]) is not None or re.search("G1 F(\d*) E-(\d.*)", lines[back_num]) is not None or "G10" in lines[back_num]:
                 is_retraction = True
-                if e_loc is None:
-                    if " E" in lines[back_num]:
-                        e_loc = self.getValue(lines[back_num], "E")
-                        break
-                    if "G10" in lines[back_num]:
-                        if self.relative_ext_mode:
-                            e_loc = 0
-                        else:
-                            go_back = back_num - 1
-                            while e_loc is None:
-                                if " E" in lines[go_back]:
-                                    e_loc = round(self.getValue(lines[go_back], "E") - self.retract_dist,5)
-                                    break
-                                go_back -= 1
+                if e_loc is None and " E" in lines[back_num]:
+                    e_loc = self.getValue(lines[back_num], "E")
+                if "G10" in lines[back_num]:
+                    e_loc = "0"
                 if ret_x is not None: break
             if lines[back_num].startswith("G0") and " X" in lines[back_num] and " Y" in lines[back_num] and ret_x is None:
                 ret_x = self.getValue(lines[back_num], "X")

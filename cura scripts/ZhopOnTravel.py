@@ -154,7 +154,7 @@ class ZHopOnTravel(Script):
         # Exit if the Print Sequence is One-at-a-Time
         if global_stack.getProperty("print_sequence", "value") == "one_at_a_time":
             Message(title = "[ZHop On Travel]", text = "Is not compatible with 'One at a Time' print sequence.").show()
-            data[0] += ";  [ZHop On Travel] did not run because One at a Time is enabled"
+            data[0] += ";  [ZHop On Travel] did not run because print sequence is 'One at a Time'.\n"
             return data
 
         # Define some variables
@@ -315,7 +315,7 @@ class ZHopOnTravel(Script):
                         if hop_start > 0:
                             # For any lines that are XYZ moves right before layer change
                             if " Z" in line:
-                                lines[index] = lines[index].replace("Z" + str(self._cur_z), "Z" + str(self._cur_z + hop_height))
+                                lines[index] = lines[index].replace("Z" + str(self._cur_z), "Z" + str(round(self._cur_z + hop_height,2)))
                             # If there is no 'F' in the next line then add one at the Travel Speed so the z-hop speed doesn't carry over
                             if not " F" in lines[index] and lines[index].startswith("G0"):
                                 lines[index] = lines[index].replace("G0", f"G0 F{speed_travel}")
