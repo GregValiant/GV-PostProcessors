@@ -741,6 +741,49 @@ class LittleUtilities_v18(Script):
                     "unit": "mm ",
                     "default_value": -0.05,
                     "enabled": "enable_little_utilities and init_walls_z_adjust_enable"
+                },
+                "enable_stripes":
+                {
+                    "label": "19) Dual Extruder Striping",
+                    "description": "For multi-extruder printers.  Add horizontal stripes by alternating the extruders for the 'Outer Walls' only.  You must open the gcode file to view the effect.  Slice the file with the model, the skirt/brim, and the support all set to the same extruder.",
+                    "type": "bool",
+                    "default_value": false,
+                    "enabled": "enable_little_utilities"
+                },
+                "stripes_wall_tool":
+                {
+                    "label": "    The Extruder number",
+                    "description": "The extruder to use for the 'Outer Wall Accent Stripes' (Enter '1' or '2').",
+                    "type": "int",
+                    "default_value": 1,
+                    "enabled": "enable_little_utilities and enable_stripes"
+                },
+                "stripes_start_layer":
+                {
+                    "label": "    Start Layer",
+                    "description": "What layer to start using the Outer Wall Extruder.",
+                    "type": "int",
+                    "default_value": 1,
+                    "minimum_value": 1,
+                    "enabled": "enable_little_utilities and enable_stripes"
+                },
+                "stripes_t0_layer_duration":
+                {
+                    "label": "    Wall Stripe Layers",
+                    "description": "The number of consecutive layers to use the 'Wall' extruder for the outer walls.",
+                    "type": "int",
+                    "default_value": 1,
+                    "minimum_value": 1,
+                    "enabled": "enable_little_utilities and enable_stripes"
+                },
+                "stripes_t1_layer_duration":
+                {
+                    "label": "    T1 Layers",
+                    "description": "The number of consecutive layers to use the 'Primary' extruder for the outer walls.",
+                    "type": "int",
+                    "default_value": 1,
+                    "minimum_value": 1,
+                    "enabled": "enable_little_utilities and enable_stripes"
                 }
             }
         }"""
@@ -751,7 +794,7 @@ class LittleUtilities_v18(Script):
         """
         self.global_stack = Application.getInstance().getGlobalContainerStack()
         if not self.getSettingValueByKey("enable_little_utilities"):
-            data[0] += ";    [Little Utilities] Not enabled\n"
+            data[0] += ";  [Little Utilities] Not enabled\n"
             return data
         # When retraction is enabled a final retraction goes in as a single line data item after the last layer.
         self.extruder = self.global_stack.extruderList
@@ -803,6 +846,8 @@ class LittleUtilities_v18(Script):
             data = self._wipe_before_z_hop(data)
         if self.getSettingValueByKey("ortho_supt_travel"):
             data = self._ortho_supt_travel(data)
+        if self.getSettingValueByKey("enable_stripes"):
+            data = self._yikes_stripes(data)
         data[1] = self.format_string(data[1])
         data[len(data) - 1] = self.format_string(data[len(data) - 1])
         return data
@@ -1422,7 +1467,7 @@ class LittleUtilities_v18(Script):
             data[layer_index] = "\n".join(lines)
         return
 
-    # Debug Practice File with no extrusions or heating 
+    # Debug Practice File with no extrusions or heating
     def _practice_file(self, data:str)->str:
         start_layer = int(self.getSettingValueByKey("debug_start_layer")) - 1
         end_layer = int(self.getSettingValueByKey("debug_end_layer"))
@@ -1495,7 +1540,12 @@ class LittleUtilities_v18(Script):
                 if transit_hgt > machine_height:
                     transit_height = machine_height
                     break
-        data[len(data)-1] = f"G0 F{speed_z} Z{transit_hgt} ; {print_sequence} final Z move\n" + data[len(data)-1]
+
+        end_gcode = data[len(data)-1].split("\n")
+        for index, line in enumerate(end_gcode):
+            if "G90" in line:
+                end_gcode[index] += f"\nG0 F{speed_z} Z{transit_hgt} ; {print_sequence} final Z move"
+        data[len(data)-1] = "\n".join(end_gcode)
         return
 
     # One-at-a-Time Adjust the print temperature on a per model basis----------
@@ -2022,6 +2072,7 @@ class LittleUtilities_v18(Script):
                 if line.startswith(";MESH:NONMESH"):
                     lines.insert(index+1,"M221 S100 ; Reset flow")
             data[layer_0 + 1] = "\n".join(lines)
+
         return data
 
     def _adjust_startup_gcode(self, data: str) -> str:
@@ -2094,7 +2145,7 @@ class LittleUtilities_v18(Script):
                             if " Z" in lines[new_num]:
                                 regular_z_index = new_num
                                 x_destination = None
-                                y_destination = None                            
+                                y_destination = None
                             new_num += 1
                         # once we have the go to location then the wipe line can be calculated
                         if x_destination and y_destination:
@@ -2124,4 +2175,56 @@ class LittleUtilities_v18(Script):
                             y_destination = None
                 z_prev = z_location
             data[index] = "\n".join(lines)
+        return data
+
+    def _yikes_stripes(self, data: str) -> str:
+        wall_tool = "T" + str(int(self.getSettingValueByKey("stripes_wall_tool")) - 1)
+        start_layer = int(self.getSettingValueByKey("stripes_start_layer"))
+        t0_layer_duration = int(self.getSettingValueByKey("stripes_t0_layer_duration"))
+        t1_layer_duration = int(self.getSettingValueByKey("stripes_t1_layer_duration"))
+
+        if wall_tool == "T0":
+            wall_tool_duration = t0_layer_duration
+            other_tool = "T1"
+            other_tool_duration = t1_layer_duration
+        elif wall_tool == "T1":
+            wall_tool_duration = t1_layer_duration
+            other_tool = "T0"
+            other_tool_duration = t0_layer_duration
+
+        ondex = []
+        on_count = 0
+        off_count = 0
+        num = 2
+        while num < len(data) - 1:
+            if on_count < wall_tool_duration:
+                ondex.append(num)
+                num += 1
+                on_count += 1
+                continue
+            if off_count < other_tool_duration:
+                off_count += 1
+                num += 1
+                continue
+            if on_count == wall_tool_duration and off_count == other_tool_duration:
+                on_count = 0
+                off_count = 0
+
+        for index, layer in enumerate(data):
+            if index < start_layer + 1:
+                continue
+            #if index % 2 == 0:
+            #    continue
+            if index in ondex:
+                lines = layer.split("\n")
+                for l_index, line in enumerate(lines):
+                    if ";TYPE:WALL-OUTER" in line:
+                        lines[l_index] += f"\n{wall_tool}"
+                        next_index = l_index + 1
+                        while not lines[next_index].startswith(";"):
+                            next_index += 1
+                            continue
+                        lines[next_index] += f"\n{other_tool}"
+                        continue
+                data[index] = "\n".join(lines)
         return data
