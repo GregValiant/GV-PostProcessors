@@ -1,6 +1,7 @@
 """
 Copyright (c) May of 2024 GregValiant (Greg Foresi)
     This script opens the relevant 'fddmprinter.def.json' files and goes through the settings.  The gcode is thrown out and the setting name and 'settable_per_extruder" are pulled out and added to the gcode file.  Two versions can be compared and the differences are noted.
+Updated to Cura 5.12
 """
 
 #  Some of these may no longer be required.  I'm to lazy to figure out which.
@@ -20,18 +21,28 @@ class DiscoverSettings(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Discover Settings 5.10.0",
+            "name": "Discover Settings 5.12.0",
             "key": "DiscoverSettings",
             "metadata": {},
             "version": 2,
             "settings":
             {
+                "enable_discover_settings":
+                {
+                    "label": "Enable Script",
+                    "description": "Enables this script so it runs.",
+                    "type": "bool",
+                    "default_value": true,
+                    "enabled": true
+                },
                 "cura_version":
                 {
                     "label": "Cura version number to check",
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
+                        "v5_120": "5.12.0",
+                        "v5_110": "5.11.0",
                         "v5_100": "5.10.0",
                         "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
@@ -46,7 +57,8 @@ class DiscoverSettings(Script):
                         "v4_13": "4.13.1",
                         "v4_20_26": "4.20.26"
                         },
-                    "default_value": "v5_6"
+                    "default_value": "v5_120",
+                    "enabled": "enable_discover_settings"
                 },
                 "compare_to_version":
                 {
@@ -55,6 +67,8 @@ class DiscoverSettings(Script):
                     "type": "enum",
                     "options": {
                         "no_compare": "No Compare",
+                        "v5_110": "5.11.0",
+                        "v5_100": "5.10.0",
                         "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
@@ -68,13 +82,22 @@ class DiscoverSettings(Script):
                         "v4_13": "4.13.1",
                         "v4_20_26": "4.20.26"
                         },
-                    "default_value": "no_compare"
+                    "default_value": "no_compare",
+                    "enabled": "enable_discover_settings"
                 }
             }
         }"""
 
     def execute(self, data): #Application.getInstance().getPrintInformation().
+        # Exit if the script is not enabled
+        script_is_enabled = self.getSettingValueByKey("enable_discover_settings")
+        if not script_is_enabled:
+            return data
         init_version = self.getSettingValueByKey("cura_version")
+        if init_version == "v5_120":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.12.0\share\cura\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_110":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.11.0\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_100":
             init_path = r"C:\Program Files\UltiMaker Cura 5.10.0\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_91":
@@ -105,6 +128,10 @@ class DiscoverSettings(Script):
         compare_to_version = self.getSettingValueByKey("compare_to_version")
         if compare_to_version == "no_compare":
             ct_init_path = ""
+        elif compare_to_version == "v5_110":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.11.0\share\cura\resources\definitions\fdmprinter.def.json"
+        elif compare_to_version == "v5_100":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.10.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_91":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_90":
@@ -369,17 +396,20 @@ class DiscoverSettings(Script):
             elif cura_version == compare_to_version:
                 ct_setting_list = cura_setting_list
                 data[0] += "\n\n\ncura_keywords_2 = " + str(cura_setting_list) + "\n\n\n"
-        add_setting_list = ['ADDED to ' + init_version]
-        del_setting_list = ['OBSOLETED from ' + compare_to_version]
-        for setting in init_setting_list:
-            if setting not in ct_setting_list:
-                add_setting_list.append(setting)
-        for setting in ct_setting_list:
-            if setting not in init_setting_list:
-                del_setting_list.append(setting)
-        add_setting_list[0] += " (" + str(len(add_setting_list) - 1) + ")"
-        del_setting_list[0] += " (" + str(len(del_setting_list) - 1) + ")"
-        data[0] = "\n".join(add_setting_list) + "\n\n" + "\n".join(del_setting_list) + "\n\n" + data[0]
+                
+        if compare_to_version != "no_compare":
+            add_setting_list = ['ADDED to ' + init_version]
+            del_setting_list = ['OBSOLETED from ' + compare_to_version]
+        
+            for setting in init_setting_list:
+                if setting not in ct_setting_list:
+                    add_setting_list.append(setting)
+            for setting in ct_setting_list:
+                if setting not in init_setting_list:
+                    del_setting_list.append(setting)
+            add_setting_list[0] += " (" + str(len(add_setting_list) - 1) + ")"
+            del_setting_list[0] += " (" + str(len(del_setting_list) - 1) + ")"
+            data[0] = "\n".join(add_setting_list) + "\n\n" + "\n".join(del_setting_list) + "\n\n" + data[0]
         return data
 
     def _get_settings(self, whole_file: str, start_at: str, end_at:str) -> str:
