@@ -2,9 +2,9 @@
     Copyright (c) 2024 GregValiant (Greg Foresi)
     This post processor adds most of the Cura settings (from fdmprinter) to the end of the Gcode file.  Which settings are added depends on things like the Extruder Count, Cura setup, etc.  For example if Generate Support is turned off then there won't be any support settings.
     The "Full Set" contains all the settings.  The "Simple Set" has been filtered.
-    3/8/2025 Updated to UM Cura 5.9.1
+    4/2/2026 Updated to UM Cura 5.12.0
 """
-
+import json
 from UM.Application import Application
 from cura.CuraApplication import CuraApplication
 import UM.Util
@@ -15,13 +15,14 @@ from UM.Qt.Duration import DurationFormat
 import configparser
 from UM.Preferences import Preferences
 from UM.Message import Message
+from datetime import timedelta
 
 class AddCuraSettings(Script):
     """Add the Cura settings as a post-script to the g-code."""
 
     def getSettingDataString(self):
         return """{
-            "name": "Add Cura Settings 5.10.0",
+            "name": "Add Cura Settings 5.12.0",
             "key": "AddCuraSettings",
             "metadata": {},
             "version": 2,
@@ -271,6 +272,7 @@ class AddCuraSettings(Script):
                             model_list.append(model_name)
             setting_data += ";Model List: " + str(model_list) + "\n"
             setting_data += ";Print Time: " + str(Application.getInstance().getPrintInformation().currentPrintTime.getDisplayString(DurationFormat.Format.ISO8601)) + "\n"
+            setting_data += ";Est Time Fudge Factor: " + str(global_stack.getProperty("machine_time_estimation_factor","value")) + "%\n"
             setting_data += ";Slice Start Time: " + str(time.strftime("%H:%M:%S")) + " (24hr)\n"
             setting_data += ";Slice Date: " + str(time.strftime("%m-%d-%Y")) + " (mm-dd-yyyy)\n"
             setting_data += ";Slice Day: " + str(["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][int(time.strftime("%w"))]) + "\n"
@@ -286,7 +288,7 @@ class AddCuraSettings(Script):
                 setting_data += ";  Filament Name: " + str(extruder[num].material.getMetaDataEntry("name", "")) + "\n"
                 setting_data += ";  Filament Brand: " + str(extruder[num].material.getMetaDataEntry("brand", "")) + "\n"
                 setting_data += ";  Filament Amount: " + str(round(filament_amt[num],2)) + "m\n"
-                setting_data += ";  Filament Weight: " + str(round(filament_wt[num],2)) + "gm\n"
+                setting_data += ";  Filament Weight: " + str(round(filament_wt[num],2)) + "gr\n"
                 setting_data += ";  Filament Cost: " + currency_symbol + "{:.2f}".format(filament_cost[num]) + "\n"
             setting_data += ";Initial Extruder Number: T" + str(CuraApplication.getInstance().getExtruderManager().getInitialExtruderNr()) + "\n"
             setting_data += ";Keep Models Apart: " + str(Application.getInstance().getPreferences().getValue("physics/automatic_push_free")) + "\n"
@@ -441,7 +443,7 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Wall Transitioning Threshold Angle: " + str(global_stack.getProperty("wall_transition_angle", "value")) + "°\n"
             if complete_set: setting_data += ";Wall Transitioning Filter Distance: " + str(global_stack.getProperty("wall_transition_filter_distance", "value")) + " mm\n"
             if complete_set: setting_data += ";Wall Transitioning Filter Margin: " + str(global_stack.getProperty("wall_transition_filter_deviation", "value")) + " mm\n"
-            setting_data += ";Outer-Wall Inset: " + str(extruder[wall_0_extruder_nr].getProperty("wall_0_inset", "value")) + " mm\n"
+            setting_data += ";Outer-Wall Inset: " + str(round(extruder[wall_0_extruder_nr].getProperty("wall_0_inset", "value"),3)) + " mm\n"
             setting_data += ";Optimize Wall Printing Order: " + str(global_stack.getProperty("optimize_wall_printing_order", "value")) + "\n"
             setting_data += ";Wall Ordering: " + str(extruder[0].getProperty("inset_direction", "value")) + "\n"
             setting_data += ";Alternate Extra Wall: " + str(extruder[infill_extruder_nr].getProperty("alternate_extra_perimeter", "value")) + "\n"
@@ -549,12 +551,23 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Extra Infill Lines To Support Skins: " + str(extruder[infill_extruder_nr].getProperty("extra_infill_lines_to_support_skins", "value")) + "\n"
             setting_data += ";Infill As Support: " + str(extruder[infill_extruder_nr].getProperty("infill_support_enabled", "value")) + "\n"
             if bool(extruder[infill_extruder_nr].getProperty("infill_support_enabled", "value")):
+                setting_data += ";Infill Support Enabled: " + str(extruder[infill_extruder_nr].getProperty("infill_support_enabled", "value")) + "\n"
                 setting_data += ";Infill Support Angle: " + str(extruder[infill_extruder_nr].getProperty("infill_support_angle", "value")) + "°\n"
+                setting_data += ";Skin Support: " + str(extruder[infill_extruder_nr].getProperty("skin_support", "value")) + "\n"
+                setting_data += ";Skin Support Speed: " + str(extruder[infill_extruder_nr].getProperty("skin_support_speed", "value")) + "mm/sec\n"
+                setting_data += ";Skin Support Material Flow: " + str(extruder[infill_extruder_nr].getProperty("skin_support_material_flow", "value")) + "mm³/sec\n"
+                setting_data += ";Skin Support Density: " + str(extruder[infill_extruder_nr].getProperty("skin_support_density", "value")) + "%\n"
+                setting_data += ";Skin Support Fan Speed: " + str(extruder[infill_extruder_nr].getProperty("skin_support_fan_speed", "value")) + "%\n"
+                setting_data += ";Skin Support Interlace Lines: " + str(extruder[infill_extruder_nr].getProperty("skin_support_interlace_lines", "value")) + "\n"                
+                
             if str(extruder[infill_extruder_nr].getProperty("infill_pattern", "value")) == "lightning":
                 setting_data += ";Infill Lightning Support Angle: " + str(extruder[infill_extruder_nr].getProperty("lightning_infill_support_angle", "value")) + "°\n"
                 setting_data += ";Lightning Infill Overhang Angle: " + str(extruder[infill_extruder_nr].getProperty("lightning_infill_overhang_angle", "value")) + "°\n"
                 setting_data += ";Lightning Infill Prune Angle: " + str(extruder[infill_extruder_nr].getProperty("lightning_infill_prune_angle", "value")) + "°\n"
                 setting_data += ";Lightning Infill Straightening Angle: " + str(extruder[infill_extruder_nr].getProperty("lightning_infill_straightening_angle", "value")) + "°\n"
+            setting_data += ";Infill Move Forward Length: " + str(extruder[infill_extruder_nr].getProperty("infill_move_inwards_length", "value")) + "mm\n"
+            setting_data += ";Infill Start Move Inward Length: " + str(extruder[infill_extruder_nr].getProperty("infill_start_move_inwards_length", "value")) + "mm\n"
+            setting_data += ";Infill End Move Inward Length: " + str(extruder[infill_extruder_nr].getProperty("infill_end_move_inwards_length", "value")) + "mm\n"
 
         # Material Settings
         if bool(self.getSettingValueByKey("material_set")) or all_or_some == "all_settings":
@@ -565,7 +578,7 @@ class AddCuraSettings(Script):
             if complete_set: setting_data += ";Extrusion Cool Down Speed Modifier: " + str(global_stack.getProperty("material_extrusion_cool_down_speed", "value")) + " mm/sec\n"
             setting_data += ";Print Bed Temperature: " + str(global_stack.getProperty("material_bed_temperature", "value")) + "°\n"
             setting_data += ";Print Bed Temperature Initial Layer: " + str(global_stack.getProperty("material_bed_temperature_layer_0", "value")) + "°\n"
-            for num in range(0,machine_extruder_count):
+            for num in range(0,machine_extruder_count):                
                 setting_data += ";Extruder " + str(num + 1) + " (T" + str(num) + "):\n"
                 setting_data += ";  Print Temperature: " + str(extruder[num].getProperty("material_print_temperature", "value")) + "°\n"
                 setting_data += ";  Print Temperature Initial Layer: " + str(extruder[num].getProperty("material_print_temperature_layer_0", "value")) + "°\n"
@@ -600,6 +613,8 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Initial Layer Max Flow Acceleration: " + str(extruder[num].getProperty("layer_0_max_flow_acceleration", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";  Gradual flow discretisation step size: " + str(extruder[num].getProperty("gradual_flow_discretisation_step_size", "value")) + " sec\n"
                 if complete_set: setting_data += ";  Pressure Advance Factor: " + str(extruder[num].getProperty("material_pressure_advance_factor", "value")) + "\n"
+                if complete_set: setting_data += ";  Material Max Flowrate: " + str(extruder[num].getProperty("material_max_flowrate", "value")) + "\n"
+                
 
         # Speed Settings
         if bool(self.getSettingValueByKey("speed_set")) or all_or_some == "all_settings":
@@ -752,6 +767,11 @@ class AddCuraSettings(Script):
                 setting_data += ";  Travel Avoid Parts: " + str(extruder[num].getProperty("travel_avoid_other_parts", "value")) + "\n"
                 setting_data += ";  Travel Avoid Supports: " + str(extruder[num].getProperty("travel_avoid_supports", "value")) + "\n"
                 setting_data += ";  Travel Avoid Distance: " + str(extruder[num].getProperty("travel_avoid_distance", "value")) + " mm\n"
+                
+                setting_data += ";  Layer Start at Z-Seam: " + str(extruder[num].getProperty("layer_start_at_z_seam", "value")) + "\n"
+                
+                
+                
                 setting_data += ";  Z-Hops Enabled: " + str(extruder[num].getProperty("retraction_hop_enabled", "value")) + "\n"
                 if bool(extruder[num].getProperty("retraction_hop_enabled", "value")):
                     setting_data += ";  Z-Hop Only Over Printed Parts: " + str(extruder[num].getProperty("retraction_hop_only_when_collides", "value")) + "\n"
@@ -783,6 +803,8 @@ class AddCuraSettings(Script):
                     setting_data += ";  Small Layer Print Temperature: " + str(extruder[num].getProperty("cool_min_temperature", "value")) + "°\n"
                     if machine_extruder_count > 1:
                         setting_data += ";  Cooling during extruder switch: " + str(extruder[num].getProperty("cool_during_extruder_switch", "value")) + "\n"
+                setting_data += ";  Init Layers Build Volume Fan Speed: " + str(global_stack.getProperty("build_volume_fan_speed_0", "value")) + "%\n"
+                setting_data += ";  Init Layers Build Volume Fan Speed: " + str(global_stack.getProperty("build_volume_fan_speed", "value")) + "%\n"
 
         # Support Settings
         if bool(self.getSettingValueByKey("support_set")) or all_or_some == "all_settings":
@@ -958,6 +980,7 @@ class AddCuraSettings(Script):
                     if complete_set: setting_data += ";Raft Flow: " + str(global_stack.getProperty("raft_flow", "value")) + "%\n"
                     if complete_set: setting_data += ";Raft Base Flow: " + str(extruder[raft_base_extruder_nr].getProperty("raft_base_flow", "value")) + "%\n"
                     if complete_set: setting_data += ";Raft Interface Flow: " + str(extruder[raft_interface_extruder_nr].getProperty("raft_interface_flow", "value")) + "%\n"
+            if complete_set: setting_data += ";Scan the First Layer: " + str(global_stack.getProperty("machine_scan_first_layer", "value")) + "\n"
 
         # Dual Extrusion Settings
         if (bool(self.getSettingValueByKey("dualext_set")) or all_or_some == "all_settings") and machine_extruder_count > 1:
@@ -1110,6 +1133,7 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";  Bridge Skin Matl Flow: " + str(global_stack.getProperty("bridge_skin_material_flow", "value")) + " %\n"
                 if complete_set: setting_data += ";  Bridge Skin Density: " + str(global_stack.getProperty("bridge_skin_density", "value")) + " %\n"
                 if complete_set: setting_data += ";  Bridge Fan Speed: " + str(global_stack.getProperty("bridge_fan_speed", "value")) + " %\n"
+                if complete_set: setting_data += ";  Bridge Interlace Lines: " + str(global_stack.getProperty("bridge_interlace_lines", "value")) + " %\n"
                 if complete_set: setting_data += ";  Bridge Enable More Layers: " + str(global_stack.getProperty("bridge_enable_more_layers", "value")) + "\n"
                 if bool(global_stack.getProperty("bridge_enable_more_layers", "value")):
                     if complete_set: setting_data += ";    Bridge Skin Speed 2: " + str(global_stack.getProperty("bridge_skin_speed_2", "value")) + " mm/sec\n"
@@ -1149,6 +1173,10 @@ class AddCuraSettings(Script):
                 if complete_set: setting_data += ";Small Feature Speed: " + str(extruder[0].getProperty("small_feature_speed_factor", "value")) + " mm/sec\n"
                 if complete_set: setting_data += ";Small Feature Speed Initial Layer: " + str(extruder[0].getProperty("small_feature_speed_factor_0", "value")) + " mm/sec\n"
                 setting_data += ";Group Outer Walls: " + str(global_stack.getProperty("group_outer_walls", "value")) + "\n"
+                setting_data += ";Retract During Travel Move: " + str(global_stack.getProperty("retraction_during_travel_ratio", "value")) + "%\n"
+                setting_data += ";Keep Retracting During Travel: " + str(global_stack.getProperty("keep_retracting_during_travel", "value")) + "\n"
+                setting_data += ";Prime During Travel Move: " + str(global_stack.getProperty("prime_during_travel_ratio", "value")) + "%\n"
+                
                 if cura_version_int > 581:
                     setting_data += ";Scarf Seam Length: " + str(extruder[wall_0_extruder_nr].getProperty("scarf_joint_seam_length", "value")) + " mm\n"
                     if extruder[wall_0_extruder_nr].getProperty("scarf_joint_seam_length", "value") != 0:
@@ -1177,6 +1205,7 @@ class AddCuraSettings(Script):
         setting_data += ";\n;  <<< End of Cura Settings >>>\n;\n"
         setting_data = self._format_string(setting_data)
         data[len(data)-1] += setting_data
+        #time_adj = self._time_adjusted()
         return data
 
     # Format the setting_data string.  No reason it shouldn't look nice.
@@ -1193,3 +1222,17 @@ class AddCuraSettings(Script):
                 temp_lines[temp_index] = temp_line.replace(temp_line.split(":")[0], temp_line.split(":")[0] + str("." * (gap_len - len(temp_line.split(":")[0]))),1)
         any_gcode_str = "\n".join(temp_lines)
         return any_gcode_str
+        
+    def _time_adjusted(self):
+        cura_time = str(Application.getInstance().getPrintInformation().currentPrintTime.getDisplayString(DurationFormat.Format.ISO8601))
+        fudge_factor = int(Application.getInstance().getGlobalContainerStack().getProperty("machine_time_adjust_factor","value")) / 100
+        hms = []
+        hms = cura_time.split(':')
+        hms[0] = int(hms[0]) * 3600
+        hms[1] = int(hms[1]) * 60
+        hms[2] = int(hms[2])
+        print_time = sum(hms)
+        #print('Old Time: ' + cura_time)
+        new_time = str(timedelta(seconds = int(print_time * fudge_factor)))
+        Message(title = "Adjusted Print Time:", text = "Cura Estimate: " + cura_time + "\n" + "New Estimate: " + new_time).show()
+        return None
