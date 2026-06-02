@@ -22,7 +22,7 @@ class AddCuraSettings(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Add Cura Settings 5.12.0",
+            "name": "Add Cura Settings 5.13.0",
             "key": "AddCuraSettings",
             "metadata": {},
             "version": 2,
@@ -447,6 +447,7 @@ class AddCuraSettings(Script):
             setting_data += ";Optimize Wall Printing Order: " + str(global_stack.getProperty("optimize_wall_printing_order", "value")) + "\n"
             setting_data += ";Wall Ordering: " + str(extruder[0].getProperty("inset_direction", "value")) + "\n"
             setting_data += ";Alternate Extra Wall: " + str(extruder[infill_extruder_nr].getProperty("alternate_extra_perimeter", "value")) + "\n"
+            setting_data += ";Initial Layer Wall Ordering: " + str(extruder[infill_extruder_nr].getProperty("initial_layer_inset_direction", "value")) + "\n"
             setting_data += ";Minimum Wall Line Width: " + str(global_stack.getProperty("min_wall_line_width", "value")) + " mm\n"
             if complete_set: setting_data += ";Minimum Even Wall Line Width: " + str(global_stack.getProperty("min_even_wall_line_width", "value")) + " mm\n"
             if complete_set: setting_data += ";Minimum Odd Wall Line Width: " + str(global_stack.getProperty("min_odd_wall_line_width", "value")) + " mm\n"
@@ -538,7 +539,7 @@ class AddCuraSettings(Script):
             setting_data += ";Infill Line Directions: " + str(extruder[infill_extruder_nr].getProperty("infill_angles", "value")) + "°\n"
             setting_data += ";Infill X Offset: " + str(extruder[infill_extruder_nr].getProperty("infill_offset_x", "value")) + " mm\n"
             setting_data += ";Infill Y Offset: " + str(extruder[infill_extruder_nr].getProperty("infill_offset_y", "value")) + " mm\n"
-            setting_data += ";Randomize Infill Start: " + str(extruder[infill_extruder_nr].getProperty("infill_randomize_start_location", "value")) + "\n"
+            # OBS 5.12.0 setting_data += ";Randomize Infill Start: " + str(extruder[infill_extruder_nr].getProperty("infill_randomize_start_location", "value")) + "\n"
             setting_data += ";Infill Line Multiplier: " + str(extruder[infill_extruder_nr].getProperty("infill_multiplier", "value")) + "\n"
             setting_data += ";Infill Wall Line Count: " + str(extruder[infill_extruder_nr].getProperty("infill_wall_line_count", "value")) + "\n"
             setting_data += ";Infill Layer Thickness: " + str(extruder[infill_extruder_nr].getProperty("infill_sparse_thickness", "value")) + " mm\n"
@@ -568,6 +569,7 @@ class AddCuraSettings(Script):
             setting_data += ";Infill Move Forward Length: " + str(extruder[infill_extruder_nr].getProperty("infill_move_inwards_length", "value")) + "mm\n"
             setting_data += ";Infill Start Move Inward Length: " + str(extruder[infill_extruder_nr].getProperty("infill_start_move_inwards_length", "value")) + "mm\n"
             setting_data += ";Infill End Move Inward Length: " + str(extruder[infill_extruder_nr].getProperty("infill_end_move_inwards_length", "value")) + "mm\n"
+            setting_data += ";Infill Start/End Preference: " + str(extruder[infill_extruder_nr].getProperty("infill_start_end_preference", "value")) + "\n"
 
         # Material Settings
         if bool(self.getSettingValueByKey("material_set")) or all_or_some == "all_settings":
@@ -841,9 +843,14 @@ class AddCuraSettings(Script):
                 setting_data += ";Support Overhang Angle: " + str(extruder[support_extruder_nr].getProperty("support_angle", "value")) + "°\n"
                 setting_data += ";Support Pattern: " + str(extruder[support_infill_extruder_nr].getProperty("support_pattern", "value")) + "\n"
                 setting_data += ";Support Wall Count: " + str(extruder[support_extruder_nr].getProperty("support_wall_count", "value")) + "\n"
+                setting_data += "Support Infill Line Multiplier: " + str(extruder[support_extruder_nr].getProperty("support_infill_multiplier", "value")) + "\n"
                 if complete_set: setting_data += ";Support Interface Wall Line Count: " + str(extruder[support_interface_extruder_nr].getProperty("support_interface_wall_count", "value")) + "\n"
                 if complete_set: setting_data += ";Support Roof Wall Line Count: " + str(extruder[support_extruder_nr].getProperty("support_roof_wall_count", "value")) + "\n"
                 if complete_set: setting_data += ";Support Bottom Wall Line Count: " + str(extruder[support_extruder_nr].getProperty("support_bottom_wall_count", "value")) + "\n"
+                if complete_set: setting_data += ";Support Lightning Angle: " + str(extruder[support_extruder_nr].getProperty("support_lightning_angle", "value")) + "\n"
+                if complete_set: setting_data += ";Support Lightning Overhang Angle: " + str(extruder[support_extruder_nr].getProperty("support_lightning_overhang_angle", "value")) + "\n"
+                if complete_set: setting_data += ";Support Lightning Prune Angle: " + str(extruder[support_extruder_nr].getProperty("support_lightning_prune_angle", "value")) + "\n"
+                if complete_set: setting_data += ";Support Lightning Straightening Angle: " + str(extruder[support_extruder_nr].getProperty("support_lightning_straightening_angle", "value")) + "\n"
                 setting_data += ";Connect Support Lines: " + str(extruder[support_infill_extruder_nr].getProperty("zig_zaggify_support", "value")) + "\n"
                 setting_data += ";Connect Support ZigZags: " + str(extruder[support_infill_extruder_nr].getProperty("support_connect_zigzags", "value")) + "\n"
                 setting_data += ";Support Density: " + str(extruder[support_infill_extruder_nr].getProperty("support_infill_rate", "value")) + " %\n"
@@ -852,6 +859,8 @@ class AddCuraSettings(Script):
                 setting_data += ";Support Initial Infill Density Multiplier: " + str(extruder[support_extruder_nr].getProperty("support_infill_density_multiplier_initial_layer", "value")) + "\n"
                 setting_data += ";Support Brim Enabled: " + str(extruder[support_extruder_nr].getProperty("support_brim_enable", "value")) + "\n"
                 setting_data += ";Support Brim Width: " + str(extruder[support_extruder_nr].getProperty("support_brim_width", "value")) + " mm\n"
+                setting_data += ";Support Brim Line Count: " + str(extruder[support_extruder_nr].getProperty("support_brim_line_count", "value")) + " mm\n"
+                setting_data += ";Minimum hole area in brim support: " + str(round(extruder[support_extruder_nr].getProperty("support_brim_minimum_hole_area", "value"), 2)) + " mm\n"
                 if complete_set: setting_data += ";Support Z Distance: " + str(extruder[support_extruder_nr].getProperty("support_z_distance", "value")) + " mm\n"
                 setting_data += ";Support Top Distance: " + str(extruder[support_extruder_nr].getProperty("support_top_distance", "value")) + " mm\n"
                 setting_data += ";Support Bottom Distance: " + str(extruder[support_extruder_nr].getProperty("support_bottom_distance", "value")) + " mm\n"
@@ -1190,6 +1199,7 @@ class AddCuraSettings(Script):
                             setting_data += ";  Outer Wall End Speed Ratio: " + str(extruder[num].getProperty("wall_0_end_speed_ratio", "value")) + " %\n"
                             setting_data += ";  Outer Wall Deceleration: " + str(extruder[num].getProperty("wall_0_deceleration", "value")) + " mm/sec\u00b2\n"
                             setting_data += ";  Outer Wall Speed Split Distance: " + str(extruder[num].getProperty("wall_0_speed_split_distance", "value")) + " mm\n"
+                            setting_data += ";  Temperature Delta Top Surface: " + str(extruder[num].getProperty("material_delta_temperature_roofing", "value")) + " mm\n"
             except:
                 pass
 
