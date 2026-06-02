@@ -1,7 +1,8 @@
 """
 Copyright (c) May of 2024 GregValiant (Greg Foresi)
     This script opens the relevant 'fddmprinter.def.json' files and goes through the settings.  The gcode is thrown out and the setting name and 'settable_per_extruder" are pulled out and added to the gcode file.  Two versions can be compared and the differences are noted.
-Updated to Cura 5.12
+Updated to Cura 5.12.1
+Updated to Cura 5.13.0
 """
 
 #  Some of these may no longer be required.  I'm to lazy to figure out which.
@@ -14,15 +15,16 @@ from UM.Qt.Duration import DurationFormat
 import configparser
 from UM.Preferences import Preferences
 from UM.Message import Message
+from UM.Logger import Logger
 from UM.Platform import Platform
 import os
 
-class DiscoverSettings(Script):
+class DiscoverSettings5130(Script):
 
     def getSettingDataString(self):
         return """{
-            "name": "Discover Settings 5.12.0",
-            "key": "DiscoverSettings",
+            "name": "Discover Settings 5.13.0",
+            "key": "DiscoverSettings5130",
             "metadata": {},
             "version": 2,
             "settings":
@@ -41,23 +43,18 @@ class DiscoverSettings(Script):
                     "description": "Select the version number.  The script should find fdmprinter.def.json and check all the settings in the file.",
                     "type": "enum",
                     "options": {
+                        "v5_130": "5.13.0",
+                        "v5_121": "5.12.1",
                         "v5_120": "5.12.0",
                         "v5_110": "5.11.0",
                         "v5_100": "5.10.0",
-                        "v5_91": "5.9.1",
-                        "v5_90": "5.9.0",
-                        "v5_81": "5.8.1",
-                        "v5_72": "5.7.2",
                         "v5_71": "5.7.1",
                         "v5_70": "5.7.0",
-                        "v5_6": "5.6.0",
-                        "v5_5": "5.5.0",
-                        "v5_4": "5.4.0",
-                        "v5_2": "5.2.2",
+                        "v5_60": "5.6.0",
                         "v4_13": "4.13.1",
                         "v4_20_26": "4.20.26"
                         },
-                    "default_value": "v5_120",
+                    "default_value": "v5_130",
                     "enabled": "enable_discover_settings"
                 },
                 "compare_to_version":
@@ -67,15 +64,16 @@ class DiscoverSettings(Script):
                     "type": "enum",
                     "options": {
                         "no_compare": "No Compare",
+                        "v5_121": "5.12.1",
+                        "v5_120": "5.12.0",
                         "v5_110": "5.11.0",
                         "v5_100": "5.10.0",
-                        "v5_91": "5.9.1",
                         "v5_90": "5.9.0",
                         "v5_81": "5.8.1",
                         "v5_72": "5.7.2",
                         "v5_71": "5.7.1",
                         "v5_70": "5.7.0",
-                        "v5_6": "5.6.0",
+                        "v5_60": "5.6.0",
                         "v5_5": "5.5.0",
                         "v5_4": "5.4.0",
                         "v5_2": "5.2.2",
@@ -94,32 +92,36 @@ class DiscoverSettings(Script):
         if not script_is_enabled:
             return data
         init_version = self.getSettingValueByKey("cura_version")
+        if init_version == "v5_130":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.13.0\share\cura\resources\definitions\fdmprinter.def.json"
+        if init_version == "v5_121":
+            init_path = r"C:\Program Files\UltiMaker Cura 5.12.1\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_120":
             init_path = r"C:\Program Files\UltiMaker Cura 5.12.0\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_110":
             init_path = r"C:\Program Files\UltiMaker Cura 5.11.0\share\cura\resources\definitions\fdmprinter.def.json"
         if init_version == "v5_100":
             init_path = r"C:\Program Files\UltiMaker Cura 5.10.0\share\cura\resources\definitions\fdmprinter.def.json"
-        if init_version == "v5_91":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_90":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_81":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_72":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_71":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.7.1\share\cura\resources\definitions\fdmprinter.def.json"
+        #if init_version == "v5_91":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_90":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_81":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_72":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_71":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.7.1\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v5_70":
             init_path = r"C:\Program Files\UltiMaker Cura 5.7.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_6":
+        elif init_version == "v5_60":
             init_path = r"C:\Program Files\UltiMaker Cura 5.6.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_5":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.5.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_4":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.4.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif init_version == "v5_2":
-            init_path = r"C:\Program Files\UltiMaker Cura 5.2.2\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_5":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.5.0\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_4":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.4.0\share\cura\resources\definitions\fdmprinter.def.json"
+        #elif init_version == "v5_2":
+            #init_path = r"C:\Program Files\UltiMaker Cura 5.2.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif init_version == "v4_13":
             init_path = r"C:\Program Files\Ultimaker Cura 4.13.1\resources\definitions\fdmprinter.def.json"
         elif init_version == "v4_20_26":
@@ -128,35 +130,26 @@ class DiscoverSettings(Script):
         compare_to_version = self.getSettingValueByKey("compare_to_version")
         if compare_to_version == "no_compare":
             ct_init_path = ""
+        elif compare_to_version == "v5_121":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.12.1\share\cura\resources\definitions\fdmprinter.def.json"    
+        elif compare_to_version == "v5_120":
+            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.12.0\share\cura\resources\definitions\fdmprinter.def.json"    
         elif compare_to_version == "v5_110":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.11.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_100":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.10.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_91":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.9.1\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_90":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.9.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_81":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.8.1\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_72":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.7.2\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_71":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.7.1\share\cura\resources\definitions\fdmprinter.def.json"
+        
         elif compare_to_version == "v5_70":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.7.0\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v5_6":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.6.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_5":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.5.0\share\cura\resources\definitions\fdmprinter.def.json"
-        elif compare_to_version == "v5_4":
-            ct_init_path = r"C:\Program Files\UltiMaker Cura 5.4.0\share\cura\resources\definitions\fdmprinter.def.json"
+            
         elif compare_to_version == "v5_2":
             ct_init_path = r"C:\Program Files\UltiMaker Cura 5.2.2\share\cura\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v4_13":
             ct_init_path = r"C:\Program Files\Ultimaker Cura 4.13.1\resources\definitions\fdmprinter.def.json"
         elif compare_to_version == "v4_20_26":
             ct_init_path = r"C:\Program Files\Ultimaker Cura 4.20.26\resources\definitions\fdmprinter.def.json"
-
         data[0] = "Cura Settings in version: " + str(init_version) + "\n"
         versions = [init_version]
         if compare_to_version != "no_compare":
@@ -415,6 +408,9 @@ class DiscoverSettings(Script):
     def _get_settings(self, whole_file: str, start_at: str, end_at:str) -> str:
         setting_list = []
         label_list = []
+        
+        Logger.log("d", f";;;;;;;;;;; STAT {start_at}   PATH {end_at}")
+        
         settings = whole_file.split(start_at)[1]
         commands = settings.split("\n")
         found_cmd = False
